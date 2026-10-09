@@ -220,6 +220,7 @@ DateTime parseIsoDay(String s) => day(int.parse(s.substring(0, 4)), int.parse(s.
 
 extension EntryToMovement on Entry {
   Movement toMovement() => Movement(
+        id: id,
         kind: kind,
         cents: amountCents,
         day: parseIsoDay(occurredOn),

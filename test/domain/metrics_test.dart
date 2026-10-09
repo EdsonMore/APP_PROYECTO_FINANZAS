@@ -286,4 +286,104 @@ void main() {
       expect(modeFor(IncomeProfile.none), Mode.survival);
     });
   });
+
+  group('spentInMonth / incomeInMonth', () {
+    test('solo el mes calendario de hoy, hasta hoy', () {
+      final m = [
+        exp(10, day(2026, 9, 30)), // septiembre: fuera
+        exp(20, day(2026, 10, 1)),
+        exp(30, today),
+        exp(99, today.add(const Duration(days: 1))), // futuro: fuera
+        inc(500, day(2026, 10, 2)),
+      ];
+      expect(spentInMonth(m, today: today), 5000);
+      expect(incomeInMonth(m, today: today), 50000);
+    });
+
+    test('sin datos → 0', () {
+      expect(spentInMonth(const [], today: today), 0);
+      expect(incomeInMonth(const [], today: today), 0);
+    });
+  });
+
+  group('budgetStatus', () {
+    test('suma techos y calcula restante y porcentaje en enteros', () {
+      final b = budgetStatus(const {'comida': 30000, 'ocio': 20000}, spentCents: 32000)!;
+      expect(b.capCents, 50000);
+      expect(b.spentCents, 32000);
+      expect(b.remainingCents, 18000);
+      expect(b.percent, 64);
+    });
+
+    test('pasado del techo: restante negativo, porcentaje > 100', () {
+      final b = budgetStatus(const {'comida': 50000}, spentCents: 62000)!;
+      expect(b.remainingCents, -12000);
+      expect(b.percent, 124);
+    });
+
+    test('porcentaje redondea hacia abajo', () {
+      expect(budgetStatus(const {'a': 300}, spentCents: 100)!.percent, 33);
+    });
+
+    test('sin techos → null (no hay presupuesto)', () {
+      expect(budgetStatus(const {}, spentCents: 100), isNull);
+    });
+  });
+
+  group('topCategories', () {
+    test('suma por categoría en los últimos 30 días, de mayor a menor, top 3', () {
+      final m = [
+        exp(100, ago(1), cat: 'comida'),
+        exp(50, ago(2), cat: 'comida'),
+        exp(120, ago(3), cat: 'vivienda'),
+        exp(30, ago(4), cat: 'ocio'),
+        exp(10, ago(5), cat: 'salud'),
+        exp(999, ago(30), cat: 'salud'), // día 31 hacia atrás: fuera
+        inc(5000, ago(1)), // ingresos no cuentan
+      ];
+      final top = topCategories(m, today: today);
+      expect(top.map((t) => t.categoryId), ['comida', 'vivienda', 'ocio']);
+      expect(top.map((t) => t.cents), [15000, 12000, 3000]);
+    });
+
+    test('el día 30 hacia atrás (hoy − 29) sí cuenta', () {
+      expect(topCategories([exp(7, ago(29), cat: 'ocio')], today: today).single.cents, 700);
+    });
+
+    test('empate → por id para que el orden sea estable', () {
+      final top = topCategories([exp(10, ago(1), cat: 'ocio'), exp(10, ago(1), cat: 'comida')], today: today);
+      expect(top.map((t) => t.categoryId), ['comida', 'ocio']);
+    });
+
+    test('menos de 3 categorías → las que haya; sin gastos → vacío', () {
+      expect(topCategories([exp(10, ago(1))], today: today), hasLength(1));
+      expect(topCategories([inc(10, ago(1))], today: today), isEmpty);
+    });
+
+    test('ignora gastos futuros', () {
+      expect(topCategories([exp(10, today.add(const Duration(days: 1)))], today: today), isEmpty);
+    });
+  });
+
+  group('recentMovements', () {
+    Movement at(String id, DateTime d, int hour) =>
+        Movement(id: id, kind: EntryKind.expense, cents: 100, day: d, createdAt: DateTime(2026, 10, 8, hour));
+
+    test('por fecha del movimiento y luego por hora de registro, más nuevo primero', () {
+      final m = [at('a', ago(2), 9), at('b', today, 8), at('c', today, 20), at('d', ago(1), 23)];
+      expect(recentMovements(m, today: today).map((e) => e.id), ['c', 'b', 'd', 'a']);
+    });
+
+    test('máximo [limit]', () {
+      final m = [for (var i = 0; i < 8; i++) at('e$i', ago(i), 10)];
+      expect(recentMovements(m, today: today), hasLength(5));
+      expect(recentMovements(m, today: today, limit: 2).map((e) => e.id), ['e0', 'e1']);
+    });
+
+    test('ignora futuros; sin datos → vacío', () {
+      expect(recentMovements([at('f', today.add(const Duration(days: 1)), 9)], today: today), isEmpty);
+      expect(recentMovements(const [], today: today), isEmpty);
+    });
+  });
 }
+

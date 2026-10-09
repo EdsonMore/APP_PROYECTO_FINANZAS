@@ -27,6 +27,7 @@ DateTime dayOf(DateTime local) => DateTime.utc(local.year, local.month, local.da
 
 class Movement {
   const Movement({
+    this.id,
     required this.kind,
     required this.cents,
     required this.day,
@@ -34,6 +35,8 @@ class Movement {
     this.createdAt,
   });
 
+  /// entries.id: permite volver de una métrica a la fila (p. ej. recientes).
+  final String? id;
   final EntryKind kind;
   final int cents;
   final DateTime day;
@@ -234,3 +237,65 @@ Map<String, int> suggestedCaps(List<Movement> movements, {required DateTime toda
     return MapEntry(cat, rounded < 1000 ? 1000 : rounded);
   });
 }
+
+/// Suma de [kind] desde el día 1 del mes de [today] hasta hoy (inclusive).
+int _sumInMonth(List<Movement> movements, EntryKind kind, DateTime today) {
+  final from = DateTime.utc(today.year, today.month, 1);
+  var s = 0;
+  for (final m in movements) {
+    if (m.kind == kind && !m.day.isBefore(from) && !m.day.isAfter(today)) s += m.cents;
+  }
+  return s;
+}
+
+/// Gastado en el mes calendario actual ("Gastaste S/ X en octubre").
+int spentInMonth(List<Movement> movements, {required DateTime today}) =>
+    _sumInMonth(movements, EntryKind.expense, today);
+
+/// Ingresado en el mes calendario actual (regla: sin ingreso no hay "presupuesto restante").
+int incomeInMonth(List<Movement> movements, {required DateTime today}) =>
+    _sumInMonth(movements, EntryKind.income, today);
+
+typedef BudgetStatus = ({int capCents, int spentCents, int remainingCents, int percent});
+
+/// Presupuesto del mes: Σ techos vs gastado. null si no hay techos.
+/// [percent] redondea hacia abajo y puede pasar de 100.
+BudgetStatus? budgetStatus(Map<String, int> capsCents, {required int spentCents}) {
+  if (capsCents.isEmpty) return null;
+  final cap = capsCents.values.fold<int>(0, (a, b) => a + b);
+  return (
+    capCents: cap,
+    spentCents: spentCents,
+    remainingCents: cap - spentCents,
+    percent: cap == 0 ? 0 : spentCents * 100 ~/ cap,
+  );
+}
+
+/// Categorías con más gasto en los últimos [days] días calendario (hoy incluido),
+/// de mayor a menor; empate por id para un orden estable.
+List<({String categoryId, int cents})> topCategories(List<Movement> movements,
+    {required DateTime today, int top = 3, int days = 30}) {
+  final from = today.subtract(Duration(days: days - 1));
+  final byCat = <String, int>{};
+  for (final m in movements) {
+    if (m.kind != EntryKind.expense || m.categoryId == null) continue;
+    if (m.day.isBefore(from) || m.day.isAfter(today)) continue;
+    byCat.update(m.categoryId!, (v) => v + m.cents, ifAbsent: () => m.cents);
+  }
+  final list = [for (final e in byCat.entries) (categoryId: e.key, cents: e.value)]
+    ..sort((a, b) => b.cents != a.cents ? b.cents.compareTo(a.cents) : a.categoryId.compareTo(b.categoryId));
+  return list.take(top).toList();
+}
+
+/// Últimos [limit] movimientos: por fecha del movimiento y luego por hora de
+/// registro, más nuevo primero. Ignora fechas futuras.
+List<Movement> recentMovements(List<Movement> movements, {required DateTime today, int limit = 5}) {
+  final epoch = DateTime.fromMillisecondsSinceEpoch(0);
+  final list = movements.where((m) => !m.day.isAfter(today)).toList()
+    ..sort((a, b) {
+      final byDay = b.day.compareTo(a.day);
+      return byDay != 0 ? byDay : (b.createdAt ?? epoch).compareTo(a.createdAt ?? epoch);
+    });
+  return list.take(limit).toList();
+}
+
