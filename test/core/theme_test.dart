@@ -61,4 +61,19 @@ void main() {
       expect((hi + 0.05) / (lo + 0.05), greaterThanOrEqualTo(3));
     });
   }
+
+  // C2: el carril de la barra de presupuesto se distingue del fondo (WCAG 1.4.11).
+  for (final (name, p) in [('claro', Palette.light), ('oscuro', Palette.dark)]) {
+    double ratio(Color a, Color b) {
+      final la = a.computeLuminance(), lb = b.computeLuminance();
+      return (la > lb ? la + 0.05 : lb + 0.05) / (la > lb ? lb + 0.05 : la + 0.05);
+    }
+
+    test('carril de presupuesto ≥ 3:1 sobre surface y canvas en tema $name', () {
+      expect(ratio(p.track, p.surface), greaterThanOrEqualTo(3));
+      expect(ratio(p.track, p.canvas), greaterThanOrEqualTo(3), reason: 'la barra va sobre el fondo de la pantalla');
+      expect(ratio(p.ink, p.track), greaterThanOrEqualTo(3), reason: 'el relleno se distingue del carril');
+    });
+  }
 }
+

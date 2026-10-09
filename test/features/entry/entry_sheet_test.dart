@@ -1,10 +1,8 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'dart:ui' show Tristate;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +13,8 @@ import 'package:saldo_claro/domain/metrics.dart';
 import 'package:saldo_claro/features/entry/draft_store.dart';
 import 'package:saldo_claro/features/entry/entry_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../helpers/real_fonts.dart';
 
 final today = day(2026, 10, 8);
 
@@ -150,21 +150,6 @@ Future<void> close(WidgetTester tester) async {
 
 bool selected(WidgetTester tester, String id) =>
     tester.getSemantics(find.byKey(Key('pick.$id'))).flagsCollection.isSelected == Tristate.isTrue;
-
-/// Fuentes reales: con Ahem (la fuente de test) los anchos no se parecen a
-/// Geist y el test de 640 dp mediría otra cosa.
-Future<void> loadRealFonts() async {
-  Future<void> load(String family, List<String> files) async {
-    final l = FontLoader(family);
-    for (final f in files) {
-      l.addFont(Future.value(ByteData.sublistView(File('assets/fonts/$f').readAsBytesSync())));
-    }
-    await l.load();
-  }
-
-  await load('Newsreader', ['Newsreader16pt-Medium.ttf']);
-  await load('Geist', ['Geist-Regular.ttf', 'Geist-Medium.ttf', 'Geist-SemiBold.ttf']);
-}
 
 void main() {
   setUpAll(loadRealFonts);
