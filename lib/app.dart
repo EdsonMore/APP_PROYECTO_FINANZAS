@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/app_theme.dart';
 import 'data/providers.dart';
+import 'core/utils/formatters.dart';
+import 'domain/metrics.dart';
+import 'features/entry/entry_sheet.dart';
 import 'features/onboarding/onboarding_screen.dart';
 
 class App extends StatelessWidget {
@@ -34,11 +37,37 @@ class _Root extends ConsumerWidget {
   }
 }
 
-// ponytail: placeholder hasta la Fase 1b (pantallas con wireframe aprobado).
+// ponytail: placeholder hasta el Home real. Los botones "Debug" son temporales
+// para el día de uso: el primer commit del Home los borra (tasks/todo.md).
 class _Pending extends StatelessWidget {
   const _Pending(this.name);
   final String name;
 
+  Future<void> _register(BuildContext context, EntryKind kind) async {
+    final e = await showEntrySheet(context, kind);
+    if (e == null || !context.mounted) return;
+    final what = kind == EntryKind.expense ? 'Gasto' : 'Ingreso';
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$what de ${Formatters.currency(e.amountCents / 100)} guardado')));
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(body: Center(child: Text('$name — Fase 1b')));
+  Widget build(BuildContext context) => Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('$name — Fase 1b'),
+              const SizedBox(height: 24),
+              TextButton(
+                onPressed: () => _register(context, EntryKind.expense),
+                child: const Text('Debug: registrar gasto'),
+              ),
+              TextButton(
+                onPressed: () => _register(context, EntryKind.income),
+                child: const Text('Debug: registrar ingreso'),
+              ),
+            ]),
+          ),
+        ),
+      );
 }
