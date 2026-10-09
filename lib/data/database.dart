@@ -109,7 +109,7 @@ const defaultCategories = [
   ('vivienda', 'Vivienda', 'home', '#047857'),
   ('ocio', 'Ocio', 'movie', '#7C3AED'),
   ('salud', 'Salud', 'healing', '#BE123C'),
-  ('otros', 'Otros', 'local_mall', '#525252'),
+  ('otros', 'Otros', 'category', '#525252'),
 ];
 
 const defaultSources = [

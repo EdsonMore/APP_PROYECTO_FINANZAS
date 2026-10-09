@@ -21,6 +21,12 @@ void main() {
     expect(IconCatalog.iconFor(vivienda.$3), Icons.home);
   });
 
+  test('Otros usa Icons.category (fix del día de uso: la bolsa no comunicaba "Otros")', () {
+    final otros = defaultCategories.firstWhere((c) => c.$1 == 'otros');
+    expect(otros.$3, 'category');
+    expect(IconCatalog.iconFor(otros.$3), Icons.category);
+  });
+
   test('Comida y Chamba encabezan la semilla (preselección por defecto)', () {
     expect(defaultCategories.first.$1, 'comida');
     expect(defaultSources.first.$1, 'chamba');

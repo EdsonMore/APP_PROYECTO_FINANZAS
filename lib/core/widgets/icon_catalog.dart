@@ -8,6 +8,7 @@ abstract final class IconCatalog {
     'account_balance_wallet': Icons.account_balance_wallet,
     'bolt': Icons.bolt,
     'cake': Icons.cake,
+    'category': Icons.category,
     'credit_card': Icons.credit_card,
     'directions_bus': Icons.directions_bus,
     'fastfood': Icons.fastfood,

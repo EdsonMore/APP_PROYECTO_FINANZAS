@@ -470,7 +470,7 @@ void main() {
         ('vivienda', Icons.home),
         ('ocio', Icons.movie),
         ('salud', Icons.healing),
-        ('otros', Icons.local_mall),
+        ('otros', Icons.category),
       ]) {
         expect(find.descendant(of: find.byKey(Key('pick.$id')), matching: find.byIcon(icon)), findsOneWidget,
             reason: '$id sin ícono');

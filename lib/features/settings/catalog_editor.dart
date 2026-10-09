@@ -65,7 +65,7 @@ class CatalogEditor extends ConsumerStatefulWidget {
 
 class _CatalogEditorState extends ConsumerState<CatalogEditor> {
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
-  late String _icon = widget.existing?.icon ?? (widget.kind == EntryKind.expense ? 'local_mall' : 'payments');
+  late String _icon = widget.existing?.icon ?? (widget.kind == EntryKind.expense ? 'category' : 'payments');
   String? _error;
   bool _busy = false;
 
