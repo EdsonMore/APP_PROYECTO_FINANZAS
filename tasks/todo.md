@@ -57,3 +57,39 @@ revisar juntas al terminar 1b, antes de 1c.
 - Gamificación / logros: borrada (tag `v1-supabase`).
 - Biometría / bloqueo de app (`local_auth`): quitada en 1a; recuperable del tag.
 
+
+## Feedback del día de uso (2026-10-09)
+
+### Fixes pequeños aplicados
+- [x] Aceptar emojis en el nombre del espacio (`fase-1b-fix-emoji`)
+- [x] Cambiar el ícono de "Otros" a `category` (`fase-1b-fix-icono-otros`)
+
+### Mejoras para 1c
+- [ ] Saldo actual debajo del número principal, en todos los modos
+      ("Saldo actual: S/ 1,100"). El runway mide viabilidad; el saldo
+      mide liquidez. Ambos importan.
+- [ ] Ícono de info al lado del runway que explique la fórmula:
+      "Calculado con tu saldo actual y tu gasto promedio de los últimos
+      14 días."
+- [ ] Verificar que cada modo tenga un texto de contexto diferente en el
+      Home, para que el usuario entienda por qué el número cambia.
+- [ ] Toggle manual de modo oscuro en Ajustes (independiente del
+      sistema).
+
+### Roadmap posterior
+- [ ] **Multi-cuenta** (Fase 3): tabla `accounts`, asignación de cada
+      movimiento, cálculo por cuenta. Hoy `account_label` es texto libre.
+- [ ] **Recordatorios de facturas** (Fase 4/5): fechas recurrentes,
+      notificaciones push, gestión de pagos.
+- [ ] **IA chatbot** (heurísticas en 1c/2, IA real en 5+):
+      - En 1c/2: "insight del día" con reglas heurísticas (frases tipo
+        "Llevas 12 días gastando menos de lo que entra"). Sin IA.
+      - En 5+: chatbot real con backend (Edge Function) para no exponer
+        API keys.
+- [ ] **Perfil de usuario** (Fase 3, cuando entra login).
+
+### Ya resuelto (confirmar)
+- Modo oscuro: funciona con el sistema. El usuario puede activar modo
+  oscuro en Ajustes de Android y la app se adapta. (Confirmado: `themeMode`
+  sigue al sistema; verificado en el emulador con `cmd uimode night yes/no`
+  en Onboarding, Home, registro, saldo y Ajustes.)
