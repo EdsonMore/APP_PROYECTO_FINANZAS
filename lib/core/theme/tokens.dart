@@ -134,6 +134,10 @@ abstract final class AppType {
   static const amountInput = TextStyle(
       fontFamily: sans, fontSize: 44, height: 1.1, letterSpacing: -0.88, fontWeight: FontWeight.w500, fontFeatures: tabular);
 
+  /// Teclas del teclado numérico propio.
+  static const keypad = TextStyle(
+      fontFamily: sans, fontSize: 26, height: 1.1, fontWeight: FontWeight.w500, fontFeatures: tabular);
+
   static const button = TextStyle(fontFamily: sans, fontSize: 16, height: 1.2, fontWeight: FontWeight.w600);
 }
 
@@ -152,6 +156,15 @@ abstract final class Space {
 
   /// Alto mínimo de los CTAs "+ Gasto" / "+ Ingreso" (objetivo táctil holgado).
   static const ctaHeight = 56.0;
+
+  /// Pantallas por debajo de esto (p. ej. 720p ≈ 640 dp) usan la variante compacta.
+  static const compactBelowHeight = 700.0;
+
+  /// Alto de tecla del teclado numérico: 56, o 48 en pantallas compactas.
+  static double keyHeight(double screenHeight) => screenHeight >= compactBelowHeight ? 56 : 48;
+
+  /// Alto del botón principal de una hoja: 56, o 52 en pantallas compactas.
+  static double sheetCtaHeight(double screenHeight) => screenHeight >= compactBelowHeight ? ctaHeight : 52;
 }
 
 abstract final class Radii {

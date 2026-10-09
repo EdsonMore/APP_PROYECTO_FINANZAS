@@ -101,17 +101,18 @@ class Goals extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Semillas v1: (id, nombre, icono de IconCatalog, color). Expuestas para tests.
 // id, nombre, icono (IconCatalog), color. Colores provisionales: los fija dataviz en 1c.
-const _defaultCategories = [
+const defaultCategories = [
   ('comida', 'Comida', 'restaurant', '#C2410C'),
   ('transporte', 'Transporte', 'directions_bus', '#1D4ED8'),
-  ('vivienda', 'Vivienda', 'receipt', '#047857'),
+  ('vivienda', 'Vivienda', 'home', '#047857'),
   ('ocio', 'Ocio', 'movie', '#7C3AED'),
   ('salud', 'Salud', 'healing', '#BE123C'),
   ('otros', 'Otros', 'local_mall', '#525252'),
 ];
 
-const _defaultSources = [
+const defaultSources = [
   ('chamba', 'Chamba', 'payments', '#047857'),
   ('venta', 'Venta', 'shopping_cart', '#1D4ED8'),
   ('familiar', 'Familiar', 'favorite', '#BE123C'),
@@ -131,11 +132,11 @@ class AppDatabase extends _$AppDatabase {
         onCreate: (m) async {
           await m.createAll();
           await batch((b) {
-            for (final (i, (id, name, icon, color)) in _defaultCategories.indexed) {
+            for (final (i, (id, name, icon, color)) in defaultCategories.indexed) {
               b.insert(categories, CategoriesCompanion.insert(
                   id: id, name: name, icon: icon, colorHex: color, sortOrder: i, isDefault: const Value(true)));
             }
-            for (final (i, (id, name, icon, color)) in _defaultSources.indexed) {
+            for (final (i, (id, name, icon, color)) in defaultSources.indexed) {
               b.insert(sources, SourcesCompanion.insert(
                   id: id, name: name, icon: icon, colorHex: color, sortOrder: i, isDefault: const Value(true)));
             }
@@ -156,7 +157,60 @@ class AppDatabase extends _$AppDatabase {
       ));
 
   Stream<Setting?> watchSettings() => (select(settings)..where((s) => s.id.equals(1))).watchSingleOrNull();
+
+  /// Categorías (gasto) o fuentes (ingreso) no archivadas, en su orden.
+  Future<List<PickOption>> activeOptions(EntryKind kind) async {
+    if (kind == EntryKind.expense) {
+      final rows = await (select(categories)
+            ..where((c) => c.archived.equals(false))
+            ..orderBy([(c) => OrderingTerm(expression: c.sortOrder)]))
+          .get();
+      return [for (final r in rows) (id: r.id, name: r.name, icon: r.icon)];
+    }
+    final rows = await (select(sources)
+          ..where((s) => s.archived.equals(false))
+          ..orderBy([(s) => OrderingTerm(expression: s.sortOrder)]))
+        .get();
+    return [for (final r in rows) (id: r.id, name: r.name, icon: r.icon)];
+  }
+
+  /// Categoría/fuente del último movimiento de ese tipo (por created_at).
+  Future<String?> lastUsedPick(EntryKind kind) async {
+    final e = await (select(entries)
+          ..where((e) => e.kind.equalsValue(kind))
+          ..orderBy([(e) => OrderingTerm.desc(e.createdAt)])
+          ..limit(1))
+        .getSingleOrNull();
+    return kind == EntryKind.expense ? e?.categoryId : e?.sourceId;
+  }
+
+  /// Registro manual. [pickId] es category_id o source_id según [kind].
+  Future<Entry> insertManualEntry({
+    required String id,
+    required EntryKind kind,
+    required int amountCents,
+    required DateTime day,
+    required String pickId,
+    String? note,
+    required DateTime now,
+  }) {
+    final ms = now.millisecondsSinceEpoch;
+    return into(entries).insertReturning(EntriesCompanion.insert(
+      id: id,
+      kind: kind,
+      amountCents: amountCents,
+      occurredOn: isoDay(day),
+      categoryId: Value(kind == EntryKind.expense ? pickId : null),
+      sourceId: Value(kind == EntryKind.income ? pickId : null),
+      note: Value(note),
+      origin: const Value(Origin.manual),
+      createdAt: ms,
+      updatedAt: ms,
+    ));
+  }
 }
+
+typedef PickOption = ({String id, String name, String icon});
 
 /// 'YYYY-MM-DD' ↔ día del dominio.
 String isoDay(DateTime d) =>

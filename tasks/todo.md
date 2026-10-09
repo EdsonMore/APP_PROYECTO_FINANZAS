@@ -15,9 +15,13 @@
 ## 1b — Pantallas núcleo (skills: minimalist-ui + apple-design)
 - [x] Tokens visuales + fuentes como asset (`fase-1b-sistema-visual`)
 - [x] Onboarding de 2 pasos → crea la fila de settings (Mixto → variable) (`fase-1b-onboarding`)
-- [ ] Hoja de registro (gasto/ingreso, mismo widget) + teclado propio
-  - Verify: ≤2 toques desde Home; insert válido en drift
+- [x] Hoja de registro gasto/ingreso + teclado propio + borrador persistente (`fase-1b-registro`)
 - [ ] Home adaptativo por modo + tarjeta/bottom sheet "¿Cuánto tienes hoy?" (wireframe 3.8)
+  - Aviso "Deshacer" después de guardar un movimiento (C3):
+    - el aviso dura 4 s;
+    - "Deshacer" hace un DELETE real en `entries` (no borrado lógico), sin confirmación;
+    - después aparece "Movimiento eliminado" por 2 s, sin acción.
+  - Texto del semáforo más corto, para que no pase a 2 líneas en 720p. Mostrar el texto exacto antes de codear.
 - [ ] Ajustes: modo, nombre, saldo inicial, ventana de runway, catálogos, CSV
 ### Checkpoint 1b
 

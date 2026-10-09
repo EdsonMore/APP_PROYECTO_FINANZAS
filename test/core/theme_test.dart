@@ -50,4 +50,15 @@ void main() {
     expect(AppType.amount.fontFeatures, contains(const FontFeature.tabularFigures()));
     expect(AppType.amountInput.fontFeatures, contains(const FontFeature.tabularFigures()));
   });
+
+  // C1: el spinner de "Guardar" usa Palette.canvas sobre Palette.ink.
+  for (final (name, p) in [('claro', Palette.light), ('oscuro', Palette.dark)]) {
+    test('spinner de Guardar contrasta con el botón en tema $name', () {
+      expect(p.canvas, isNot(p.ink));
+      final hi = [p.canvas, p.ink].map((c) => c.computeLuminance()).reduce((a, b) => a > b ? a : b);
+      final lo = [p.canvas, p.ink].map((c) => c.computeLuminance()).reduce((a, b) => a < b ? a : b);
+      // ≥ 3:1, mínimo WCAG para componentes no textuales.
+      expect((hi + 0.05) / (lo + 0.05), greaterThanOrEqualTo(3));
+    });
+  }
 }

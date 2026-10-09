@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/choice_card.dart';
+import '../../core/widgets/press_scale.dart';
 import '../../data/providers.dart';
 import '../../domain/metrics.dart';
 
@@ -213,7 +214,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> with Single
           ),
         ),
         const SizedBox(height: Space.lg),
-        _PressScale(
+        PressScale(
           child: FilledButton(
             onPressed: _saving ? null : () => _finish(withName: true),
             style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: Space.lg)),
@@ -231,32 +232,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> with Single
       ]),
     );
   }
-}
-
-/// Escala al presionar (pointer-down), como pide Motion.press.
-class _PressScale extends StatefulWidget {
-  const _PressScale({required this.child});
-  final Widget child;
-
-  @override
-  State<_PressScale> createState() => _PressScaleState();
-}
-
-class _PressScaleState extends State<_PressScale> {
-  bool _down = false;
-
-  @override
-  Widget build(BuildContext context) => Listener(
-        onPointerDown: (_) => setState(() => _down = true),
-        onPointerUp: (_) => setState(() => _down = false),
-        onPointerCancel: (_) => setState(() => _down = false),
-        child: AnimatedScale(
-          scale: _down ? Motion.pressScale : 1,
-          duration: Motion.press,
-          curve: Motion.easeOut,
-          child: widget.child,
-        ),
-      );
 }
 
 /// Enlace de texto: inkMuted → ink al presionar, en Motion.lightChange. Área ≥ 48×48.
