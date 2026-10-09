@@ -48,7 +48,7 @@ class _Pending extends StatelessWidget {
     if (e == null || !context.mounted) return;
     final what = kind == EntryKind.expense ? 'Gasto' : 'Ingreso';
     ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$what de ${Formatters.currency(e.amountCents / 100)} guardado')));
+        SnackBar(content: Text('$what de ${Formatters.soles(e.amountCents)} guardado')));
   }
 
   @override
