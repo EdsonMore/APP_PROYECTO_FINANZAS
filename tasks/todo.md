@@ -10,9 +10,9 @@
 - [x] `lib/features/capture/README.md`
 - [x] `SPEC.md`
 
-### Checkpoint 1a — revisión humana ⏳
+### Checkpoint 1a — revisión humana ✅
 
-## 1b — Pantallas núcleo (skills: minimalist-ui + apple-design)
+## 1b — Pantallas núcleo ✅ (`fase-1b-completa`)
 - [x] Tokens visuales + fuentes como asset (`fase-1b-sistema-visual`)
 - [x] Onboarding de 2 pasos → crea la fila de settings (Mixto → variable) (`fase-1b-onboarding`)
 - [x] Hoja de registro gasto/ingreso + teclado propio + borrador persistente (`fase-1b-registro`)
@@ -24,8 +24,9 @@
     - "Deshacer" hace un DELETE real en `entries` (no borrado lógico), sin confirmación;
     - después aparece "Movimiento eliminado" por 2 s, sin acción.
   - Texto del semáforo más corto, para que no pase a 2 líneas en 720p. Mostrar el texto exacto antes de codear.
-- [ ] Ajustes: modo, nombre, saldo inicial, ventana de runway, catálogos, CSV
-### Checkpoint 1b
+- [x] Contexto bajo el runway (`fase-1b-runway-context`)
+- [x] Ajustes: modo, nombre, saldo inicial, ventana de runway, catálogos, CSV (`fase-1b-ajustes`)
+### Checkpoint 1b ✅ — 318 tests, capturas en `docs/screenshots/fase-1b-*`
 
 ## Para 1c o 2
 - [ ] Tocar un movimiento → editarlo. Deslizarlo → borrarlo.
@@ -36,10 +37,13 @@
     aun así no reflejar la plata real (ej.: S/ 500 sin registrar + 800 de ingreso − 200 de gasto da +600,
     pero el saldo real es 1,100). La X la oculta hasta reiniciar la app (estado en memoria).
 
-## 1c — Presupuesto + Insights (skills: design-taste-frontend + dataviz)
-- [ ] Pantalla de Presupuesto (solo stable)
-- [ ] Insights: donut, línea de runway, mejor/peor mes, racha (umbral congelado), frases
-- [ ] Tarjeta de techos sugeridos (survival)
+## 1c — Presupuesto + Insights ⏭ siguiente (skills: design-taste-frontend + dataviz)
+Arranca como siempre: ficha + wireframes antes de código. Antes de 1c, revisar el "Roadmap pendiente".
+- [ ] Pantalla de Presupuesto (solo Estable): techos por categoría editables (`budgets`), sugeridos por histórico (`suggestedCaps`)
+- [ ] Insights: donut de gastos 30 días, línea de runway (60 días), mejor/peor mes de ingreso, racha (umbral congelado), frases
+- [ ] Tarjeta de techos sugeridos dentro de Insights (solo Supervivencia)
+- [ ] Paleta de colores por categoría con `dataviz` (hoy los ítems nuevos usan el neutro `#525252`)
+- [ ] Revisar con el usuario: "Ingreso típico 30d" (normalizado) junto a "Entró S/ X" (real) puede confundir
 ### Checkpoint 1c — code-review + security-review
 
 ## Roadmap pendiente de revisión (al cerrar 1b)
