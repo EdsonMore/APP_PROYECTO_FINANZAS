@@ -119,6 +119,9 @@ abstract final class AppType {
 
   static const label = TextStyle(fontFamily: sans, fontSize: 14, height: 1.3, fontWeight: FontWeight.w500);
 
+  /// Enlaces de texto secundarios ("Omitir").
+  static const link = TextStyle(fontFamily: sans, fontSize: 15, height: 1.3, fontWeight: FontWeight.w500);
+
   /// Meta-datos (fechas, ayudas). Tracking positivo leve: tamaño chico.
   static const caption =
       TextStyle(fontFamily: sans, fontSize: 13, height: 1.4, letterSpacing: 0.1, fontWeight: FontWeight.w400);

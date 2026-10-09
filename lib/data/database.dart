@@ -144,6 +144,17 @@ class AppDatabase extends _$AppDatabase {
         beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
       );
 
+  /// Cierra el onboarding: crea (o reemplaza) la fila única de settings.
+  Future<void> completeOnboarding({required Mode mode, String? spaceName}) =>
+      into(settings).insertOnConflictUpdate(SettingsCompanion.insert(
+        id: const Value(1),
+        mode: mode,
+        spaceName: Value(spaceName),
+        runwayWindowDays: const Value(14),
+        incomeWindowDays: const Value(30),
+        onboardingDone: const Value(true),
+      ));
+
   Stream<Setting?> watchSettings() => (select(settings)..where((s) => s.id.equals(1))).watchSingleOrNull();
 }
 

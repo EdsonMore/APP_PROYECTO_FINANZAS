@@ -13,10 +13,8 @@
 ### Checkpoint 1a — revisión humana ⏳
 
 ## 1b — Pantallas núcleo (skills: minimalist-ui + apple-design)
-- [ ] Tokens visuales + fuente como asset (reemplaza `core/theme/app_theme.dart`)
-  - Verify: analyze limpio, sin google_fonts
-- [ ] Onboarding de 2 pasos → crea la fila de settings (Mixto → variable + "Chamba" favorita)
-  - Verify: test de ruteo; widget manual
+- [x] Tokens visuales + fuentes como asset (`fase-1b-sistema-visual`)
+- [x] Onboarding de 2 pasos → crea la fila de settings (Mixto → variable) (`fase-1b-onboarding`)
 - [ ] Hoja de registro (gasto/ingreso, mismo widget) + teclado propio
   - Verify: ≤2 toques desde Home; insert válido en drift
 - [ ] Home adaptativo por modo + tarjeta/bottom sheet "¿Cuánto tienes hoy?" (wireframe 3.8)

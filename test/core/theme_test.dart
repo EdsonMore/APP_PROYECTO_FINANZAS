@@ -39,7 +39,7 @@ void main() {
 
   test('ningún estilo pide un peso no empaquetado', () {
     final packaged = [FontWeight.w400, FontWeight.w500, FontWeight.w600];
-    for (final s in [AppType.display, AppType.title, AppType.heading, AppType.body, AppType.label,
+    for (final s in [AppType.display, AppType.title, AppType.heading, AppType.body, AppType.label, AppType.link,
         AppType.caption, AppType.amount, AppType.amountInput, AppType.button]) {
       expect(packaged, contains(s.fontWeight), reason: '$s');
       if (s.fontFamily == AppType.serif) expect(s.fontWeight, FontWeight.w500);

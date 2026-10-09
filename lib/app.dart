@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/app_theme.dart';
 import 'data/providers.dart';
+import 'features/onboarding/onboarding_screen.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -28,9 +29,7 @@ class _Root extends ConsumerWidget {
     return ref.watch(settingsProvider).when(
           loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
           error: (e, _) => Scaffold(body: Center(child: Text('No se pudo abrir la base local.\n$e'))),
-          data: (s) => s?.onboardingDone ?? false
-              ? const _Pending('Home')
-              : const _Pending('Onboarding'),
+          data: (s) => s?.onboardingDone ?? false ? const _Pending('Home') : const OnboardingScreen(),
         );
   }
 }
