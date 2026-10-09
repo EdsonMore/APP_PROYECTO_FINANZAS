@@ -17,8 +17,8 @@
 - [x] Onboarding de 2 pasos → crea la fila de settings (Mixto → variable) (`fase-1b-onboarding`)
 - [x] Hoja de registro gasto/ingreso + teclado propio + borrador persistente (`fase-1b-registro`)
 - [x] Home: borrar botones de debug en el primer commit de la fase.
-- [ ] Home: implementar Deshacer con las reglas ya anotadas (ver abajo).
-- [ ] Home adaptativo por modo + tarjeta/bottom sheet "¿Cuánto tienes hoy?" (wireframe 3.8)
+- [x] Home: Deshacer con las reglas anotadas (4 s, DELETE real, "Movimiento eliminado" 2 s, cierre deslizando).
+- [x] Home adaptativo por modo (`fase-1b-home`). La tarjeta "¿Cuánto tienes hoy?" pasó al paso de su hoja.
   - Aviso "Deshacer" después de guardar un movimiento (C3):
     - el aviso dura 4 s;
     - "Deshacer" hace un DELETE real en `entries` (no borrado lógico), sin confirmación;
