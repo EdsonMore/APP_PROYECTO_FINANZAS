@@ -2,9 +2,12 @@
 // ignore_for_file: recursive_getters
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, visibleForTesting;
 import 'package:drift_flutter/drift_flutter.dart';
 
 import '../domain/metrics.dart';
+
+import 'database.steps.dart';
 
 part 'database.g.dart';
 
@@ -34,6 +37,14 @@ class Categories extends Table with _Catalog {}
 
 class Sources extends Table with _Catalog {}
 
+/// Cuentas (Yape, BCP, crédito, efectivo). Vacía hasta la Fase 3: sin UI ni
+/// semilla. Existe desde la v2 para no reconstruir `entries` cuando llegue la
+/// FK con datos reales. A diferencia de categorías y fuentes, las crea el
+/// usuario: `created_at` sirve para ordenarlas.
+class Accounts extends Table with _Catalog {
+  IntColumn get createdAt => integer()();
+}
+
 @TableIndex(name: 'idx_entries_on', columns: {#occurredOn})
 @TableIndex(name: 'idx_entries_kind_on', columns: {#kind, #occurredOn})
 class Entries extends Table {
@@ -47,6 +58,10 @@ class Entries extends Table {
   TextColumn get origin =>
       textEnum<Origin>().withDefault(const Constant('manual')).check(origin.isIn(const ['manual', 'auto']))();
   TextColumn get accountLabel => text().nullable()();
+
+  /// Siempre null hasta la Fase 3 (multi-cuenta). Si se borra la cuenta, el
+  /// movimiento se conserva sin cuenta.
+  TextColumn get accountId => text().nullable().references(Accounts, #id, onDelete: KeyAction.setNull)();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 
@@ -120,12 +135,12 @@ const defaultSources = [
   ('otro', 'Otro', 'redeem', '#525252'),
 ];
 
-@DriftDatabase(tables: [Categories, Sources, Entries, Settings, Budgets, Goals])
+@DriftDatabase(tables: [Categories, Sources, Entries, Settings, Budgets, Goals, Accounts])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? driftDatabase(name: 'saldoclaro'));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -142,8 +157,35 @@ class AppDatabase extends _$AppDatabase {
             }
           });
         },
-        beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
+        onUpgrade: (m, from, to) async {
+          // Una transacción: si un paso falla, la base vuelve entera a la
+          // versión anterior (drift no envuelve la migración por su cuenta y
+          // solo sube user_version si todo termina bien).
+          await transaction(() => stepByStep(from1To2: migrateV1ToV2)(m, from, to));
+        },
+        beforeOpen: (details) async {
+          await customStatement('PRAGMA foreign_keys = ON');
+          // Solo en debug: una migración no debe dejar referencias rotas.
+          if (kDebugMode && details.hadUpgrade) {
+            final broken = await customSelect('PRAGMA foreign_key_check').get();
+            if (broken.isNotEmpty) throw StateError('foreign_key_check: ${broken.map((r) => r.data).toList()}');
+          }
+        },
       );
+
+  /// v1 → v2: tabla `accounts` vacía, `entries.account_id` nulo con FK y el
+  /// ícono de "Otros" corregido solo si sigue siendo el original.
+  /// Usa las tablas tal como eran en v2 ([Schema2]): una v3 que cambie
+  /// `entries` no rompe este paso.
+  @visibleForTesting
+  Future<void> migrateV1ToV2(Migrator m, Schema2 schema) async {
+    await m.createTable(schema.accounts); // primero: account_id la referencia
+    await m.addColumn(schema.entries, schema.entries.accountId); // ADD COLUMN, sin reconstruir la tabla
+    await customUpdate(
+      "UPDATE categories SET icon = 'category' WHERE id = 'otros' AND icon = 'local_mall'",
+      updates: {categories},
+    );
+  }
 
   /// Cierra el onboarding: crea (o reemplaza) la fila única de settings.
   Future<void> completeOnboarding({required Mode mode, String? spaceName}) =>

@@ -1,0 +1,11 @@
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          # make-migrations: guarda cada versión del esquema en drift_schemas/
+          # y genera los pasos de migración y las clases para tests.
+          databases:
+            saldoclaro: lib/data/database.dart
+          schema_dir: drift_schemas/
+          test_dir: test/drift/

@@ -66,7 +66,7 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
   `id;kind;amount_cents;amount;occurred_on;category_or_source;category_or_source_id;note;origin;created_at;updated_at;account_label`.
   `kind` va en español (gasto/ingreso); las fechas, en ISO local.
 
-## Modelo de datos (drift, `lib/data/database.dart`, schemaVersion 1)
+## Modelo de datos (drift, `lib/data/database.dart`, schemaVersion 2)
 
 Convenciones:
 
@@ -78,10 +78,11 @@ Convenciones:
 | Tabla | Columnas | Restricciones |
 |---|---|---|
 | `categories` / `sources` | `id TEXT PK`, `name UNIQUE`, `icon`, `color_hex`, `sort_order`, `archived`, `is_default` | Se archivan, no se borran |
-| `entries` | `id`, `kind`, `amount_cents`, `occurred_on`, `category_id?` → categories, `source_id?` → sources, `note?`, `origin`, `account_label?`, `created_at`, `updated_at` | `kind ∈ {income, expense}`, `amount_cents > 0`, gasto ⇔ solo categoría, ingreso ⇔ solo fuente, `origin ∈ {manual, auto}`; índices `(occurred_on)`, `(kind, occurred_on)` |
+| `entries` | `id`, `kind`, `amount_cents`, `occurred_on`, `category_id?` → categories, `source_id?` → sources, `note?`, `origin`, `account_label?`, `account_id?` → accounts (`ON DELETE SET NULL`), `created_at`, `updated_at` | `kind ∈ {income, expense}`, `amount_cents > 0`, gasto ⇔ solo categoría, ingreso ⇔ solo fuente, `origin ∈ {manual, auto}`; índices `(occurred_on)`, `(kind, occurred_on)` |
 | `settings` | `id = 1`, `mode`, `space_name?`, `runway_window_days`, `income_window_days`, `opening_balance_cents?`, `opening_balance_at?`, `onboarding_done` | Ventana de runway 7–90 (default 14); ventana de ingreso ∈ {30, 60, 90} |
 | `budgets` | `category_id PK` → categories, `cap_cents > 0` | Techo mensual recurrente |
 | `goals` | `id`, `kind ∈ {percent, fixed, cushion}`, `value > 0`, `active`, `created_at` | `percent` en puntos básicos |
+| `accounts` (v2) | `id TEXT PK`, `name UNIQUE`, `icon`, `color_hex`, `sort_order`, `archived`, `is_default`, `created_at` | **Vacía hasta la Fase 3** (multi-cuenta): sin UI ni semilla |
 
 - **Semilla v1.** Categorías: Comida, Transporte, Vivienda, Ocio, Salud, Otros.
   Fuentes: Chamba, Venta, Familiar, Préstamo, Otro. Los ids son slugs estables
@@ -91,7 +92,34 @@ Convenciones:
 - **Cambio respecto al plan aprobado:** `opening_balance_on TEXT` se reemplazó
   por `opening_balance_at INT` (instante). Hace falta para decidir si un gasto
   del mismo día ya estaba incluido en el saldo inicial (ver Balance).
-- **Diferido a la Fase 3:** `deleted_at` y la tabla `accounts`.
+- **`accounts.created_at`** existe porque las cuentas las creará el usuario
+  (no son semilla como categorías y fuentes). Se usará para ordenarlas.
+- **`entries.account_id`** es siempre null hasta la Fase 3. `account_label`
+  (texto libre) no cambia.
+- **Diferido a la Fase 3:** `deleted_at`. (`accounts` existe vacía desde la v2.)
+
+### Migraciones
+
+- Flujo: `dart run drift_dev make-migrations` guarda cada esquema en
+  `drift_schemas/saldoclaro/drift_schema_vN.json` y genera
+  `lib/data/database.steps.dart` (`stepByStep`) y las clases por versión en
+  `test/drift/saldoclaro/generated/`. Correrlo **antes** de cambiar el esquema
+  (guarda la versión vigente) y **después** (guarda la nueva).
+- `onUpgrade` corre dentro de **una transacción**: drift no envuelve la
+  migración por su cuenta y solo sube `user_version` si termina bien. Si un paso
+  falla, la base vuelve entera a la versión anterior y puede reintentarse.
+- En debug, al abrir una base migrada se corre `PRAGMA foreign_key_check`.
+- **v1 → v2** (`migrateV1ToV2`):
+  1. `CREATE TABLE accounts` (primero: `account_id` la referencia).
+  2. `ALTER TABLE entries ADD COLUMN account_id … REFERENCES accounts(id) ON
+     DELETE SET NULL`, sin reconstruir la tabla.
+  3. `UPDATE categories SET icon = 'category' WHERE id = 'otros' AND icon =
+     'local_mall'`. Solo la fila `otros` y solo si conserva el ícono original:
+     una personalización del usuario no se pisa; renombrada o archivada se
+     corrige igual; una categoría del usuario con `local_mall` no se toca.
+- Tests en `test/drift/saldoclaro/migration_test.dart`: base v1 real con datos,
+  esquema migrado idéntico al de una instalación nueva, casos del ícono, FK y
+  rollback de una migración que falla a mitad.
 
 ## Fórmulas (`lib/domain/metrics.dart`)
 
