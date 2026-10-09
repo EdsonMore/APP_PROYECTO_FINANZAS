@@ -126,15 +126,15 @@ void main() {
       await tester.pump();
     }
 
-    testWidgets('quita emojis y espacios; la fila y el Home lo muestran', (tester) async {
+    testWidgets('conserva emojis y quita espacios; la fila lo muestra', (tester) async {
       final seed = await h.seeded(Mode.variable);
       await pumpApp(tester, seed);
       await openSettings(tester);
       await rename(tester, '  Casa 🏠 ');
       await tester.tap(find.byKey(const Key('name.save')));
       await tester.pumpAndSettle();
-      expect((await seed.db.select(seed.db.settings).getSingle()).spaceName, 'Casa');
-      expect(rowValue('name', 'Casa'), findsOneWidget);
+      expect((await seed.db.select(seed.db.settings).getSingle()).spaceName, 'Casa 🏠');
+      expect(rowValue('name', 'Casa 🏠'), findsOneWidget);
       await h.unmount(tester);
     });
 

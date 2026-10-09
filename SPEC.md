@@ -55,6 +55,9 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
 
 - Cambiar el modo o la ventana de runway (7, 14, 21 o 30 días) se aplica al
   instante, sin confirmación.
+- **Nombre del espacio:** sin restricción de emojis (fix del día de uso,
+  2026-10-09). Se quitan los espacios de los extremos; máximo 30 caracteres
+  visibles (un emoji cuenta 1); vacío → null ("Mis cuentas").
 - Categorías y fuentes: se archivan, no se borran. La última activa no se
   puede archivar. Nombres: máximo 20 caracteres, sin emojis, sin repetir
   (sin distinguir mayúsculas).

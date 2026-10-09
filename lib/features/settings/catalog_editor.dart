@@ -11,7 +11,14 @@ import '../../core/widgets/text_link.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/metrics.dart';
-import '../onboarding/onboarding_screen.dart' show emojiRegex;
+
+/// Pictogramas + piezas de secuencias emoji: variation selector, ZWJ, tonos de
+/// piel, indicadores regionales (banderas), keycap y tag characters.
+// El lint no evalúa con `unicode: true`; la regex es válida (cubierta por tests).
+final emojiRegex = RegExp(
+    // ignore: valid_regexps
+    r'[\p{Extended_Pictographic}\u{FE0F}\u{200D}\u{1F3FB}-\u{1F3FF}\u{1F1E6}-\u{1F1FF}\u{20E3}\u{E0020}-\u{E007F}]',
+    unicode: true);
 
 /// Los chips del registro tienen que caber en 720p.
 const catalogNameMaxLength = 20;

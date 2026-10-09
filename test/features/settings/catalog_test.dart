@@ -53,6 +53,29 @@ void main() {
       expect(validateCatalogName('comida', taken: const ['Comida']).error, 'Ya existe una con ese nombre.');
       expect(validateCatalogName('   ', taken: const []), (value: null, error: null));
     });
+
+    group('los nombres de categorías siguen sin emojis (regex movida desde el Onboarding)', () {
+      for (final (input, expected) in [
+        ('Mi casa 🏠', 'Mi casa'),
+        ('Café ☕️', 'Café'), // U+2615 + variation selector U+FE0F
+        ('Viaje 🇵🇪', 'Viaje'), // bandera = 2 indicadores regionales
+        ('Gym 👍🏽', 'Gym'), // modificador de tono de piel
+        ('Familia 👨‍👩‍👧', 'Familia'), // secuencia ZWJ
+        ('Piso 1️⃣', 'Piso 1'), // keycap: 1 + U+FE0F + U+20E3
+        ('Escocia 🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Escocia'), // bandera con tag characters U+E0020-E007F
+      ]) {
+        test('"$input" → "$expected"', () {
+          final v = validateCatalogName(input, taken: const []).value!;
+          expect(v, expected);
+          expect(v.runes.where((r) => r > 0x2000), isEmpty, reason: 'quedaron runas: ${v.runes.toList()}');
+        });
+      }
+
+      test('solo emojis → null; tildes, ñ y signos intactos', () {
+        expect(validateCatalogName('🇵🇪👍🏽', taken: const []).value, isNull);
+        expect(validateCatalogName('Ñandú #1', taken: const []).value, 'Ñandú #1');
+      });
+    });
   });
 
   testWidgets('categorías: lista las 6 activas en orden', (tester) async {

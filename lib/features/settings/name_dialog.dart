@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/tokens.dart';
 import '../../data/providers.dart';
-import '../onboarding/onboarding_screen.dart' show emojiRegex, validateSpaceName;
+import '../onboarding/onboarding_screen.dart' show validateSpaceName;
 
-/// Diálogo chico para el nombre del espacio. Mismas reglas que el Onboarding.
+/// Diálogo chico para el nombre del espacio. Mismas reglas que el Onboarding (acepta emojis).
 Future<void> showNameDialog(BuildContext context, String? current) =>
     showDialog<void>(context: context, builder: (_) => _NameDialog(current: current));
 
@@ -48,7 +47,6 @@ class _NameDialogState extends ConsumerState<_NameDialog> {
         style: AppType.body.copyWith(color: p.ink),
         textCapitalization: TextCapitalization.sentences,
         textInputAction: TextInputAction.done,
-        inputFormatters: [FilteringTextInputFormatter.deny(emojiRegex)],
         decoration: InputDecoration(hintText: 'Mis cuentas', errorText: _error),
         onChanged: (v) {
           final e = validateSpaceName(v).error;

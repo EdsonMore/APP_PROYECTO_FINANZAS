@@ -39,29 +39,17 @@ void main() {
       expect(validateSpaceName('  Casa  ').value, 'Casa');
     });
 
-    group('quita emojis', () {
-      for (final (input, expected) in [
-        ('Mi casa 🏠', 'Mi casa'),
-        ('Café ☕️', 'Café'), // U+2615 + variation selector U+FE0F
-        ('Viaje 🇵🇪', 'Viaje'), // bandera = 2 indicadores regionales
-        ('Gym 👍🏽', 'Gym'), // modificador de tono de piel
-        ('Familia 👨‍👩‍👧', 'Familia'), // secuencia ZWJ
-        ('Piso 1️⃣', 'Piso 1'), // keycap: 1 + U+FE0F + U+20E3
-        ('Escocia 🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Escocia'), // bandera con tag characters U+E0020–E007F
-      ]) {
-        test('"$input" → "$expected"', () {
-          final v = validateSpaceName(input).value!;
-          expect(v, expected);
-          expect(v.runes.where((r) => r > 0x2000 && r != 0x00E9), isEmpty, reason: 'quedaron runas: ${v.runes.toList()}');
-        });
+    group('acepta emojis (fix del día de uso)', () {
+      for (final input in ['Mi casa 🏠', 'Café ☕️', 'Viaje 🇵🇪', 'Gym 👍🏽', 'Familia 👨‍👩‍👧', 'Piso 1️⃣']) {
+        test('"$input" se conserva', () => expect(validateSpaceName(input).value, input));
       }
 
-      test('solo emojis → null', () {
-        expect(validateSpaceName('🇵🇪👍🏽').value, isNull);
-      });
+      test('solo emojis es un nombre válido', () => expect(validateSpaceName('🇵🇪👍🏽').value, '🇵🇪👍🏽'));
 
-      test('no toca letras con tilde, ñ ni signos', () {
-        expect(validateSpaceName('Ñandú #1 (2026)').value, 'Ñandú #1 (2026)');
+      test('cada emoji cuenta como 1 carácter: 30 OK, 31 error', () {
+        expect(validateSpaceName('🏠' * 30).error, isNull);
+        expect(validateSpaceName('👨‍👩‍👧' * 30).error, isNull);
+        expect(validateSpaceName('🏠' * 31).error, 'Máximo 30 caracteres');
       });
     });
 
@@ -128,7 +116,7 @@ void main() {
     await tester.pumpAndSettle();
     final s = await db.select(db.settings).getSingle();
     expect(s.mode, Mode.variable);
-    expect(s.spaceName, 'Casa');
+    expect(s.spaceName, 'Casa 🏠');
     expect(s.onboardingDone, isTrue);
     expect(s.runwayWindowDays, 14);
     expect(s.incomeWindowDays, 30);
