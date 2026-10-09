@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/theme/app_theme.dart';
 import 'data/providers.dart';
 
 class App extends StatelessWidget {
@@ -8,10 +9,12 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       title: 'SaldoClaro',
       debugShowCheckedModeBanner: false,
-      home: _Root(),
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      home: const _Root(),
     );
   }
 }

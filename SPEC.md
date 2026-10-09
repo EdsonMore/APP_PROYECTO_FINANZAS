@@ -191,6 +191,37 @@ Mínimo S/ 10 si hubo gasto. Se basan solo en el histórico, nunca en el ingreso
 - Mejor y peor mes de ingreso.
 - "Tu colchón bajó X %": `(B_fin − B_inicio) / B_inicio`, solo si `B_inicio > 0`.
 
+## Sistema visual: "Cuaderno" (`lib/core/theme/`)
+
+Cálido, editorial y sobrio. El color solo comunica significado. Los tokens están
+en `tokens.dart` y `ThemeData` claro/oscuro en `app_theme.dart`. Los colores
+semánticos se leen con `context.palette`.
+
+| Token | Claro | Oscuro |
+|---|---|---|
+| canvas / surface / border | `#F7F6F3` / `#FFFFFF` / `#EAE8E3` | `#191918` / `#222220` / `#34332F` |
+| ink / inkMuted | `#2B2A27` / `#6F6E69` | `#ECEAE5` / `#A3A19B` |
+| ingreso bg/fg | `#EDF3EC` / `#346538` | `#1F2B20` / `#8FC493` |
+| gasto bg/fg | `#FDEBEC` / `#9F2F2D` | `#35201F` / `#EFA29E` |
+| ámbar bg/fg | `#FBF3DB` / `#8A5D00` | `#332A12` / `#E3B85C` |
+
+- **Tipografía:**
+  - **Newsreader 16pt Medium**, solo para el número principal (52 sp) y los
+    títulos (26 sp). Nunca por debajo de 22 sp.
+  - **Geist** 400/500/600 para todo lo demás. Los montos llevan
+    `tabularFigures`.
+  - Las dos fuentes van como asset, con licencia OFL. Sin w700.
+- **Espaciado:** base 4 (4/8/12/16/24/32/48), margen lateral 20, CTA de 56 de alto.
+- **Radios:** chip 8, botón 10, tarjeta 12, hoja de registro 20.
+- **Movimiento:**
+  - resorte por defecto: amortiguación 1,0, respuesta 0,35 s;
+  - hoja de registro: amortiguación 0,85, respuesta 0,30 s;
+  - al presionar: escala 0,97 en 100 ms;
+  - número principal: 250 ms; semáforo: 200 ms;
+  - con "reducir movimiento": fundido de 150 ms.
+- **CTAs "− Gasto" y "+ Ingreso":** mismo tamaño y peso visual. Solo cambia el
+  color semántico.
+
 ## Stack
 
 - Flutter 3.44 (stable), Dart ^3.12, `flutter_riverpod` ^2.6.

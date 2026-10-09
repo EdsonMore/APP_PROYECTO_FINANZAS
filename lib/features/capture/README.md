@@ -38,4 +38,6 @@ servicio no esté declarado en el manifest.
 2. Reescribir el orquestador para que inserte en la tabla drift `entries` con
    `origin = 'auto'`, en lugar de los repositorios Supabase.
 3. Mantener `NotificationRedactor` antes de cualquier persistencia o log.
-4. Sacar estas rutas de `analysis_options.yaml`.
+4. `permissions_screen.dart` y `app_recognition_screen.dart` usan `GoogleFonts`,
+   que salió del proyecto: pasarlos a los tokens de `lib/core/theme/`.
+5. Sacar estas rutas de `analysis_options.yaml`.
