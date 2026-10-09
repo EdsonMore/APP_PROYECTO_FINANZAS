@@ -120,6 +120,13 @@ abstract final class AppTheme {
           borderSide: BorderSide(color: p.ink),
         ),
       ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: p.surface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.card)),
+        titleTextStyle: c(AppType.heading),
+        contentTextStyle: c(AppType.body),
+      ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: p.ink,
         contentTextStyle: AppType.body.copyWith(color: p.canvas, fontSize: 14),

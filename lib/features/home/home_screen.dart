@@ -11,6 +11,7 @@ import '../../data/providers.dart';
 import '../../domain/metrics.dart';
 import '../entry/entry_sheet.dart';
 import '../entry/opening_balance_sheet.dart';
+import '../settings/settings_screen.dart';
 import 'home_blocks.dart';
 import 'providers.dart';
 
@@ -64,7 +65,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   void _openSettings(BuildContext context) =>
-      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const _SettingsPlaceholder()));
+      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen()));
 }
 
 /// "− Gasto" y "+ Ingreso". Mismo tamaño, salvo en Supervivencia: Ingreso sólido y 3/5 del ancho.
@@ -207,17 +208,4 @@ class _ErrorView extends StatelessWidget {
       ]),
     );
   }
-}
-
-// ponytail: Ajustes real llega en el siguiente paso de 1b.
-class _SettingsPlaceholder extends StatelessWidget {
-  const _SettingsPlaceholder();
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Ajustes')),
-        body: Center(
-          child: Text('Llega en el siguiente paso.', style: AppType.body.copyWith(color: context.palette.inkMuted)),
-        ),
-      );
 }

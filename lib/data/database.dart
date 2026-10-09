@@ -156,6 +156,66 @@ class AppDatabase extends _$AppDatabase {
         onboardingDone: const Value(true),
       ));
 
+  Future<void> _updateSettings(SettingsCompanion c) => (update(settings)..where((s) => s.id.equals(1))).write(c);
+
+  Future<void> setMode(Mode mode) => _updateSettings(SettingsCompanion(mode: Value(mode)));
+
+  /// null = sin nombre (el Home muestra "Mis cuentas").
+  Future<void> setSpaceName(String? name) => _updateSettings(SettingsCompanion(spaceName: Value(name)));
+
+  Future<void> setRunwayWindow(int days) => _updateSettings(SettingsCompanion(runwayWindowDays: Value(days)));
+
+  // ---- Catálogos (categorías de gasto y fuentes de ingreso).
+  // Dos tablas con las mismas columnas: [kind] elige cuál.
+
+  /// Todos los ítems (activos y archivados) en su orden.
+  Future<List<CatalogItem>> catalog(EntryKind kind) async {
+    if (kind == EntryKind.expense) {
+      final rows = await (select(categories)..orderBy([(c) => OrderingTerm(expression: c.sortOrder)])).get();
+      return [for (final r in rows) (id: r.id, name: r.name, icon: r.icon, archived: r.archived)];
+    }
+    final rows = await (select(sources)..orderBy([(s) => OrderingTerm(expression: s.sortOrder)])).get();
+    return [for (final r in rows) (id: r.id, name: r.name, icon: r.icon, archived: r.archived)];
+  }
+
+  Future<int> _nextSortOrder(EntryKind kind) async {
+    final expr = kind == EntryKind.expense ? categories.sortOrder.max() : sources.sortOrder.max();
+    final q = kind == EntryKind.expense ? (selectOnly(categories)..addColumns([expr])) : (selectOnly(sources)..addColumns([expr]));
+    final max = await q.map((r) => r.read(expr)).getSingle();
+    return (max ?? -1) + 1;
+  }
+
+  /// Nuevo ítem al final del orden. Color neutro: la paleta llega en 1c (dataviz).
+  Future<void> addCatalogItem(EntryKind kind, {required String id, required String name, required String icon}) async {
+    final order = await _nextSortOrder(kind);
+    if (kind == EntryKind.expense) {
+      await into(categories)
+          .insert(CategoriesCompanion.insert(id: id, name: name, icon: icon, colorHex: newItemColor, sortOrder: order));
+    } else {
+      await into(sources)
+          .insert(SourcesCompanion.insert(id: id, name: name, icon: icon, colorHex: newItemColor, sortOrder: order));
+    }
+  }
+
+  Future<void> updateCatalogItem(EntryKind kind, String id, {required String name, required String icon}) =>
+      kind == EntryKind.expense
+          ? (update(categories)..where((c) => c.id.equals(id)))
+              .write(CategoriesCompanion(name: Value(name), icon: Value(icon)))
+          : (update(sources)..where((c) => c.id.equals(id))).write(SourcesCompanion(name: Value(name), icon: Value(icon)));
+
+  /// Archivar no borra: los movimientos viejos siguen apuntando al ítem.
+  /// Reactivar lo manda al final de los activos.
+  Future<void> setArchived(EntryKind kind, String id, {required bool archived}) async {
+    final order = archived ? null : await _nextSortOrder(kind);
+    if (kind == EntryKind.expense) {
+      await (update(categories)..where((c) => c.id.equals(id))).write(CategoriesCompanion(
+          archived: Value(archived), sortOrder: order == null ? const Value.absent() : Value(order)));
+    } else {
+      await (update(sources)..where((c) => c.id.equals(id))).write(
+          SourcesCompanion(archived: Value(archived), sortOrder: order == null ? const Value.absent() : Value(order)));
+    }
+  }
+
   /// Saldo inicial: monto e instante SIEMPRE juntos. Un monto sin instante se
   /// ignora en los cálculos (ver [SettingOpening.opening]).
   Future<void> setOpeningBalance({required int cents, required DateTime at}) =>
@@ -222,6 +282,10 @@ class AppDatabase extends _$AppDatabase {
 }
 
 typedef PickOption = ({String id, String name, String icon});
+typedef CatalogItem = ({String id, String name, String icon, bool archived});
+
+/// Color de los ítems creados por el usuario hasta que 1c defina la paleta.
+const newItemColor = '#525252';
 
 /// 'YYYY-MM-DD' ↔ día del dominio.
 String isoDay(DateTime d) =>

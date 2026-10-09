@@ -47,6 +47,22 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
   sugeridos aparecen como tarjeta en Insights ("Sugerido por tu historial:
   Comida ~S/ 150 [Usar como techo]"). En `variable` no se muestran.
 
+- **Nombres visibles de los modos** (Ajustes, Insights): Estable, Variable y
+  **Supervivencia**. El Onboarding conserva sus 4 opciones; Ajustes ofrece 3,
+  porque Mixto se guarda como Variable.
+
+## Ajustes y exportación
+
+- Cambiar el modo o la ventana de runway (7, 14, 21 o 30 días) se aplica al
+  instante, sin confirmación.
+- Categorías y fuentes: se archivan, no se borran. La última activa no se
+  puede archivar. Nombres: máximo 20 caracteres, sin emojis, sin repetir
+  (sin distinguir mayúsculas).
+- **CSV:** UTF-8 con BOM, separador **punto y coma** (Excel con configuración
+  regional de Perú), fin de línea CRLF, del más nuevo al más viejo. Columnas:
+  `id;kind;amount_cents;amount;occurred_on;category_or_source;category_or_source_id;note;origin;created_at;updated_at;account_label`.
+  `kind` va en español (gasto/ingreso); las fechas, en ISO local.
+
 ## Modelo de datos (drift, `lib/data/database.dart`, schemaVersion 1)
 
 Convenciones:
