@@ -48,6 +48,10 @@ const _slowNoticeAfter = Duration(seconds: 2);
 const _draftDebounce = Duration(milliseconds: 300);
 const noteMaxLength = 120;
 
+/// Cuánto debe seguir oculto el IME para tratarlo como "Atrás" y no como un
+/// parpadeo (cambio de teclado, cambio de configuración).
+const _imeHiddenGrace = Duration(milliseconds: 150);
+
 /// Registro de gasto o ingreso. Un solo widget; [kind] cambia título, color,
 /// catálogo (categorías/fuentes) y la columna que se llena al guardar.
 class EntrySheet extends ConsumerStatefulWidget {
@@ -77,6 +81,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
   Timer? _debounce;
   Timer? _slowNotice;
   bool _imeVisible = false;
+  Timer? _imeHidden;
 
   bool get _isExpense => widget.kind == EntryKind.expense;
 
@@ -150,17 +155,27 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
   }
 
   /// Android oculta el teclado con Atrás sin quitar el foco: sin esto el
-  /// teclado propio no vuelve (C1). Solo reacciona a visible → oculto.
+  /// teclado propio no vuelve (C1). Solo reacciona a visible → oculto, y solo
+  /// si sigue oculto tras [_imeHiddenGrace] (un cambio de teclado no cuenta).
   @override
   void didChangeMetrics() {
     final view = WidgetsBinding.instance.platformDispatcher.views.first;
     final visible = view.viewInsets.bottom > 0;
-    if (_imeVisible && !visible && _noteFocus.hasFocus) _noteFocus.unfocus();
+    if (visible) {
+      _imeHidden?.cancel();
+    } else if (_imeVisible) {
+      _imeHidden?.cancel();
+      _imeHidden = Timer(_imeHiddenGrace, () {
+        final stillHidden = WidgetsBinding.instance.platformDispatcher.views.first.viewInsets.bottom == 0;
+        if (mounted && stillHidden && _noteFocus.hasFocus) _noteFocus.unfocus();
+      });
+    }
     _imeVisible = visible;
   }
 
   @override
   void dispose() {
+    _imeHidden?.cancel();
     _debounce?.cancel();
     _slowNotice?.cancel();
     _writeDraft(); // cierre por X, gesto, scrim o Atrás

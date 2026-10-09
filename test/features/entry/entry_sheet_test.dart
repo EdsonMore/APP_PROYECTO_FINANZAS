@@ -70,6 +70,39 @@ class Host {
   bool closed = false;
 }
 
+Widget hostApp(Host host, {ThemeData? theme}) => ProviderScope(
+      overrides: [
+        databaseProvider.overrideWithValue(host.db),
+        sharedPreferencesProvider.overrideWithValue(host.prefs),
+        todayProvider.overrideWithValue(today),
+      ],
+      child: MaterialApp(
+        theme: theme ?? AppTheme.light,
+        home: Builder(
+          builder: (ctx) => Scaffold(
+            body: Column(children: [
+              TextButton(
+                onPressed: () async {
+                  host.closed = false;
+                  host.result = await showEntrySheet(ctx, EntryKind.expense);
+                  host.closed = true;
+                },
+                child: const Text('abrir gasto'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  host.closed = false;
+                  host.result = await showEntrySheet(ctx, EntryKind.income);
+                  host.closed = true;
+                },
+                child: const Text('abrir ingreso'),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+
 Future<Host> pumpHost(
   WidgetTester tester, {
   AppDatabase? db,
@@ -82,40 +115,8 @@ Future<Host> pumpHost(
   tester.view.devicePixelRatio = dpr;
   tester.view.padding = FakeViewPadding(top: topPadding * dpr, bottom: bottomPadding * dpr);
   addTearDown(tester.view.reset);
-  final database = db ?? AppDatabase(NativeDatabase.memory());
-  final host = Host(database, await SharedPreferences.getInstance());
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
-      databaseProvider.overrideWithValue(database),
-      sharedPreferencesProvider.overrideWithValue(host.prefs),
-      todayProvider.overrideWithValue(today),
-    ],
-    child: MaterialApp(
-      theme: AppTheme.light,
-      home: Builder(
-        builder: (ctx) => Scaffold(
-          body: Column(children: [
-            TextButton(
-              onPressed: () async {
-                host.closed = false;
-                host.result = await showEntrySheet(ctx, EntryKind.expense);
-                host.closed = true;
-              },
-              child: const Text('abrir gasto'),
-            ),
-            TextButton(
-              onPressed: () async {
-                host.closed = false;
-                host.result = await showEntrySheet(ctx, EntryKind.income);
-                host.closed = true;
-              },
-              child: const Text('abrir ingreso'),
-            ),
-          ]),
-        ),
-      ),
-    ),
-  ));
+  final host = Host(db ?? AppDatabase(NativeDatabase.memory()), await SharedPreferences.getInstance());
+  await tester.pumpWidget(hostApp(host));
   return host;
 }
 
@@ -542,11 +543,64 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.byKey(const Key('key.0')), findsNothing);
         tester.view.viewInsets = FakeViewPadding.zero; // Atrás: Android lo oculta sin quitar el foco
+        await tester.pump(const Duration(milliseconds: 300));
         await tester.pumpAndSettle();
         expect(find.byKey(const Key('key.0')), findsOneWidget);
         await unmount(tester);
       });
     }
+
+    /// Abre la nota con el IME visible y devuelve un contador de cambios de foco.
+    Future<(FocusNode, int Function())> noteWithIme(WidgetTester tester, Host h) async {
+      await open(tester);
+      await tester.tap(find.byKey(const Key('entry.addNote')));
+      await tester.pumpAndSettle();
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300 * 2.625);
+      await tester.pumpAndSettle();
+      final focus = tester.widget<TextField>(find.byKey(const Key('entry.note'))).focusNode!;
+      expect(focus.hasFocus, isTrue);
+      var changes = 0;
+      var last = focus.hasFocus;
+      focus.addListener(() {
+        if (focus.hasFocus != last) changes++;
+        last = focus.hasFocus;
+      });
+      return (focus, () => changes);
+    }
+
+    testWidgets('cambio de tema con IME visible: la nota conserva el foco, 0 cambios de foco', (tester) async {
+      final h = await pumpHost(tester);
+      final (focus, changes) = await noteWithIme(tester, h);
+
+      await tester.pumpWidget(hostApp(h, theme: AppTheme.dark)); // cambio de configuración
+      tester.binding.handleMetricsChanged(); // Android reenvía métricas con el mismo inset
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pumpAndSettle();
+
+      expect(changes(), 0, reason: 'sin focus → unfocus → focus');
+      expect(focus.hasFocus, isTrue);
+      expect(tester.testTextInput.isVisible, isTrue, reason: 'el IME sigue visible');
+      expect(find.byKey(const Key('key.0')), findsNothing, reason: 'el teclado propio sigue oculto');
+      expect(Theme.of(tester.element(find.byKey(const Key('entry.note')))).brightness, Brightness.dark);
+      await unmount(tester);
+    });
+
+    testWidgets('IME que desaparece < 100 ms (cambio de teclado) no quita el foco', (tester) async {
+      final h = await pumpHost(tester);
+      final (focus, changes) = await noteWithIme(tester, h);
+
+      tester.view.viewInsets = FakeViewPadding.zero; // p. ej. Gboard → dictado
+      await tester.pump(const Duration(milliseconds: 40));
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300 * 2.625);
+      await tester.pump(const Duration(milliseconds: 40));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+
+      expect(changes(), 0);
+      expect(focus.hasFocus, isTrue);
+      expect(find.byKey(const Key('key.0')), findsNothing);
+      await unmount(tester);
+    });
 
     testWidgets('con teclado del sistema (300 dp): sin teclado propio, Guardar encima', (tester) async {
       await pumpHost(tester, logicalSize: const Size(360, 640), topPadding: 24, bottomPadding: 24);
