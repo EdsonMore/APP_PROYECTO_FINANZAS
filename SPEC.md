@@ -79,6 +79,20 @@ Convenciones:
 `T` = hoy, día local. Los eventos con fecha posterior a `T` **se ignoran en
 todas las métricas**. Todo se calcula en enteros salvo donde se indica.
 
+### Saldo inicial ("¿Cuánto tienes hoy?")
+
+- Se guarda como `opening_balance_cents` + `opening_balance_at` (ahora), siempre
+  juntos (`AppDatabase.setOpeningBalance`). Un monto sin instante (datos
+  viejos) se ignora en los cálculos: cuenta como 0.
+- **S/ 0 es un saldo válido.** El usuario de Supervivencia con S/ 0 es un caso
+  real. Solo el monto vacío deshabilita "Guardar saldo".
+- **Tarjeta en el Home:** aparece siempre que no haya saldo inicial válido,
+  sin importar el balance (cambio del 2026-10-09: antes solo con balance ≤ 0).
+  Sin saldo inicial, el runway puede verse bien y aun así no reflejar la plata
+  real. La X la oculta hasta reiniciar la app (estado en memoria).
+- **Hoja:** con monto tecleado no se cierra deslizando, tocando fuera ni con
+  Atrás; solo con "Ahora no", que no escribe nada.
+
 ### Balance
 
 ```
@@ -120,7 +134,7 @@ Es división entera. Equivale a `floor(B / g)` sin perder centavos.
 | Caso | Resultado | UI |
 |---|---|---|
 | Sin eventos ni saldo inicial | `empty` | Estado vacío + CTAs |
-| `B ≤ 0` (se evalúa primero) | `noCushion`, 0 días | "Sin colchón"; tarjeta "¿Cuánto tienes hoy?" |
+| `B ≤ 0` (se evalúa primero) | `noCushion`, 0 días | "Sin colchón" |
 | `G = 0` en la ventana | `noSpending` | "Sin gastos en los últimos N días" |
 | `D < 7` | `estimated = true` | "estimado · pocos datos" |
 | `R > 999` | `days = 999`, `capped = true` | "+999 días" |

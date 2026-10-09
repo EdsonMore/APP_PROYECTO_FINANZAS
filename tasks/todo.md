@@ -30,10 +30,26 @@
 ## Para 1c o 2
 - [ ] Tocar un movimiento → editarlo. Deslizarlo → borrarlo.
 - [ ] Semáforo: comparar el mes actual con el anterior ("12 % más que septiembre"). Solo con al menos 2 meses de datos.
-- [ ] Tarjeta "¿Cuánto tienes hoy?" en el Home: entra con la hoja de saldo inicial (paso siguiente al Home).
+- [x] Tarjeta "¿Cuánto tienes hoy?" en el Home + hoja de saldo inicial (`fase-1b-saldo`). S/ 0 válido.
+  - **Cambio de criterio (2026-10-09):** la tarjeta aparece SIEMPRE que `opening_balance_cents` sea null,
+    sin importar el balance (antes: solo si balance ≤ 0). Sin saldo inicial el runway puede verse bien y
+    aun así no reflejar la plata real (ej.: S/ 500 sin registrar + 800 de ingreso − 200 de gasto da +600,
+    pero el saldo real es 1,100). La X la oculta hasta reiniciar la app (estado en memoria).
 
 ## 1c — Presupuesto + Insights (skills: design-taste-frontend + dataviz)
 - [ ] Pantalla de Presupuesto (solo stable)
 - [ ] Insights: donut, línea de runway, mejor/peor mes, racha (umbral congelado), frases
 - [ ] Tarjeta de techos sugeridos (survival)
 ### Checkpoint 1c — code-review + security-review
+
+## Roadmap pendiente de revisión (al cerrar 1b)
+Funciones de la app vieja que NO entran al MVP. Están asignadas a una fase o descartadas por diseño;
+revisar juntas al terminar 1b, antes de 1c.
+- Captura de notificaciones (Yape, BCP, Agora, Lemon Cash): Fase 4, código archivado en `lib/features/capture/`.
+- IA (Gemini/Groq, chat "CFO"): borrada (tag `v1-supabase`).
+- Módulo pareja / splits: borrado (tag `v1-supabase`).
+- Ciclos de cobro y recordatorio de facturas: borrados (tag `v1-supabase`).
+- Cuentas múltiples: hoy solo `entries.account_label` (texto libre); tabla `accounts` diferida a Fase 3.
+- Gamificación / logros: borrada (tag `v1-supabase`).
+- Biometría / bloqueo de app (`local_auth`): quitada en 1a; recuperable del tag.
+

@@ -156,6 +156,14 @@ class AppDatabase extends _$AppDatabase {
         onboardingDone: const Value(true),
       ));
 
+  /// Saldo inicial: monto e instante SIEMPRE juntos. Un monto sin instante se
+  /// ignora en los cálculos (ver [SettingOpening.opening]).
+  Future<void> setOpeningBalance({required int cents, required DateTime at}) =>
+      (update(settings)..where((s) => s.id.equals(1))).write(SettingsCompanion(
+        openingBalanceCents: Value(cents),
+        openingBalanceAt: Value(at.millisecondsSinceEpoch),
+      ));
+
   Stream<Setting?> watchSettings() => (select(settings)..where((s) => s.id.equals(1))).watchSingleOrNull();
 
   /// Categorías (gasto) o fuentes (ingreso) no archivadas, en su orden.

@@ -12,10 +12,12 @@ import 'package:uuid/uuid.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/icon_catalog.dart';
 import '../../core/widgets/press_scale.dart';
+import '../../core/widgets/sheet_grabber.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/metrics.dart';
 import 'amount_input.dart';
+import 'amount_keypad.dart';
 import 'draft_store.dart';
 
 /// Abre la hoja de registro. Devuelve el movimiento guardado, o null si se cerró.
@@ -334,7 +336,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: Space.gutter),
             child: Column(children: [
-              const _Grabber(),
+              const SheetGrabber(),
               _header(p, today),
               Expanded(
                 // Sin teclado del sistema cabe sin scroll (ver test de 640 dp);
@@ -356,7 +358,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
               // C1: con la nota activa, el teclado propio desaparece.
               if (!noteActive) ...[
                 const SizedBox(height: Space.sm),
-                _Keypad(keyHeight: Space.keyHeight(screenH), onKey: _press, onBackspace: _backspace, onClear: _clearAmount),
+                AmountKeypad(keyHeight: Space.keyHeight(screenH), onKey: _press, onBackspace: _backspace, onClear: _clearAmount),
               ],
               const SizedBox(height: Space.md),
               _saveButton(p, Space.sheetCtaHeight(screenH)),
@@ -431,8 +433,6 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
       );
 
   Widget _amountView(Palette p) {
-    final d = _amount.display;
-    final typedColor = _amount.isEmpty ? p.inkMuted : p.ink;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _noteFocus.unfocus(), // tocar el monto vuelve al teclado propio
@@ -445,20 +445,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
         },
         child: Padding(
           padding: const EdgeInsets.only(top: Space.lg),
-          child: Semantics(
-            label: 'Monto: S/ ${d.typed.isEmpty ? '0' : d.typed}${d.ghost}',
-            excludeSemantics: true,
-            child: FittedBox(
-              key: const Key('entry.amount'),
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text.rich(TextSpan(style: AppType.amountInput, children: [
-                TextSpan(text: 'S/ ', style: TextStyle(color: typedColor)),
-                TextSpan(text: d.typed, style: TextStyle(color: p.ink)),
-                TextSpan(text: d.ghost, style: TextStyle(color: p.inkMuted)),
-              ])),
-            ),
-          ),
+          child: AmountDisplay(key: const Key('entry.amount'), amount: _amount),
         ),
       ),
     );
@@ -585,22 +572,6 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
       );
 }
 
-class _Grabber extends StatelessWidget {
-  const _Grabber();
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: Space.sm),
-        child: Center(
-          child: Container(
-            width: 32,
-            height: 4,
-            decoration: BoxDecoration(color: context.palette.border, borderRadius: BorderRadius.circular(2)),
-          ),
-        ),
-      );
-}
-
 /// Chip de categoría/fuente (o de nota en pantalla compacta): visible 36, área táctil 44.
 class _PickChip extends StatelessWidget {
   const _PickChip({
@@ -662,95 +633,4 @@ class _PickChip extends StatelessWidget {
       ),
     );
   }
-}
-
-class _Keypad extends StatelessWidget {
-  const _Keypad({required this.keyHeight, required this.onKey, required this.onBackspace, required this.onClear});
-  final double keyHeight;
-  final ValueChanged<String> onKey;
-  final VoidCallback onBackspace;
-  final VoidCallback onClear;
-
-  static const _rows = [
-    ['1', '2', '3'],
-    ['4', '5', '6'],
-    ['7', '8', '9'],
-    ['.', '0', '⌫'],
-  ];
-
-  @override
-  Widget build(BuildContext context) => Column(children: [
-        for (final (i, row) in _rows.indexed) ...[
-          if (i > 0) const SizedBox(height: Space.xs),
-          Row(children: [
-            for (final k in row)
-              Expanded(
-                child: k == '⌫'
-                    ? _Key(
-                        key: const Key('key.backspace'),
-                        height: keyHeight,
-                        semanticsLabel: 'Borrar',
-                        onTap: onBackspace,
-                        onLongPress: onClear,
-                        child: Icon(Icons.backspace_outlined, size: 24, color: context.palette.ink),
-                      )
-                    : _Key(
-                        key: Key('key.$k'),
-                        height: keyHeight,
-                        semanticsLabel: k == '.' ? 'Punto decimal' : k,
-                        onTap: () => onKey(k),
-                        child: Text(k, style: AppType.keypad.copyWith(color: context.palette.ink)),
-                      ),
-              ),
-          ]),
-        ],
-      ]);
-}
-
-/// Tecla: fondo Palette.border al tocar (pointer-down), sin escala.
-class _Key extends StatefulWidget {
-  const _Key({
-    super.key,
-    required this.height,
-    required this.semanticsLabel,
-    required this.onTap,
-    this.onLongPress,
-    required this.child,
-  });
-  final double height;
-  final String semanticsLabel;
-  final VoidCallback onTap;
-  final VoidCallback? onLongPress;
-  final Widget child;
-
-  @override
-  State<_Key> createState() => _KeyState();
-}
-
-class _KeyState extends State<_Key> {
-  bool _down = false;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-        button: true,
-        label: widget.semanticsLabel,
-        excludeSemantics: true,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (_) => setState(() => _down = true),
-          onTapUp: (_) => setState(() => _down = false),
-          onTapCancel: () => setState(() => _down = false),
-          onTap: widget.onTap,
-          onLongPress: widget.onLongPress,
-          child: AnimatedContainer(
-            duration: Motion.press,
-            height: widget.height,
-            decoration: BoxDecoration(
-              color: _down ? context.palette.border : Colors.transparent,
-              borderRadius: BorderRadius.circular(Radii.button),
-            ),
-            child: Center(child: widget.child),
-          ),
-        ),
-      );
 }

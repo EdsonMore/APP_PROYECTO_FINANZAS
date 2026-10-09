@@ -346,3 +346,61 @@ class _RecentTile extends StatelessWidget {
     );
   }
 }
+
+class OpeningCard extends StatelessWidget {
+  const OpeningCard({super.key, required this.onSet, required this.onDismiss});
+  final VoidCallback onSet;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Container(
+      key: const Key('home.openingCard'),
+      margin: const EdgeInsets.only(bottom: Space.lg),
+      padding: const EdgeInsets.fromLTRB(Space.lg, Space.sm, Space.xs, Space.xs),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(Radii.card),
+        border: Border.all(color: p.border),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(
+            child: Semantics(
+              header: true,
+              child: Text('¿Cuánto tienes hoy?', style: AppType.heading.copyWith(color: p.ink)),
+            ),
+          ),
+          IconButton(
+            key: const Key('home.openingCard.close'),
+            onPressed: onDismiss,
+            tooltip: 'Descartar',
+            icon: Icon(Icons.close, size: 20, color: p.inkMuted),
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          ),
+        ]),
+        Padding(
+          padding: const EdgeInsets.only(right: Space.md),
+          child: Text('Así el cálculo usa tu plata real.', style: AppType.caption.copyWith(color: p.inkMuted)),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            key: const Key('home.openingCard.set'),
+            onPressed: onSet,
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(48, 48),
+              alignment: Alignment.centerLeft,
+              foregroundColor: p.ink,
+              textStyle: AppType.label,
+            ),
+            child: const Text('Poner saldo'),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+

@@ -27,6 +27,10 @@ final budgetsStreamProvider = StreamProvider<List<Budget>>((ref) {
   return db.select(db.budgets).watch();
 });
 
+/// La X de la tarjeta "¿Cuánto tienes hoy?" la oculta hasta reiniciar la app:
+/// estado en memoria, nunca en la base.
+final openingCardDismissedProvider = StateProvider<bool>((_) => false);
+
 /// Todo lo que el Home pinta, ya calculado y formateado. La UI no hace cuentas.
 final homeSummaryProvider = Provider<AsyncValue<HomeSummary>>((ref) {
   final parts = <AsyncValue<Object?>>[
@@ -134,6 +138,7 @@ class HomeSummary {
     required this.light,
     required this.top,
     required this.recents,
+    required this.showOpeningCard,
   });
 
   final String title;
@@ -142,6 +147,9 @@ class HomeSummary {
   final LightView light;
   final List<TopRow> top;
   final List<RecentRow> recents;
+
+  /// Sin saldo inicial válido (monto + instante), sin importar el balance.
+  final bool showOpeningCard;
 }
 
 // ---------------------------------------------------------------------------
@@ -183,6 +191,9 @@ HomeSummary buildHomeSummary({
     ),
     top: _top(movements, catById, today),
     recents: _recents(movements, entries, catById, srcById, today),
+    // `opening` es null si falta el monto o el instante (datos viejos): así la
+    // tarjeta deja corregirlo en vez de ignorar el saldo en silencio.
+    showOpeningCard: opening == null,
   );
 }
 

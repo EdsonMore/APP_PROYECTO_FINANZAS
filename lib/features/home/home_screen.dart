@@ -10,6 +10,7 @@ import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/metrics.dart';
 import '../entry/entry_sheet.dart';
+import '../entry/opening_balance_sheet.dart';
 import 'home_blocks.dart';
 import 'providers.dart';
 
@@ -41,6 +42,17 @@ class HomeScreen extends ConsumerWidget {
             children: [
               HomeHeader(title: s.title, onSettings: () => _openSettings(context)),
               NumberBlock(headline: s.headline),
+              AnimatedSize(
+                duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : Motion.lightChange,
+                curve: Motion.easeOut,
+                alignment: Alignment.topCenter,
+                child: s.showOpeningCard && !ref.watch(openingCardDismissedProvider)
+                    ? OpeningCard(
+                        onSet: () => showOpeningBalanceSheet(context),
+                        onDismiss: () => ref.read(openingCardDismissedProvider.notifier).state = true,
+                      )
+                    : const SizedBox(width: double.infinity),
+              ),
               LightCard(view: s.light),
               if (s.top.isNotEmpty) TopCategoriesBlock(rows: s.top),
               if (s.recents.isNotEmpty) RecentMovementsBlock(rows: s.recents),
