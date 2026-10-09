@@ -41,6 +41,27 @@ class SlowDb extends AppDatabase {
   }
 }
 
+/// DB cuyo insert real tarda [delay] (Future.delayed: avanza con el reloj del test).
+class DelayDb extends AppDatabase {
+  DelayDb(this.delay) : super(NativeDatabase.memory());
+  final Duration delay;
+
+  @override
+  Future<Entry> insertManualEntry({
+    required String id,
+    required EntryKind kind,
+    required int amountCents,
+    required DateTime day,
+    required String pickId,
+    String? note,
+    required DateTime now,
+  }) async {
+    await Future<void>.delayed(delay);
+    return super.insertManualEntry(
+        id: id, kind: kind, amountCents: amountCents, day: day, pickId: pickId, note: note, now: now);
+  }
+}
+
 class Host {
   Host(this.db, this.prefs);
   final AppDatabase db;
@@ -292,7 +313,7 @@ void main() {
   });
 
   group('guardando (C2)', () {
-    testWidgets('spinner, opacidad 0.6, mismo tamaño, sin doble insert; aviso a los 2 s', (tester) async {
+    testWidgets('spinner, opacidad 0.6, mismo tamaño; aviso a los 2 s', (tester) async {
       final db = SlowDb();
       final h = await pumpHost(tester, db: db);
       await open(tester);
@@ -308,16 +329,33 @@ void main() {
           find.ancestor(of: find.byKey(const Key('entry.save')), matching: find.byType(AnimatedOpacity)));
       expect(opacity.opacity, 0.6);
 
-      await tester.tap(find.byKey(const Key('entry.save')), warnIfMissed: false);
-      await tester.pump();
-      expect(db.inserts, 1);
-
       await tester.pump(const Duration(seconds: 2));
       expect(find.text('Esto está tardando más de lo normal'), findsOneWidget);
 
       db.gate.complete();
       await tester.pumpAndSettle();
       expect(h.result!.amountCents, 500);
+      await unmount(tester);
+    });
+
+    testWidgets('doble toque en Guardar con insert en vuelo → exactamente 1 fila en entries', (tester) async {
+      final db = DelayDb(const Duration(milliseconds: 500));
+      final h = await pumpHost(tester, db: db);
+      await open(tester);
+      await keys(tester, '12.50');
+
+      await tester.tap(find.byKey(const Key('entry.save')));
+      await tester.pump(const Duration(milliseconds: 10)); // el primer insert está en vuelo
+      await tester.tap(find.byKey(const Key('entry.save')), warnIfMissed: false);
+      await tester.pump(const Duration(milliseconds: 10));
+
+      await tester.pump(const Duration(milliseconds: 600)); // avanza el tiempo: resuelve el insert
+      await tester.pumpAndSettle();
+
+      final rows = await db.select(db.entries).get();
+      expect(rows, hasLength(1));
+      expect(rows.single.amountCents, 1250);
+      expect(h.result!.id, rows.single.id);
       await unmount(tester);
     });
 
@@ -436,10 +474,23 @@ void main() {
   });
 
   group('alto en 720p (360×640 dp, con barras del sistema)', () {
-    testWidgets('sin teclado del sistema: cabe sin scroll y Guardar visible', (tester) async {
+    testWidgets('compacta: cabe sin scroll, con íconos de categoría y "Agregar nota" como chip', (tester) async {
       await pumpHost(tester, logicalSize: const Size(360, 640), topPadding: 24, bottomPadding: 24);
       await open(tester);
       expect(tester.takeException(), isNull, reason: 'overflow');
+      for (final (id, icon) in [
+        ('comida', Icons.restaurant),
+        ('transporte', Icons.directions_bus),
+        ('vivienda', Icons.home),
+        ('ocio', Icons.movie),
+        ('salud', Icons.healing),
+        ('otros', Icons.local_mall),
+      ]) {
+        expect(find.descendant(of: find.byKey(Key('pick.$id')), matching: find.byIcon(icon)), findsOneWidget,
+            reason: '$id sin ícono');
+      }
+      expect(find.ancestor(of: find.byKey(const Key('entry.addNote')), matching: find.byType(Wrap)), findsOneWidget,
+          reason: 'en compacta la nota es un chip del Wrap');
       final scrollable = tester.state<ScrollableState>(
           find.descendant(of: find.byKey(const Key('entry.scroll')), matching: find.byType(Scrollable)));
       expect(scrollable.position.maxScrollExtent, 0, reason: 'no debe necesitar scroll');
@@ -447,6 +498,55 @@ void main() {
       expect(find.byKey(const Key('key.0')), findsOneWidget);
       await unmount(tester);
     });
+
+    testWidgets('normal (≥ 700 dp): "Agregar nota" es un enlace separado bajo los chips', (tester) async {
+      await pumpHost(tester, logicalSize: const Size(411, 914), topPadding: 24, bottomPadding: 24);
+      await open(tester);
+      final note = find.byKey(const Key('entry.addNote'));
+      expect(find.ancestor(of: note, matching: find.byType(Wrap)), findsNothing);
+      final lastChipBottom = tester.getRect(find.byKey(const Key('pick.otros'))).bottom;
+      expect(tester.getRect(note).top, greaterThanOrEqualTo(lastChipBottom));
+      expect(find.descendant(of: find.byKey(const Key('pick.comida')), matching: find.byIcon(Icons.restaurant)),
+          findsOneWidget);
+      await unmount(tester);
+    });
+
+    testWidgets('compacta: chip de nota abre el campo con borde ink y al salir muestra el texto', (tester) async {
+      await pumpHost(tester, logicalSize: const Size(360, 640), topPadding: 24, bottomPadding: 24);
+      await open(tester);
+      await tester.tap(find.byKey(const Key('entry.addNote')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('entry.note')), findsOneWidget);
+      expect(find.byKey(const Key('key.0')), findsNothing);
+      await tester.enterText(find.byKey(const Key('entry.note')), 'menú');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('entry.amount')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('entry.note')), findsNothing, reason: 'sin foco, el campo vuelve a ser chip');
+      expect(find.descendant(of: find.byKey(const Key('entry.addNote')), matching: find.text('menú')), findsOneWidget);
+      expect(find.byKey(const Key('key.0')), findsOneWidget);
+      final scrollable = tester.state<ScrollableState>(
+          find.descendant(of: find.byKey(const Key('entry.scroll')), matching: find.byType(Scrollable)));
+      expect(scrollable.position.maxScrollExtent, 0);
+      await unmount(tester);
+    });
+
+    for (final size in [const Size(360, 640), const Size(411, 914)]) {
+      testWidgets('Atrás cierra el teclado del sistema → vuelve el teclado propio (${size.height.toInt()} dp)',
+          (tester) async {
+        await pumpHost(tester, logicalSize: size, topPadding: 24, bottomPadding: 24);
+        await open(tester);
+        await tester.tap(find.byKey(const Key('entry.addNote')));
+        await tester.pumpAndSettle();
+        tester.view.viewInsets = const FakeViewPadding(bottom: 300 * 2.625); // aparece el teclado
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('key.0')), findsNothing);
+        tester.view.viewInsets = FakeViewPadding.zero; // Atrás: Android lo oculta sin quitar el foco
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('key.0')), findsOneWidget);
+        await unmount(tester);
+      });
+    }
 
     testWidgets('con teclado del sistema (300 dp): sin teclado propio, Guardar encima', (tester) async {
       await pumpHost(tester, logicalSize: const Size(360, 640), topPadding: 24, bottomPadding: 24);
@@ -457,7 +557,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: 'overflow');
       expect(find.byKey(const Key('key.0')), findsNothing);
-      expect(tester.getRect(find.byKey(const Key('entry.save'))).bottom, lessThanOrEqualTo(640 - 300));
+      final save = tester.getRect(find.byKey(const Key('entry.save')));
+      expect(save.bottom, lessThanOrEqualTo(640 - 300));
+      final field = tester.getRect(find.byKey(const Key('entry.note')));
+      expect(field.bottom, lessThanOrEqualTo(save.top), reason: 'el campo de nota no queda tapado');
       await unmount(tester);
     });
   });

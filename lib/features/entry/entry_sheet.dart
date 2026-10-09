@@ -69,12 +69,14 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
   AmountInput _amount = const AmountInput();
   String? _pick;
   DateTime? _day; // null = hoy
-  bool _noteOpen = false;
+  bool _noteOpen = false; // pantalla normal: el campo queda visible si hay texto
+  bool _noteEditing = false; // el campo existe y tiene (o está por tener) foco
   String? _error;
   bool _saving = false;
   bool _done = false; // guardado o descartado: el borrador ya no se escribe
   Timer? _debounce;
   Timer? _slowNotice;
+  bool _imeVisible = false;
 
   bool get _isExpense => widget.kind == EntryKind.expense;
 
@@ -88,7 +90,9 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _noteFocus.addListener(() => setState(() {}));
+    _noteFocus.addListener(() => setState(() {
+          if (!_noteFocus.hasFocus) _noteEditing = false;
+        }));
     _load();
   }
 
@@ -145,6 +149,16 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
     }
   }
 
+  /// Android oculta el teclado con Atrás sin quitar el foco: sin esto el
+  /// teclado propio no vuelve (C1). Solo reacciona a visible → oculto.
+  @override
+  void didChangeMetrics() {
+    final view = WidgetsBinding.instance.platformDispatcher.views.first;
+    final visible = view.viewInsets.bottom > 0;
+    if (_imeVisible && !visible && _noteFocus.hasFocus) _noteFocus.unfocus();
+    _imeVisible = visible;
+  }
+
   @override
   void dispose() {
     _debounce?.cancel();
@@ -155,6 +169,14 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
     _note.dispose();
     _noteFocus.dispose();
     super.dispose();
+  }
+
+  void _openNote() {
+    setState(() {
+      _noteOpen = true;
+      _noteEditing = true;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _noteFocus.requestFocus());
   }
 
   // ---- Teclado propio
@@ -285,7 +307,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
     final screenH = MediaQuery.sizeOf(context).height;
     final noteActive = _noteFocus.hasFocus;
     final today = ref.watch(todayProvider);
-    // 720p ≈ 640 dp: sin esto la hoja no cabe sin scroll (ver test de altura).
+    // 720p ≈ 640 dp: la nota pasa a ser un chip más para que la hoja quepa sin scroll.
     final compact = screenH < Space.compactBelowHeight;
 
     return ScaffoldMessenger(
@@ -305,12 +327,14 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
                 child: SingleChildScrollView(
                   key: const Key('entry.scroll'),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    _amountView(p, compact),
+                    _amountView(p),
                     _errorLine(p),
                     const SizedBox(height: Space.md),
                     _chips(p, compact),
-                    const SizedBox(height: Space.sm),
-                    _noteView(p),
+                    if (!compact || _noteEditing) ...[
+                      const SizedBox(height: Space.sm),
+                      _noteView(p, compact),
+                    ],
                   ]),
                 ),
               ),
@@ -391,7 +415,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
         ]),
       );
 
-  Widget _amountView(Palette p, bool compact) {
+  Widget _amountView(Palette p) {
     final d = _amount.display;
     final typedColor = _amount.isEmpty ? p.inkMuted : p.ink;
     return GestureDetector(
@@ -405,7 +429,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
           return Transform.translate(offset: Offset(dx, 0), child: child);
         },
         child: Padding(
-          padding: EdgeInsets.only(top: compact ? Space.sm : Space.lg),
+          padding: const EdgeInsets.only(top: Space.lg),
           child: Semantics(
             label: 'Monto: S/ ${d.typed.isEmpty ? '0' : d.typed}${d.ghost}',
             excludeSemantics: true,
@@ -440,39 +464,52 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
         ),
       );
 
-  /// En pantalla compacta los chips van sin ícono: 2 filas en vez de 3.
+  /// En pantalla compacta, "Agregar nota" es el último chip del Wrap.
   Widget _chips(Palette p, bool compact) {
     final options = _options;
     if (options == null) return const SizedBox(height: 88);
+    final note = _note.text.trim();
+    final noteChip = _PickChip(
+      key: const Key('entry.addNote'),
+      label: note.isEmpty ? 'Agregar nota' : note,
+      semanticsLabel: note.isEmpty ? 'Agregar nota' : 'Nota: $note. Editar',
+      icon: Icons.notes,
+      selected: false,
+      outlined: _noteEditing || note.isNotEmpty,
+      onTap: _openNote,
+    );
     if (options.isEmpty) {
-      return Text(_noOptionsText, style: AppType.caption.copyWith(color: p.inkMuted));
+      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(_noOptionsText, style: AppType.caption.copyWith(color: p.inkMuted)),
+        if (compact) noteChip,
+      ]);
     }
     return Wrap(spacing: Space.sm, children: [
       for (final o in options)
         _PickChip(
           key: Key('pick.${o.id}'),
           label: o.name,
-          icon: compact ? null : IconCatalog.iconFor(o.icon),
+          icon: IconCatalog.iconFor(o.icon),
           selected: o.id == _pick,
           onTap: () => _changed(() {
             _pick = o.id;
             if (_error == _noOptionsText) _error = null;
           }),
         ),
+      if (compact) noteChip,
     ]);
   }
 
-  Widget _noteView(Palette p) {
-    if (!_noteOpen) {
+  /// Normal: enlace o campo. Compacta: solo el campo mientras se edita (el
+  /// chip del Wrap hace de enlace y muestra el texto cuando no hay foco).
+  Widget _noteView(Palette p, bool compact) {
+    if (!compact && !_noteOpen && !_noteEditing) {
       return Semantics(
         button: true,
         child: GestureDetector(
           key: const Key('entry.addNote'),
           behavior: HitTestBehavior.opaque,
-          onTap: () {
-            setState(() => _noteOpen = true);
-            WidgetsBinding.instance.addPostFrameCallback((_) => _noteFocus.requestFocus());
-          },
+          onTap: _openNote,
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 44),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -549,12 +586,24 @@ class _Grabber extends StatelessWidget {
       );
 }
 
-/// Chip de categoría/fuente: visible 36, área táctil 44.
+/// Chip de categoría/fuente (o de nota en pantalla compacta): visible 36, área táctil 44.
 class _PickChip extends StatelessWidget {
-  const _PickChip({super.key, required this.label, required this.icon, required this.selected, required this.onTap});
+  const _PickChip({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+    this.outlined = false,
+    this.semanticsLabel,
+  });
   final String label;
-  final IconData? icon;
+  final IconData icon;
   final bool selected;
+
+  /// Borde ink sin relleno: chip de nota activo o con texto.
+  final bool outlined;
+  final String? semanticsLabel;
   final VoidCallback onTap;
 
   @override
@@ -564,7 +613,7 @@ class _PickChip extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: label,
+      label: semanticsLabel ?? label,
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -581,14 +630,16 @@ class _PickChip extends StatelessWidget {
               decoration: BoxDecoration(
                 color: selected ? p.ink : p.surface,
                 borderRadius: BorderRadius.circular(Radii.chip),
-                border: Border.all(color: selected ? p.ink : p.border),
+                border: Border.all(color: selected || outlined ? p.ink : p.border),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                if (icon != null) ...[
-                  Icon(icon, size: 16, color: fg),
-                  const SizedBox(width: 6),
-                ],
-                Text(label, style: AppType.label.copyWith(color: fg)),
+                Icon(icon, size: 16, color: fg),
+                const SizedBox(width: 6),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 180),
+                  child: Text(label,
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: AppType.label.copyWith(color: fg)),
+                ),
               ]),
             ),
           ),
