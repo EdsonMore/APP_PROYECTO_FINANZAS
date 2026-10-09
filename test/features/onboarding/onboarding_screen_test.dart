@@ -39,9 +39,30 @@ void main() {
       expect(validateSpaceName('  Casa  ').value, 'Casa');
     });
 
-    test('quita emojis', () {
-      expect(validateSpaceName('Casa 🏠').value, 'Casa');
-      expect(validateSpaceName('🇵🇪👍🏽').value, isNull);
+    group('quita emojis', () {
+      for (final (input, expected) in [
+        ('Mi casa 🏠', 'Mi casa'),
+        ('Café ☕️', 'Café'), // U+2615 + variation selector U+FE0F
+        ('Viaje 🇵🇪', 'Viaje'), // bandera = 2 indicadores regionales
+        ('Gym 👍🏽', 'Gym'), // modificador de tono de piel
+        ('Familia 👨‍👩‍👧', 'Familia'), // secuencia ZWJ
+        ('Piso 1️⃣', 'Piso 1'), // keycap: 1 + U+FE0F + U+20E3
+        ('Escocia 🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Escocia'), // bandera con tag characters U+E0020–E007F
+      ]) {
+        test('"$input" → "$expected"', () {
+          final v = validateSpaceName(input).value!;
+          expect(v, expected);
+          expect(v.runes.where((r) => r > 0x2000 && r != 0x00E9), isEmpty, reason: 'quedaron runas: ${v.runes.toList()}');
+        });
+      }
+
+      test('solo emojis → null', () {
+        expect(validateSpaceName('🇵🇪👍🏽').value, isNull);
+      });
+
+      test('no toca letras con tilde, ñ ni signos', () {
+        expect(validateSpaceName('Ñandú #1 (2026)').value, 'Ñandú #1 (2026)');
+      });
     });
 
     test('30 caracteres OK, 31 es error (cuenta caracteres visibles)', () {

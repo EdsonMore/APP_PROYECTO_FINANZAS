@@ -10,9 +10,13 @@ import '../../domain/metrics.dart';
 
 const spaceNameMaxLength = 30;
 
+/// Pictogramas + piezas de secuencias emoji: variation selector, ZWJ, tonos de
+/// piel, indicadores regionales (banderas), keycap y tag characters.
 // El lint no evalúa con `unicode: true`; la regex es válida (cubierta por tests).
-// ignore: valid_regexps
-final _emoji = RegExp(r'[\p{Extended_Pictographic}\u{FE0F}\u{200D}\u{1F3FB}-\u{1F3FF}\u{1F1E6}-\u{1F1FF}]', unicode: true);
+final _emoji = RegExp(
+    // ignore: valid_regexps
+    r'[\p{Extended_Pictographic}\u{FE0F}\u{200D}\u{1F3FB}-\u{1F3FF}\u{1F1E6}-\u{1F1FF}\u{20E3}\u{E0020}-\u{E007F}]',
+    unicode: true);
 
 /// Normaliza el nombre del espacio: sin emojis, trim, vacío → null.
 /// Error si supera [spaceNameMaxLength] caracteres visibles.
