@@ -76,6 +76,29 @@ revisar juntas al terminar 1b, antes de 1c.
 - [ ] Toggle manual de modo oscuro en Ajustes (independiente del
       sistema).
 
+#### Historial de movimientos (revisado 2026-10-09)
+- En el Home solo se ven los últimos 5 movimientos. Eso es por diseño,
+  pero el usuario necesita ver TODOS.
+- [ ] **Fase 2 (MVP publicable)**: pantalla "Historial" con:
+  - Todos los movimientos, agrupados por mes/día.
+  - Scroll infinito o paginación.
+  - Filtro por tipo (gastos / ingresos / todos).
+  - Filtro por categoría (chips).
+  - Filtro por rango de fecha (este mes, mes pasado, últimos 90 días).
+  - Búsqueda por texto en la nota.
+  - Estimación: 2-3 días.
+- [ ] **Fase 3+ (avanzado)**: edición inline y swipe-to-delete.
+- Razón de posponer: 1c ya tiene Presupuesto + Insights. Meter historial
+  la alarga. Y el historial necesita diseño propio (filtros, búsqueda,
+  agrupación).
+
+### Fase 2 o 3
+- [ ] Importador de CSV (para el respaldo del usuario).
+      Razón: sin importador, el CSV es solo un backup visual (Excel),
+      no una vía de recuperación. El usuario no puede reimportar en
+      la app.
+      Estimación: 1-2 días.
+
 ### Roadmap posterior
 - [ ] **Multi-cuenta** (Fase 3): tabla `accounts`, asignación de cada
       movimiento, cálculo por cuenta. Hoy `account_label` es texto libre.
