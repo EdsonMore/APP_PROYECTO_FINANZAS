@@ -1,20 +1,8 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- PERMISOS CRÍTICOS PARA ANDROID 13+ -->
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- Biometría: requerido por local_auth (convertido por el plugin) -->
-    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
-    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
-    <!-- Requerido por el sistema para enlazar el NotificationListenerService.
-         Es un permiso protegido del sistema; se ignora el warning del lint. -->
-    <uses-permission
-        android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
-        tools:ignore="ProtectedPermissions" />
+    <!-- Fase 1 local-first: sin INTERNET ni permisos de notificaciones.
+         NotificationService.kt (captura) sigue en el código pero NO se declara
+         aquí hasta la Fase 4; ver lib/features/capture/README.md. -->
 
     <application
         android:label="SaldoClaro"
@@ -38,19 +26,6 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-
-        <!-- Servicio que escucha las notificaciones de las apps financieras.
-             Debe estar exportado para que el sistema pueda enlazarlo y debe
-             declarar el permiso BIND_NOTIFICATION_LISTENER_SERVICE. -->
-        <service
-            android:name=".NotificationService"
-            android:exported="true"
-            android:label="SaldoClaro Notifications"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService" />
-            </intent-filter>
-        </service>
 
         <meta-data
             android:name="flutterEmbedding"

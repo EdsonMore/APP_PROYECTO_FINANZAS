@@ -9,6 +9,17 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+# Captura de notificaciones (Fase 4 experimental): desconectada del arranque y
+# con imports rotos a propósito. Ver lib/features/capture/README.md.
+analyzer:
+  exclude:
+    - lib/features/capture/**
+    - lib/core/notification/**
+    - lib/core/permissions/**
+    - lib/features/permissions/**
+    - lib/core/services/smart_categorizer.dart
+    - lib/features/dashboard/presentation/screens/app_recognition_screen.dart
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`

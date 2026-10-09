@@ -1,5 +1,5 @@
 name: saldo_claro
-description: "SaldoClaro: Captura automática y transparente de notificaciones de apps financieras peruanas (Yape, BCP, Agora, Lemon Cash) con persistencia en Supabase."
+description: "SaldoClaro: finanzas personales local-first para ingresos fijos, variables o inexistentes."
 publish_to: 'none'
 version: 1.0.1+2
 
@@ -13,34 +13,28 @@ dependencies:
   # State Management
   flutter_riverpod: ^2.6.1
 
-  # Base de datos y Auth
-  supabase_flutter: ^2.8.1
+  # Persistencia local (Fase 1: cero red)
+  drift: ^2.35.2
+  drift_flutter: ^0.3.1
 
-  # Componentes UI
+  # UI
   fl_chart: ^0.70.2
-  google_fonts: ^6.2.1
-  flutter_vector_icons: ^2.0.0
 
   # Utilidades
   intl: ^0.20.2
   uuid: ^4.5.1
-  http: ^1.2.2
-
   cupertino_icons: ^1.0.8
-  pdf: ^3.13.0
   share_plus: ^13.3.0
   path_provider: ^2.1.6
-  permission_handler: 11.3.1
-  local_auth: ^3.0.2
   shared_preferences: ^2.5.5
-  flutter_local_notifications: ^22.3.0
-  timezone: ^0.11.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
+  drift_dev: ^2.35.1
+  build_runner: ^2.15.1
 
 # Genera el icono del launcher (Android legacy + adaptive) desde el logo.
 # Ejecutar tras modificar las imágenes: dart run flutter_launcher_icons
