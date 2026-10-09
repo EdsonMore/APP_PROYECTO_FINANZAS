@@ -13,6 +13,7 @@ class Palette extends ThemeExtension<Palette> {
     required this.canvas,
     required this.surface,
     required this.border,
+    required this.track,
     required this.ink,
     required this.inkMuted,
     required this.incomeBg,
@@ -26,6 +27,10 @@ class Palette extends ThemeExtension<Palette> {
   final Color canvas;
   final Color surface;
   final Color border;
+
+  /// Carril de medidores (barra de presupuesto): ≥ 3:1 sobre surface y canvas.
+  /// [border] es demasiado sutil para eso (≈ 1.2:1).
+  final Color track;
   final Color ink;
 
   /// Texto secundario. Oscurecido vs #787774 para cumplir AA sobre [canvas].
@@ -41,6 +46,7 @@ class Palette extends ThemeExtension<Palette> {
     canvas: Color(0xFFF7F6F3),
     surface: Color(0xFFFFFFFF),
     border: Color(0xFFEAE8E3),
+    track: Color(0xFF8F8D88),
     ink: Color(0xFF2B2A27),
     inkMuted: Color(0xFF6F6E69),
     incomeBg: Color(0xFFEDF3EC),
@@ -55,6 +61,7 @@ class Palette extends ThemeExtension<Palette> {
     canvas: Color(0xFF191918),
     surface: Color(0xFF222220),
     border: Color(0xFF34332F),
+    track: Color(0xFF73716C),
     ink: Color(0xFFECEAE5),
     inkMuted: Color(0xFFA3A19B),
     incomeBg: Color(0xFF1F2B20),
@@ -76,6 +83,7 @@ class Palette extends ThemeExtension<Palette> {
       canvas: l(canvas, other.canvas),
       surface: l(surface, other.surface),
       border: l(border, other.border),
+      track: l(track, other.track),
       ink: l(ink, other.ink),
       inkMuted: l(inkMuted, other.inkMuted),
       incomeBg: l(incomeBg, other.incomeBg),

@@ -120,6 +120,15 @@ abstract final class AppTheme {
           borderSide: BorderSide(color: p.ink),
         ),
       ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: p.ink,
+        contentTextStyle: AppType.body.copyWith(color: p.canvas, fontSize: 14),
+        actionTextColor: p.canvas,
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        insetPadding: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.sm),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.button)),
+      ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: p.canvas,
         indicatorColor: p.border,

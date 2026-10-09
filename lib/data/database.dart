@@ -184,6 +184,9 @@ class AppDatabase extends _$AppDatabase {
     return kind == EntryKind.expense ? e?.categoryId : e?.sourceId;
   }
 
+  /// DELETE real (Deshacer del Home): sin borrado lógico.
+  Future<int> deleteEntry(String id) => (delete(entries)..where((e) => e.id.equals(id))).go();
+
   /// Registro manual. [pickId] es category_id o source_id según [kind].
   Future<Entry> insertManualEntry({
     required String id,

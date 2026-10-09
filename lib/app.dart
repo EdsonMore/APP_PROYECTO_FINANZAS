@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/app_theme.dart';
 import 'data/providers.dart';
+import 'features/home/home_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 
 class App extends StatelessWidget {
@@ -29,16 +30,7 @@ class _Root extends ConsumerWidget {
     return ref.watch(settingsProvider).when(
           loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
           error: (e, _) => Scaffold(body: Center(child: Text('No se pudo abrir la base local.\n$e'))),
-          data: (s) => s?.onboardingDone ?? false ? const _Pending('Home') : const OnboardingScreen(),
+          data: (s) => s?.onboardingDone ?? false ? const HomeScreen() : const OnboardingScreen(),
         );
   }
-}
-
-// ponytail: placeholder hasta que entre HomeScreen (fase-1b-home).
-class _Pending extends StatelessWidget {
-  const _Pending(this.name);
-  final String name;
-
-  @override
-  Widget build(BuildContext context) => Scaffold(body: Center(child: Text('$name — Fase 1b')));
 }

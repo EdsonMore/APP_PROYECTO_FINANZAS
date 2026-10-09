@@ -3,11 +3,13 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:saldo_claro/app.dart';
 import 'package:saldo_claro/core/theme/tokens.dart';
 import 'package:saldo_claro/data/database.dart';
 import 'package:saldo_claro/data/providers.dart';
 import 'package:saldo_claro/domain/metrics.dart';
+import 'package:saldo_claro/features/home/home_screen.dart';
 
 Future<AppDatabase> pumpApp(WidgetTester tester, {AppDatabase? db}) async {
   tester.view.physicalSize = const Size(1080, 2400);
@@ -31,6 +33,8 @@ void appTest(String description, Future<void> Function(WidgetTester) body) {
 }
 
 void main() {
+  setUpAll(() => initializeDateFormatting('es_PE'));
+
   appTest('primer arranque va al Onboarding', (tester) async {
     await pumpApp(tester);
     expect(find.text('¿Cómo son tus ingresos?'), findsOneWidget);
@@ -41,7 +45,7 @@ void main() {
     await db.into(db.settings).insert(
         SettingsCompanion.insert(id: const Value(1), mode: Mode.survival, onboardingDone: const Value(true)));
     await pumpApp(tester, db: db);
-    expect(find.text('Home — Fase 1b'), findsOneWidget);
+    expect(find.byType(HomeScreen), findsOneWidget);
   });
 
   // Integración con drift: la elección del paso 1 llega mapeada a settings.mode.
@@ -61,7 +65,7 @@ void main() {
       final s = await db.select(db.settings).getSingle();
       expect(s.mode, mode);
       expect(s.onboardingDone, isTrue);
-      expect(find.text('Home — Fase 1b'), findsOneWidget);
+      expect(find.byType(HomeScreen), findsOneWidget);
     });
   }
 }
