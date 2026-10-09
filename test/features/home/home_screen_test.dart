@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:saldo_claro/core/theme/app_theme.dart';
+import 'package:saldo_claro/core/theme/tokens.dart';
 import 'package:saldo_claro/data/database.dart';
 import 'package:saldo_claro/data/providers.dart';
 import 'package:saldo_claro/domain/metrics.dart';
@@ -181,6 +182,51 @@ void main() {
       final big = FitDisplayText.sizeFor('S/ 999,999.99', 280, scaler);
       expect([44.0, 36.0], contains(big));
       expect(FitDisplayText.sizeFor('S/ 999,999.99 S/ 999,999.99', 280, scaler), 36);
+    });
+  });
+
+  group('contexto bajo el runway', () {
+    /// Gasto de S/ 1 diario por 14 días + ingreso: runway = ingreso − 14 días.
+    Future<void> runwayOf(Seed s, int days) async {
+      await s.income(days + 14, ago(13));
+      for (var i = 0; i < 14; i++) {
+        await s.expense(1, ago(i));
+      }
+    }
+
+    Color contextColor(WidgetTester tester) => tester.widget<Text>(find.byKey(const Key('home.context'))).style!.color!;
+
+    testWidgets('Supervivencia con 5 días: "Son menos de 7 días." en expenseFg', (tester) async {
+      await pumpHome(tester, await seeded(Mode.survival, (s) => runwayOf(s, 5)));
+      expect(find.text('Son menos de 7 días.'), findsOneWidget);
+      expect(contextColor(tester), Palette.light.expenseFg);
+      await unmount(tester);
+    });
+
+    testWidgets('Variable con 20 días: "Menos de un mes." en inkMuted', (tester) async {
+      await pumpHome(tester, await seeded(Mode.variable, (s) => runwayOf(s, 20)));
+      expect(find.text('Menos de un mes.'), findsOneWidget);
+      expect(contextColor(tester), Palette.light.inkMuted);
+      await unmount(tester);
+    });
+
+    testWidgets('Variable con 45 días: sin texto', (tester) async {
+      await pumpHome(tester, await seeded(Mode.variable, (s) => runwayOf(s, 45)));
+      expect(find.byKey(const Key('home.context')), findsNothing);
+      await unmount(tester);
+    });
+
+    testWidgets('Supervivencia sin colchón: "Registra un ingreso para activar el cálculo." en inkMuted', (tester) async {
+      await pumpHome(tester, await seeded(Mode.survival, (s) => s.expense(50, ago(1))));
+      expect(find.text('Registra un ingreso para activar el cálculo.'), findsOneWidget);
+      expect(contextColor(tester), Palette.light.inkMuted);
+      await unmount(tester);
+    });
+
+    testWidgets('Estable con 5 días: sin texto', (tester) async {
+      await pumpHome(tester, await seeded(Mode.stable, (s) => runwayOf(s, 5)));
+      expect(find.byKey(const Key('home.context')), findsNothing);
+      await unmount(tester);
     });
   });
 

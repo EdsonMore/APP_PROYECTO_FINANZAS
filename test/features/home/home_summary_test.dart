@@ -170,4 +170,55 @@ void main() {
     expect(s.recents.map((r) => r.isAuto), [false, false, true]);
     expect(s.recents[1].isIncome, isTrue);
   });
+
+  group('contexto bajo el runway (Variable y Supervivencia)', () {
+    /// Gasto de S/ 1 diario por 14 días + ingreso: runway = ingreso − 14 días.
+    List<Entry> runwayOf(int days) => [
+          e(EntryKind.income, days + 14, ago(13)),
+          for (var i = 0; i < 14; i++) e(EntryKind.expense, 1, ago(i)),
+        ];
+
+    for (final mode in [Mode.variable, Mode.survival]) {
+      test('${mode.name}: < 7 días → "Son menos de 7 días." urgente', () {
+        final h = build(mode, runwayOf(5)).headline;
+        expect(h.value, '~5 días');
+        expect(h.context, 'Son menos de 7 días.');
+        expect(h.contextUrgent, isTrue);
+      });
+
+      test('${mode.name}: 7 y 30 días → "Menos de un mes." neutro', () {
+        for (final d in [7, 30]) {
+          final h = build(mode, runwayOf(d)).headline;
+          expect(h.value, '~$d días');
+          expect(h.context, 'Menos de un mes.');
+          expect(h.contextUrgent, isFalse);
+        }
+      });
+
+      test('${mode.name}: > 30 días → sin texto', () {
+        final h = build(mode, runwayOf(31)).headline;
+        expect(h.value, '~31 días');
+        expect(h.context, isNull);
+      });
+
+      test('${mode.name}: sin colchón → "Registra un ingreso para activar el cálculo." neutro', () {
+        final h = build(mode, [e(EntryKind.expense, 50, ago(1))]).headline;
+        expect(h.value, 'Sin colchón');
+        expect(h.context, 'Registra un ingreso para activar el cálculo.');
+        expect(h.contextUrgent, isFalse);
+      });
+    }
+
+    test('+999 días y sin gastos → sin texto', () {
+      expect(build(Mode.variable, [e(EntryKind.income, 100000, ago(13)), e(EntryKind.expense, 1, ago(0))]).headline.context,
+          isNull);
+      expect(build(Mode.survival, [e(EntryKind.income, 100, ago(1))]).headline.context, isNull);
+    });
+
+    test('Estable nunca lleva contexto, aunque el runway sea corto', () {
+      expect(build(Mode.stable, runwayOf(5)).headline.context, isNull);
+      expect(build(Mode.stable, [e(EntryKind.expense, 50, ago(1))]).headline.context, isNull);
+    });
+  });
 }
+

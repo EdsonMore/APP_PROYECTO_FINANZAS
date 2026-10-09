@@ -68,6 +68,8 @@ class Headline {
     this.stats = const [],
     this.budgetPercent,
     this.overBudget = false,
+    this.context,
+    this.contextUrgent = false,
   });
 
   final HeadlineKind kind;
@@ -86,8 +88,14 @@ class Headline {
   final int? budgetPercent;
   final bool overBudget;
 
+  /// Línea corta bajo el número (solo Variable y Supervivencia): cuánto
+  /// significa ese runway. [contextUrgent] la pinta en expenseFg.
+  final String? context;
+  final bool contextUrgent;
+
   /// Lo que lee el lector de pantalla: una sola frase.
-  String get semantics => [lead, value.replaceFirst('~', 'unos '), secondary].whereType<String>().join(' ');
+  String get semantics =>
+      [lead, value.replaceFirst('~', 'unos '), context, secondary].whereType<String>().join(' ');
 }
 
 class LightView {
@@ -243,7 +251,7 @@ Headline _headline(Mode mode, Setting? settings, List<Movement> movements, List<
   switch (r.status) {
     case RunwayStatus.noCushion:
       return const Headline(
-          kind: HeadlineKind.runway, value: 'Sin colchón', secondary: 'Registraste más gastos que ingresos.');
+          kind: HeadlineKind.runway, value: 'Sin colchón', context: 'Registra un ingreso para activar el cálculo.');
     case RunwayStatus.noSpending:
     case RunwayStatus.empty:
       return Headline(
@@ -253,12 +261,15 @@ Headline _headline(Mode mode, Setting? settings, List<Movement> movements, List<
       );
     case RunwayStatus.days:
       final estimated = r.estimated ? ' Estimado con pocos días de datos.' : '';
+      final (context, urgent) = _runwayContext(r);
       if (mode == Mode.survival) {
         final perDay = avgDailyExpense(movements, today: today, window: window, opening: opening).round();
         return Headline(
           kind: HeadlineKind.runway,
           lead: 'Te alcanza para',
           value: _days(r),
+          context: context,
+          contextUrgent: urgent,
           secondary: 'Gastas ~${Formatters.soles(perDay)} al día.$estimated',
         );
       }
@@ -266,6 +277,8 @@ Headline _headline(Mode mode, Setting? settings, List<Movement> movements, List<
         kind: HeadlineKind.runway,
         lead: 'Te alcanza para',
         value: _days(r),
+        context: context,
+        contextUrgent: urgent,
         secondary: r.estimated ? estimated.trim() : null,
         stats: [
           (label: 'Ingreso típico 30d', amount: Formatters.soles(avgIncome30(movements, today: today, opening: opening))),
@@ -273,6 +286,13 @@ Headline _headline(Mode mode, Setting? settings, List<Movement> movements, List<
         ],
       );
   }
+}
+
+/// < 7 días: urgente. 7–30: "Menos de un mes." > 30 (o +999): nada.
+(String?, bool) _runwayContext(Runway r) {
+  if (r.capped || r.days > 30) return (null, false);
+  if (r.days < 7) return ('Son menos de 7 días.', true);
+  return ('Menos de un mes.', false);
 }
 
 String _days(Runway r) => r.capped ? '+$maxRunwayDays días' : '~${r.days} ${r.days == 1 ? 'día' : 'días'}';

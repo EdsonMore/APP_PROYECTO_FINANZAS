@@ -103,6 +103,12 @@ class NumberBlock extends StatelessWidget {
                 Stack(alignment: Alignment.centerLeft, children: [...previous, ?current]),
             child: KeyedSubtree(key: ValueKey(h.value), child: FitDisplayText(h.value, color: p.ink)),
           ),
+          if (h.context != null) ...[
+            const SizedBox(height: Space.xs),
+            Text(h.context!,
+                key: const Key('home.context'),
+                style: AppType.caption.copyWith(color: h.contextUrgent ? p.expenseFg : p.inkMuted)),
+          ],
           if (h.budgetPercent != null) ...[
             const SizedBox(height: Space.md),
             BudgetBar(percent: h.budgetPercent!, over: h.overBudget),
