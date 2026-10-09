@@ -16,7 +16,7 @@
 - [x] Tokens visuales + fuentes como asset (`fase-1b-sistema-visual`)
 - [x] Onboarding de 2 pasos → crea la fila de settings (Mixto → variable) (`fase-1b-onboarding`)
 - [x] Hoja de registro gasto/ingreso + teclado propio + borrador persistente (`fase-1b-registro`)
-- [ ] Home: borrar botones de debug en el primer commit de la fase (`_Pending` en `lib/app.dart`: "Debug: registrar gasto/ingreso").
+- [x] Home: borrar botones de debug en el primer commit de la fase.
 - [ ] Home: implementar Deshacer con las reglas ya anotadas (ver abajo).
 - [ ] Home adaptativo por modo + tarjeta/bottom sheet "¿Cuánto tienes hoy?" (wireframe 3.8)
   - Aviso "Deshacer" después de guardar un movimiento (C3):
@@ -26,6 +26,11 @@
   - Texto del semáforo más corto, para que no pase a 2 líneas en 720p. Mostrar el texto exacto antes de codear.
 - [ ] Ajustes: modo, nombre, saldo inicial, ventana de runway, catálogos, CSV
 ### Checkpoint 1b
+
+## Para 1c o 2
+- [ ] Tocar un movimiento → editarlo. Deslizarlo → borrarlo.
+- [ ] Semáforo: comparar el mes actual con el anterior ("12 % más que septiembre"). Solo con al menos 2 meses de datos.
+- [ ] Tarjeta "¿Cuánto tienes hoy?" en el Home: entra con la hoja de saldo inicial (paso siguiente al Home).
 
 ## 1c — Presupuesto + Insights (skills: design-taste-frontend + dataviz)
 - [ ] Pantalla de Presupuesto (solo stable)
