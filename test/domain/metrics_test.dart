@@ -306,6 +306,31 @@ void main() {
     });
   });
 
+  group('spentByCategoryInMonth', () {
+    test('suma por categoría solo el mes calendario de hoy, hasta hoy; ignora ingresos', () {
+      final m = [
+        exp(10, day(2026, 9, 30)), // septiembre: fuera
+        exp(20, day(2026, 10, 1)),
+        exp(5, today),
+        exp(7, today, cat: 'ocio'),
+        exp(99, today.add(const Duration(days: 1))), // futuro: fuera
+        inc(500, day(2026, 10, 2)),
+      ];
+      expect(spentByCategoryInMonth(m, today: today), {'comida': 2500, 'ocio': 700});
+    });
+
+    test('el día 1 cuenta aunque sea hoy; sin gastos → mapa vacío', () {
+      final first = day(2026, 11, 1);
+      expect(spentByCategoryInMonth([exp(3, first), exp(4, day(2026, 10, 31))], today: first), {'comida': 300});
+      expect(spentByCategoryInMonth([inc(100, today)], today: today), isEmpty);
+    });
+
+    test('la suma de las categorías es spentInMonth', () {
+      final m = [exp(20, day(2026, 10, 1)), exp(5, today, cat: 'ocio'), exp(9, day(2026, 9, 2))];
+      expect(spentByCategoryInMonth(m, today: today).values.fold<int>(0, (a, b) => a + b), spentInMonth(m, today: today));
+    });
+  });
+
   group('budgetStatus', () {
     test('suma techos y calcula restante y porcentaje en enteros', () {
       final b = budgetStatus(const {'comida': 30000, 'ocio': 20000}, spentCents: 32000)!;

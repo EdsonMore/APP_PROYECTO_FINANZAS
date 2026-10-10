@@ -6,6 +6,7 @@ import '../../core/utils/formatters.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/metrics.dart';
+import '../budget/budget_screen.dart';
 import '../entry/opening_balance_sheet.dart';
 import '../home/providers.dart';
 import 'about_screen.dart';
@@ -50,12 +51,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final entries = ref.watch(entriesStreamProvider).value ?? const <Entry>[];
     final cats = ref.watch(categoriesStreamProvider).value ?? const <Category>[];
     final srcs = ref.watch(sourcesStreamProvider).value ?? const <Source>[];
+    final budgets = ref.watch(budgetsStreamProvider).value ?? const <Budget>[];
     final today = ref.watch(todayProvider);
 
     final opening = settings?.opening;
     final activeCats = cats.where((c) => !c.archived).length;
     final activeSrcs = srcs.where((s) => !s.archived).length;
     String actives(int n) => n == 1 ? '1 activa' : '$n activas';
+    final activeIds = {for (final c in cats) if (!c.archived) c.id};
+    final caps = budgets.where((b) => activeIds.contains(b.categoryId)).length;
 
     return Scaffold(
       body: SafeArea(
@@ -95,6 +99,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               link: 'Cambiar',
               onTap: () => showRunwayPicker(context, settings?.runwayWindowDays ?? 14),
             ),
+            // Presupuesto existe solo en Estable (los techos quedan guardados en otros modos).
+            if (settings?.mode == Mode.stable)
+              SettingsRow(
+                key: const Key('settings.budget'),
+                label: 'Presupuesto',
+                value: switch (caps) {
+                  0 => 'Sin techos',
+                  1 => '1 techo',
+                  final n => '$n techos',
+                },
+                chevron: true,
+                onTap: () => _push(context, const BudgetScreen()),
+              ),
             Divider(color: p.border, height: Space.xl),
             SettingsRow(
               key: const Key('settings.categories'),

@@ -8,6 +8,7 @@ import 'package:saldo_claro/core/theme/tokens.dart';
 import 'package:saldo_claro/data/database.dart';
 import 'package:saldo_claro/data/providers.dart';
 import 'package:saldo_claro/domain/metrics.dart';
+import 'package:saldo_claro/features/budget/budget_screen.dart';
 import 'package:saldo_claro/features/entry/draft_store.dart';
 import 'package:saldo_claro/features/home/home_blocks.dart';
 import 'package:saldo_claro/features/home/home_screen.dart';
@@ -148,6 +149,58 @@ void main() {
       final expense = width(tester, 'home.cta.expense');
       expect(income, greaterThan(expense));
       expect(income / expense, closeTo(1.5, 0.01)); // 3/5 vs 2/5
+      await unmount(tester);
+    });
+  });
+
+  group('presupuesto en el Home (1c)', () {
+    Iterable<Color> barFills(WidgetTester tester) => tester
+        .widgetList<ColoredBox>(
+            find.descendant(of: find.byKey(const Key('home.budgetBar')), matching: find.byType(ColoredBox)))
+        .map((b) => b.color);
+
+    testWidgets('barra en ink; pasado del techo → expenseFg, nunca ámbar (D3)', (tester) async {
+      final seed = await seeded(Mode.stable, (s) async {
+        await s.budget('comida', 50000);
+        await s.income(1000, day(2026, 10, 1));
+        await s.expense(160, ago(1));
+      });
+      await pumpHome(tester, seed);
+      expect(barFills(tester), contains(Palette.light.ink));
+      expect(barFills(tester), isNot(contains(Palette.light.expenseFg)));
+
+      await seed.expense(400, ago(1)); // 560 de 500
+      await tester.pumpAndSettle();
+      expect(find.text('Te pasaste por'), findsOneWidget);
+      expect(barFills(tester), contains(Palette.light.expenseFg));
+      expect(barFills(tester), isNot(contains(Palette.light.amberFg)));
+      await unmount(tester);
+    });
+
+    testWidgets('tocar el bloque de presupuesto abre Presupuesto', (tester) async {
+      await pumpHome(
+          tester,
+          await seeded(Mode.stable, (s) async {
+            await s.budget('comida', 50000);
+            await s.income(1000, day(2026, 10, 1));
+            await s.expense(160, ago(1));
+          }));
+      await tester.tap(find.text('Te queda'));
+      await tester.pumpAndSettle();
+      expect(find.byType(BudgetScreen), findsOneWidget);
+      await unmount(tester);
+    });
+
+    testWidgets('sin ingreso en el mes ("Gastaste"): el bloque no abre nada', (tester) async {
+      await pumpHome(
+          tester,
+          await seeded(Mode.stable, (s) async {
+            await s.budget('comida', 50000);
+            await s.expense(160, ago(1));
+          }));
+      await tester.tap(find.text('Gastaste'));
+      await tester.pumpAndSettle();
+      expect(find.byType(BudgetScreen), findsNothing);
       await unmount(tester);
     });
   });

@@ -256,6 +256,19 @@ int spentInMonth(List<Movement> movements, {required DateTime today}) =>
 int incomeInMonth(List<Movement> movements, {required DateTime today}) =>
     _sumInMonth(movements, EntryKind.income, today);
 
+/// Gastado por categoría en el mes calendario de [today], hasta hoy. Sin
+/// categoría (no debería pasar en un gasto) no cuenta.
+Map<String, int> spentByCategoryInMonth(List<Movement> movements, {required DateTime today}) {
+  final from = DateTime.utc(today.year, today.month, 1);
+  final byCat = <String, int>{};
+  for (final m in movements) {
+    if (m.kind != EntryKind.expense || m.categoryId == null) continue;
+    if (m.day.isBefore(from) || m.day.isAfter(today)) continue;
+    byCat.update(m.categoryId!, (v) => v + m.cents, ifAbsent: () => m.cents);
+  }
+  return byCat;
+}
+
 typedef BudgetStatus = ({int capCents, int spentCents, int remainingCents, int percent});
 
 /// Presupuesto del mes: Σ techos vs gastado. null si no hay techos.

@@ -39,7 +39,7 @@
 
 ## 1c — Presupuesto + Insights ⏭ siguiente (skills: design-taste-frontend + dataviz)
 Arranca como siempre: ficha + wireframes antes de código. Antes de 1c, revisar el "Roadmap pendiente".
-- [ ] Pantalla de Presupuesto (solo Estable): techos por categoría editables (`budgets`), sugeridos por histórico (`suggestedCaps`)
+- [x] Pantalla de Presupuesto (solo Estable): techos por categoría editables (`budgets`), sugeridos por histórico (`suggestedCaps`)
 - [ ] Insights: barras de gasto por categoría 30 días (ordenadas por monto; el donut se descartó en 1c), línea de runway (60 días), mejor/peor mes de ingreso, racha (umbral congelado), frases
 - [ ] Tarjeta de techos sugeridos dentro de Insights (solo Supervivencia)
 - [ ] Paleta de colores por categoría con `dataviz` (hoy los ítems nuevos usan el neutro `#525252`)

@@ -30,6 +30,16 @@ void main() {
     });
   });
 
+  test('fromCents: precarga un techo guardado y vuelve a los mismos centavos', () {
+    expect(AmountInput.fromCents(15000).text, '150');
+    expect(AmountInput.fromCents(15050).text, '150.50');
+    expect(AmountInput.fromCents(5).text, '0.05');
+    expect(AmountInput.fromCents(0).isEmpty, isTrue);
+    for (final c in [1, 99, 100, 15050, 99999999]) {
+      expect(AmountInput.fromCents(c).cents, c);
+    }
+  });
+
   group('reglas de tecleo', () {
     test('"." con monto vacío escribe "0."', () => expect(type('.').text, '0.'));
 

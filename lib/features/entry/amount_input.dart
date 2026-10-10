@@ -8,6 +8,13 @@ const maxDecimals = 2;
 class AmountInput {
   const AmountInput([this.text = '']);
 
+  /// Precarga un monto guardado: 15000 → '150', 15050 → '150.50'. 0 → vacío.
+  factory AmountInput.fromCents(int cents) {
+    if (cents <= 0) return const AmountInput();
+    final dec = cents % 100;
+    return AmountInput(dec == 0 ? '${cents ~/ 100}' : '${cents ~/ 100}.${dec.toString().padLeft(2, '0')}');
+  }
+
   /// Lo que el usuario tecleó, sin formato: '', '0.', '12', '12.5', '1250.05'.
   final String text;
 

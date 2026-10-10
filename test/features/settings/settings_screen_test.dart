@@ -7,6 +7,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:saldo_claro/core/theme/app_theme.dart';
 import 'package:saldo_claro/data/providers.dart';
 import 'package:saldo_claro/domain/metrics.dart';
+import 'package:saldo_claro/features/budget/budget_screen.dart';
 import 'package:saldo_claro/features/entry/draft_store.dart';
 import 'package:saldo_claro/features/home/home_screen.dart';
 import 'package:saldo_claro/features/settings/about_screen.dart';
@@ -86,6 +87,31 @@ void main() {
     expect(rowValue('export', 'Todavía no hay movimientos'), findsOneWidget);
     expect(rowValue('about', 'Versión 0.1.0'), findsOneWidget);
     await h.unmount(tester);
+  });
+
+  group('fila Presupuesto (solo Estable)', () {
+    for (final mode in [Mode.variable, Mode.survival]) {
+      testWidgets('ausente en ${mode.name}, aunque haya techos guardados', (tester) async {
+        await pumpApp(tester, await h.seeded(mode, (s) => s.budget('comida', 15000)));
+        await openSettings(tester);
+        expect(find.byKey(const Key('settings.budget')), findsNothing);
+        await h.unmount(tester);
+      });
+    }
+
+    testWidgets('en Estable: cuenta techos de activas y abre Presupuesto', (tester) async {
+      final seed = await h.seeded(Mode.stable, (s) async {
+        await s.budget('comida', 15000);
+        await s.budget('ocio', 5000);
+      });
+      await seed.db.setArchived(EntryKind.expense, 'ocio', archived: true);
+      await pumpApp(tester, seed);
+      await openSettings(tester);
+      expect(rowValue('budget', '1 techo'), findsOneWidget);
+      await tapRow(tester, 'budget');
+      expect(find.byType(BudgetScreen), findsOneWidget);
+      await h.unmount(tester);
+    });
   });
 
   group('modo', () {

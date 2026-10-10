@@ -282,6 +282,14 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
+  /// Techo mensual de una categoría (crea o reemplaza). [cents] > 0: lo exige
+  /// el CHECK de la tabla.
+  Future<void> setBudget(String categoryId, int cents) =>
+      into(budgets).insertOnConflictUpdate(BudgetsCompanion.insert(categoryId: categoryId, capCents: cents));
+
+  Future<void> removeBudget(String categoryId) =>
+      (delete(budgets)..where((b) => b.categoryId.equals(categoryId))).go();
+
   /// Saldo inicial: monto e instante SIEMPRE juntos. Un monto sin instante se
   /// ignora en los cálculos (ver [SettingOpening.opening]).
   Future<void> setOpeningBalance({required int cents, required DateTime at}) =>

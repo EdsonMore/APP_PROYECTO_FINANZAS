@@ -77,6 +77,22 @@ void main() {
       expect(s.headline.budgetPercent, 115);
     });
 
+    test('el techo de una categoría archivada no suma al total (D2)', () {
+      final withArchived = [
+        ...cats,
+        const Category(id: 'viejo', name: 'Viejo', icon: 'category', colorHex: 'cat:7', sortOrder: 2, archived: true, isDefault: false),
+      ];
+      final s = buildHomeSummary(
+          settings: settings(Mode.stable),
+          entries: [e(EntryKind.income, 1000, day(2026, 10, 1)), e(EntryKind.expense, 160, ago(1))],
+          categories: withArchived,
+          sources: srcs,
+          budgets: [...budgets, const Budget(categoryId: 'viejo', capCents: 99900)],
+          today: today);
+      expect(s.headline.value, 'S/ 640.00', reason: '800 de techos activos − 160, sin los 999 de la archivada');
+      expect(s.headline.budgetPercent, 20);
+    });
+
     test('con techos pero sin ingreso en el mes → cae a "Gastaste" (regla F)', () {
       final s = build(Mode.stable, [e(EntryKind.income, 1000, day(2026, 9, 20)), e(EntryKind.expense, 160, ago(1))],
           budgets: budgets);

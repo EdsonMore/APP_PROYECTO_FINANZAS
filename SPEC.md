@@ -46,6 +46,14 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
 - La pestaña Presupuesto existe **solo en `stable`**. En `survival`, los techos
   sugeridos aparecen como tarjeta en Insights ("Sugerido por tu historial:
   Comida ~S/ 150 [Usar como techo]"). En `variable` no se muestran.
+- **Total de Presupuesto y del Home:** Σ techos de categorías **activas** contra
+  **todo** el gasto del mes calendario (`spentInMonth`). El techo de una
+  archivada queda guardado y vuelve al desarchivar. Si hubo gasto fuera de los
+  techos, Presupuesto lo dice: "Incluye S/ X de categorías sin techo".
+- **Pasarse del techo** (barra del Home y de Presupuesto): relleno en
+  `expenseFg` con ícono y texto. El ámbar queda solo para el semáforo.
+- **Acceso:** fila "Presupuesto" en Ajustes y toque en el bloque de presupuesto
+  del Home (que solo aparece en Estable con techos e ingreso en el mes).
 - **Qué categorías lista Presupuesto:** todas las activas con techo y, sin
   techo, solo las activas con gasto en los últimos 90 días (la misma ventana de
   los techos sugeridos). Una categoría sin techo y sin gasto en 90 días no

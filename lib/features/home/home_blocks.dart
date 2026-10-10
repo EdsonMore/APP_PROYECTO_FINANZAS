@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/tokens.dart';
+import '../../core/widgets/budget_bar.dart';
 import '../../core/widgets/icon_catalog.dart';
 import '../../domain/metrics.dart';
 import 'providers.dart';
@@ -79,8 +80,11 @@ class FitDisplayText extends StatelessWidget {
 }
 
 class NumberBlock extends StatelessWidget {
-  const NumberBlock({super.key, required this.headline});
+  const NumberBlock({super.key, required this.headline, this.onTap});
   final Headline headline;
+
+  /// Solo el bloque de presupuesto es tocable (abre Presupuesto).
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -88,84 +92,51 @@ class NumberBlock extends StatelessWidget {
     final h = headline;
     return Semantics(
       container: true,
+      button: onTap != null,
       label: h.semantics,
+      hint: onTap != null ? 'Abre Presupuesto' : null,
       excludeSemantics: true,
-      child: Padding(
-        padding: const EdgeInsets.only(top: Space.xxl, bottom: Space.xl),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (h.lead != null) ...[
-            Text(h.lead!, style: AppType.body.copyWith(color: p.inkMuted)),
-            const SizedBox(height: Space.xs),
-          ],
-          AnimatedSwitcher(
-            duration: _motion(context, Motion.numberChange),
-            layoutBuilder: (current, previous) =>
-                Stack(alignment: Alignment.centerLeft, children: [...previous, ?current]),
-            child: KeyedSubtree(key: ValueKey(h.value), child: FitDisplayText(h.value, color: p.ink)),
-          ),
-          if (h.context != null) ...[
-            const SizedBox(height: Space.xs),
-            Text(h.context!,
-                key: const Key('home.context'),
-                style: AppType.caption.copyWith(color: h.contextUrgent ? p.expenseFg : p.inkMuted)),
-          ],
-          if (h.budgetPercent != null) ...[
-            const SizedBox(height: Space.md),
-            BudgetBar(percent: h.budgetPercent!, over: h.overBudget),
-          ],
-          if (h.secondary != null) ...[
-            const SizedBox(height: Space.sm),
-            Text(h.secondary!, style: AppType.caption.copyWith(color: p.inkMuted)),
-          ],
-          if (h.stats.isNotEmpty) ...[
-            const SizedBox(height: Space.sm),
-            Wrap(spacing: Space.xl, runSpacing: Space.xs, children: [
-              for (final s in h.stats)
-                Text.rich(TextSpan(style: AppType.caption.copyWith(color: p.inkMuted), children: [
-                  TextSpan(text: '${s.label} '),
-                  TextSpan(text: s.amount, style: AppType.amount.copyWith(fontSize: 13, color: p.ink)),
-                ])),
-            ]),
-          ],
-        ]),
-      ),
-    );
-  }
-}
-
-/// Carril = el techo (por eso lleva fondo). Relleno ink; ámbar al pasar el 100 %.
-class BudgetBar extends StatelessWidget {
-  const BudgetBar({super.key, required this.percent, required this.over});
-  final int percent;
-  final bool over;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.palette;
-    final target = (percent.clamp(0, 100)) / 100;
-    return Semantics(
-      label: '$percent % del presupuesto usado',
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(3),
-        child: SizedBox(
-          key: const Key('home.budgetBar'),
-          height: 6,
-          child: ColoredBox(
-            color: p.track,
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(end: target),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.only(top: Space.xxl, bottom: Space.xl),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (h.lead != null) ...[
+              Text(h.lead!, style: AppType.body.copyWith(color: p.inkMuted)),
+              const SizedBox(height: Space.xs),
+            ],
+            AnimatedSwitcher(
               duration: _motion(context, Motion.numberChange),
-              curve: Motion.easeOut,
-              builder: (context, v, _) => Align(
-                alignment: Alignment.centerLeft,
-                child: FractionallySizedBox(
-                  widthFactor: v,
-                  heightFactor: 1,
-                  child: ColoredBox(color: over ? p.amberFg : p.ink),
-                ),
-              ),
+              layoutBuilder: (current, previous) =>
+                  Stack(alignment: Alignment.centerLeft, children: [...previous, ?current]),
+              child: KeyedSubtree(key: ValueKey(h.value), child: FitDisplayText(h.value, color: p.ink)),
             ),
-          ),
+            if (h.context != null) ...[
+              const SizedBox(height: Space.xs),
+              Text(h.context!,
+                  key: const Key('home.context'),
+                  style: AppType.caption.copyWith(color: h.contextUrgent ? p.expenseFg : p.inkMuted)),
+            ],
+            if (h.budgetPercent != null) ...[
+              const SizedBox(height: Space.md),
+              BudgetBar(key: const Key('home.budgetBar'), percent: h.budgetPercent!, over: h.overBudget, color: p.ink),
+            ],
+            if (h.secondary != null) ...[
+              const SizedBox(height: Space.sm),
+              Text(h.secondary!, style: AppType.caption.copyWith(color: p.inkMuted)),
+            ],
+            if (h.stats.isNotEmpty) ...[
+              const SizedBox(height: Space.sm),
+              Wrap(spacing: Space.xl, runSpacing: Space.xs, children: [
+                for (final s in h.stats)
+                  Text.rich(TextSpan(style: AppType.caption.copyWith(color: p.inkMuted), children: [
+                    TextSpan(text: '${s.label} '),
+                    TextSpan(text: s.amount, style: AppType.amount.copyWith(fontSize: 13, color: p.ink)),
+                  ])),
+              ]),
+            ],
+          ]),
         ),
       ),
     );

@@ -9,6 +9,7 @@ import '../../core/widgets/press_scale.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/metrics.dart';
+import '../budget/budget_screen.dart';
 import '../entry/entry_sheet.dart';
 import '../entry/opening_balance_sheet.dart';
 import '../settings/settings_screen.dart';
@@ -42,7 +43,13 @@ class HomeScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(Space.gutter, Space.lg, Space.gutter, Space.xl),
             children: [
               HomeHeader(title: s.title, onSettings: () => _openSettings(context)),
-              NumberBlock(headline: s.headline),
+              NumberBlock(
+                headline: s.headline,
+                // Solo existe en Estable con techos e ingreso en el mes.
+                onTap: s.headline.kind == HeadlineKind.budget
+                    ? () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const BudgetScreen()))
+                    : null,
+              ),
               AnimatedSize(
                 duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : Motion.lightChange,
                 curve: Motion.easeOut,

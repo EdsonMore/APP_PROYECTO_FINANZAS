@@ -191,7 +191,9 @@ HomeSummary buildHomeSummary({
   return HomeSummary(
     title: settings?.spaceName ?? defaultSpaceName,
     mode: mode,
-    headline: _headline(mode, settings, movements, budgets, today),
+    // D2 (1c): el techo de una categoría archivada queda guardado pero no suma.
+    headline: _headline(mode, settings, movements,
+        [for (final b in budgets) if (catById[b.categoryId]?.archived == false) b], today),
     light: LightView(
       ratio.light,
       lightTexts[ratio.light]!,
