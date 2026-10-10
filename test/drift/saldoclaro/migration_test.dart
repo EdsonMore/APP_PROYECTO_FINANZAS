@@ -9,6 +9,7 @@ import 'package:saldo_claro/domain/metrics.dart' show EntryKind;
 import 'generated/schema.dart';
 import 'generated/schema_v1.dart' as v1;
 import 'generated/schema_v2.dart' as v2;
+import 'generated/schema_v3.dart' as v3;
 
 /// La semilla tal como la creaba la v1 ("otros" con la bolsa de compras).
 const v1Categories = [
@@ -40,13 +41,40 @@ Future<InitializedSchema> v1Database([Future<void> Function(v1.DatabaseAtV1 db)?
   return schema;
 }
 
-/// Abre la base con la app (corre la migración) y valida que el esquema
-/// resultante sea idéntico al de una instalación nueva v2.
+/// Abre la base con la app (corre la migración hasta la última versión) y
+/// valida que el esquema resultante sea idéntico al de una instalación nueva.
 Future<AppDatabase> migrate(InitializedSchema schema) async {
   final db = AppDatabase(schema.newConnection());
-  await verifier.migrateAndValidate(db, 2);
+  await verifier.migrateAndValidate(db, 3);
   return db;
 }
+
+/// Base v2 real con la semilla tal como la creaba la v2 (hex provisionales),
+/// fuentes, y lo que agregue [fill].
+Future<InitializedSchema> v2Database([Future<void> Function(v2.DatabaseAtV2 db)? fill]) async {
+  const v2Hex = ['#C2410C', '#1D4ED8', '#047857', '#7C3AED', '#BE123C', '#525252'];
+  final schema = await verifier.schemaAt(2);
+  final old = v2.DatabaseAtV2(schema.newConnection());
+  for (final (i, (id, name, icon)) in v1Categories.indexed) {
+    await old.into(old.categories).insert(v2.CategoriesCompanion.insert(
+        id: id, name: name, icon: icon == 'local_mall' ? 'category' : icon, colorHex: v2Hex[i], sortOrder: i,
+        isDefault: const Value(1)));
+  }
+  for (final (i, (id, name)) in v1Sources.indexed) {
+    await old.into(old.sources).insert(v2.SourcesCompanion.insert(
+        id: id, name: name, icon: 'payments', colorHex: '#047857', sortOrder: i, isDefault: const Value(1)));
+  }
+  if (fill != null) await fill(old);
+  await old.close();
+  return schema;
+}
+
+Future<Map<String, String>> colors(AppDatabase db) async =>
+    {for (final c in await db.select(db.categories).get()) c.id: c.colorHex};
+
+const seedSlots = {
+  'comida': 'cat:1', 'transporte': 'cat:2', 'vivienda': 'cat:3', 'ocio': 'cat:4', 'salud': 'cat:5', 'otros': 'cat:6',
+};
 
 Future<String> iconOf(AppDatabase db, String id) async =>
     (await (db.select(db.categories)..where((c) => c.id.equals(id))).getSingle()).icon;
@@ -67,10 +95,70 @@ void main() {
 
   setUpAll(() => verifier = SchemaVerifier(GeneratedHelper()));
 
-  test('v1 → v2 sin datos: el esquema migrado es idéntico al de una instalación nueva', () async {
-    final schema = await verifier.schemaAt(1);
-    final db = AppDatabase(schema.newConnection());
-    await verifier.migrateAndValidate(db, 2);
+  for (final from in [1, 2]) {
+    test('v$from → v3 sin datos: el esquema migrado es idéntico al de una instalación nueva', () async {
+      final schema = await verifier.schemaAt(from);
+      final db = AppDatabase(schema.newConnection());
+      await verifier.migrateAndValidate(db, 3);
+      await db.close();
+    });
+  }
+
+  group('v2 → v3 (solo datos: slots de la paleta)', () {
+    test('semilla → cat:1…6 sin condición; personalizadas → 7, 8, 9, 1 por sort_order; fuentes intactas', () async {
+      final schema = await v2Database((old) async {
+        // Orden de inserción distinto al sort_order a propósito; una archivada,
+        // una con el neutro, una con un hex cualquiera.
+        Future<void> cat(String id, int order, String hex, {bool archived = false}) =>
+            old.into(old.categories).insert(v2.CategoriesCompanion.insert(
+                id: id, name: id, icon: 'category', colorHex: hex, sortOrder: order, archived: Value(archived ? 1 : 0)));
+        await cat('deudas', 9, '#525252');
+        await cat('ropa', 6, '#FF0000');
+        await cat('mascota', 7, '#525252', archived: true);
+        await cat('regalos', 8, '#525252');
+        // La semilla renombrada/archivada recibe igual su slot.
+        await (old.update(old.categories)..where((c) => c.id.equals('salud')))
+            .write(const v2.CategoriesCompanion(name: Value('Farmacia'), archived: Value(1)));
+        await old.into(old.entries).insert(v2.EntriesCompanion.insert(
+            id: 'e1', kind: 'expense', amountCents: 1250, occurredOn: '2026-10-08', categoryId: const Value('ropa'),
+            createdAt: 1, updatedAt: 1));
+        await old.into(old.budgets).insert(v2.BudgetsCompanion.insert(categoryId: 'comida', capCents: 60000));
+      });
+
+      final db = await migrate(schema);
+
+      expect(await colors(db), {
+        ...seedSlots,
+        'ropa': 'cat:7', 'mascota': 'cat:8', 'regalos': 'cat:9', 'deudas': 'cat:1',
+      });
+      final salud = await (db.select(db.categories)..where((c) => c.id.equals('salud'))).getSingle();
+      expect((salud.name, salud.archived), ('Farmacia', true), reason: 'solo cambia color_hex');
+      expect((await db.select(db.sources).get()).map((s) => s.colorHex), everyElement('#047857'), reason: 'fuentes intactas');
+      expect((await db.select(db.entries).getSingle()).categoryId, 'ropa');
+      expect((await db.select(db.budgets).getSingle()).capCents, 60000);
+      expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
+      await db.close();
+    });
+
+    test('después de migrar, addCatalogItem sigue la cuenta (k = personalizadas existentes)', () async {
+      final db = await migrate(await v2Database((old) async {
+        for (final (i, id) in ['a', 'b', 'c'].indexed) {
+          await old.into(old.categories).insert(
+              v2.CategoriesCompanion.insert(id: id, name: id, icon: 'category', colorHex: '#525252', sortOrder: 6 + i));
+        }
+      }));
+      await db.addCatalogItem(EntryKind.expense, id: 'd', name: 'd', icon: 'category');
+      expect((await colors(db))['d'], 'cat:1', reason: 'la cuarta personalizada vuelve al slot 1');
+      await db.close();
+    });
+  });
+
+  test('v1 → v3 de corrido: ícono de "otros" corregido y slots asignados', () async {
+    final db = await migrate(await v1Database((old) => old.into(old.categories).insert(
+        v1.CategoriesCompanion.insert(id: 'ropa', name: 'Ropa', icon: 'local_mall', colorHex: '#525252', sortOrder: 6))));
+    expect(await iconOf(db, 'otros'), 'category');
+    expect(await colors(db), {...seedSlots, 'ropa': 'cat:7'});
+    expect(await db.select(db.accounts).get(), isEmpty);
     await db.close();
   });
 

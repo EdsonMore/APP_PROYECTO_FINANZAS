@@ -117,14 +117,14 @@ class Goals extends Table {
 }
 
 /// Semillas v1: (id, nombre, icono de IconCatalog, color). Expuestas para tests.
-// id, nombre, icono (IconCatalog), color. Colores provisionales: los fija dataviz en 1c.
+// id, nombre, icono (IconCatalog), slot de la paleta categórica (tokens.dart).
 const defaultCategories = [
-  ('comida', 'Comida', 'restaurant', '#C2410C'),
-  ('transporte', 'Transporte', 'directions_bus', '#1D4ED8'),
-  ('vivienda', 'Vivienda', 'home', '#047857'),
-  ('ocio', 'Ocio', 'movie', '#7C3AED'),
-  ('salud', 'Salud', 'healing', '#BE123C'),
-  ('otros', 'Otros', 'category', '#525252'),
+  ('comida', 'Comida', 'restaurant', 'cat:1'),
+  ('transporte', 'Transporte', 'directions_bus', 'cat:2'),
+  ('vivienda', 'Vivienda', 'home', 'cat:3'),
+  ('ocio', 'Ocio', 'movie', 'cat:4'),
+  ('salud', 'Salud', 'healing', 'cat:5'),
+  ('otros', 'Otros', 'category', 'cat:6'),
 ];
 
 const defaultSources = [
@@ -140,7 +140,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? driftDatabase(name: 'saldoclaro'));
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -161,7 +161,7 @@ class AppDatabase extends _$AppDatabase {
           // Una transacción: si un paso falla, la base vuelve entera a la
           // versión anterior (drift no envuelve la migración por su cuenta y
           // solo sube user_version si todo termina bien).
-          await transaction(() => stepByStep(from1To2: migrateV1ToV2)(m, from, to));
+          await transaction(() => stepByStep(from1To2: migrateV1ToV2, from2To3: migrateV2ToV3)(m, from, to));
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -185,6 +185,24 @@ class AppDatabase extends _$AppDatabase {
       "UPDATE categories SET icon = 'category' WHERE id = 'otros' AND icon = 'local_mall'",
       updates: {categories},
     );
+  }
+
+  /// v2 → v3, solo datos: cada categoría recibe su slot de la paleta en
+  /// `color_hex`. La semilla se sobrescribe sin condición (sus hex eran
+  /// provisionales y nunca se mostraron); las del usuario, archivadas
+  /// incluidas, toman slots por `sort_order` con [customCategorySlot].
+  /// Las fuentes no se tocan.
+  @visibleForTesting
+  Future<void> migrateV2ToV3(Migrator m, Schema3 schema) async {
+    for (final (id, _, _, slot) in defaultCategories) {
+      await customUpdate('UPDATE categories SET color_hex = ? WHERE id = ?',
+          variables: [Variable(slot), Variable(id)], updates: {categories});
+    }
+    final custom = await customSelect('SELECT id FROM categories WHERE is_default = 0 ORDER BY sort_order, id').get();
+    for (final (k, row) in custom.indexed) {
+      await customUpdate('UPDATE categories SET color_hex = ? WHERE id = ?',
+          variables: [Variable(customCategorySlot(k)), Variable(row.read<String>('id'))], updates: {categories});
+    }
   }
 
   /// Cierra el onboarding: crea (o reemplaza) la fila única de settings.
@@ -227,12 +245,18 @@ class AppDatabase extends _$AppDatabase {
     return (max ?? -1) + 1;
   }
 
-  /// Nuevo ítem al final del orden. Color neutro: la paleta llega en 1c (dataviz).
+  /// Nuevo ítem al final del orden. Una categoría toma el siguiente slot de la
+  /// paleta ([customCategorySlot]); una fuente, el color neutro.
   Future<void> addCatalogItem(EntryKind kind, {required String id, required String name, required String icon}) async {
     final order = await _nextSortOrder(kind);
     if (kind == EntryKind.expense) {
-      await into(categories)
-          .insert(CategoriesCompanion.insert(id: id, name: name, icon: icon, colorHex: newItemColor, sortOrder: order));
+      final k = await (selectOnly(categories)
+            ..addColumns([categories.id.count()])
+            ..where(categories.isDefault.equals(false)))
+          .map((r) => r.read(categories.id.count())!)
+          .getSingle();
+      await into(categories).insert(
+          CategoriesCompanion.insert(id: id, name: name, icon: icon, colorHex: customCategorySlot(k), sortOrder: order));
     } else {
       await into(sources)
           .insert(SourcesCompanion.insert(id: id, name: name, icon: icon, colorHex: newItemColor, sortOrder: order));
@@ -326,8 +350,12 @@ class AppDatabase extends _$AppDatabase {
 typedef PickOption = ({String id, String name, String icon});
 typedef CatalogItem = ({String id, String name, String icon, bool archived});
 
-/// Color de los ítems creados por el usuario hasta que 1c defina la paleta.
+/// Color de las fuentes creadas por el usuario (las fuentes no usan la paleta).
 const newItemColor = '#525252';
+
+/// Slot de la k-ésima categoría del usuario (k desde 0): 7, 8, 9 y luego se
+/// reutilizan 1, 2… Con barras rotuladas un color repetido no confunde.
+String customCategorySlot(int k) => 'cat:${(k + 6) % 9 + 1}';
 
 /// 'YYYY-MM-DD' ↔ día del dominio.
 String isoDay(DateTime d) =>

@@ -46,6 +46,10 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
 - La pestaña Presupuesto existe **solo en `stable`**. En `survival`, los techos
   sugeridos aparecen como tarjeta en Insights ("Sugerido por tu historial:
   Comida ~S/ 150 [Usar como techo]"). En `variable` no se muestran.
+- **Qué categorías lista Presupuesto:** todas las activas con techo y, sin
+  techo, solo las activas con gasto en los últimos 90 días (la misma ventana de
+  los techos sugeridos). Una categoría sin techo y sin gasto en 90 días no
+  aparece: la pantalla es para ponerle techo a lo que el usuario ya usa.
 
 - **Nombres visibles de los modos** (Ajustes, Insights): Estable, Variable y
   **Supervivencia**. El Onboarding conserva sus 4 opciones; Ajustes ofrece 3,
@@ -59,14 +63,17 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
   2026-10-09). Se quitan los espacios de los extremos; máximo 30 caracteres
   visibles (un emoji cuenta 1); vacío → null ("Mis cuentas").
 - Categorías y fuentes: se archivan, no se borran. La última activa no se
-  puede archivar. Nombres: máximo 20 caracteres, sin emojis, sin repetir
+  puede archivar. **Archivar = no ofrecerla para movimientos nuevos; su
+  historial sigue contando.** Una categoría archivada con gasto en los últimos
+  30 días aparece en el gráfico de gastos de Insights y en todas las métricas.
+  No aparece en Presupuesto (ni con techo ni sin techo) ni en el registro. Nombres: máximo 20 caracteres, sin emojis, sin repetir
   (sin distinguir mayúsculas).
 - **CSV:** UTF-8 con BOM, separador **punto y coma** (Excel con configuración
   regional de Perú), fin de línea CRLF, del más nuevo al más viejo. Columnas:
   `id;kind;amount_cents;amount;occurred_on;category_or_source;category_or_source_id;note;origin;created_at;updated_at;account_label`.
   `kind` va en español (gasto/ingreso); las fechas, en ISO local.
 
-## Modelo de datos (drift, `lib/data/database.dart`, schemaVersion 2)
+## Modelo de datos (drift, `lib/data/database.dart`, schemaVersion 3)
 
 Convenciones:
 
@@ -117,6 +124,13 @@ Convenciones:
      'local_mall'`. Solo la fila `otros` y solo si conserva el ícono original:
      una personalización del usuario no se pisa; renombrada o archivada se
      corrige igual; una categoría del usuario con `local_mall` no se toca.
+- **v2 → v3** (`migrateV2ToV3`), solo datos, sin cambio de tablas:
+  1. Semilla: `color_hex = 'cat:1'…'cat:6'` (comida, transporte, vivienda,
+     ocio, salud, otros), sin condición: los hex v2 eran provisionales y nunca
+     se mostraron. Aplica también a renombradas y archivadas.
+  2. Categorías del usuario (`is_default = 0`, archivadas incluidas), por
+     `sort_order, id`: `customCategorySlot(k)` = `cat:${(k + 6) % 9 + 1}`.
+  3. Fuentes: no se tocan.
 - Tests en `test/drift/saldoclaro/migration_test.dart`: base v1 real con datos,
   esquema migrado idéntico al de una instalación nueva, casos del ícono, FK y
   rollback de una migración que falla a mitad.
@@ -220,8 +234,11 @@ del saldo inicial.
 Un día `d` está OK si `gasto(d) ≤ umbral`. La racha cuenta días consecutivos
 desde hoy hacia atrás:
 
-- Hoy cuenta si todavía está OK.
-- Un día sin gastos está OK.
+- **Qué días cuentan:** los días con `gasto(d) ≤ umbral`; el ingreso del día no
+  compensa el gasto.
+- **Un día sin gastos está OK** y suma a la racha.
+- **Hoy cuenta parcialmente:** suma 1 si el gasto registrado *hasta ahora* es
+  ≤ umbral. Si hoy ya se pasó, la racha es 0, aunque ayer viniera de 30 días.
 - No se cuentan días anteriores a `first`.
 
 Umbral, en este orden (`streakThreshold`):
@@ -235,7 +252,9 @@ Umbral, en este orden (`streakThreshold`):
 **El umbral de racha se congela al abrir Insights.** Se calcula una vez con
 datos hasta `T` y se aplica igual a todos los días evaluados. No se recalcula
 por cada día del pasado, porque eso hacía que la racha saltara de forma
-errática.
+errática. **No es retroactivo:** cada vez que se abre Insights se calcula el
+umbral de hoy y se evalúa la racha con él. No se guarda un umbral por día ni se
+reescriben rachas pasadas, y no se persiste nada en la BD.
 
 ### Techos sugeridos
 
@@ -253,6 +272,38 @@ Mínimo S/ 10 si hubo gasto. Se basan solo en el histórico, nunca en el ingreso
 - "Tu colchón bajó X %": `(B_fin − B_inicio) / B_inicio`, solo si `B_inicio > 0`.
 
 ## Sistema visual: "Cuaderno" (`lib/core/theme/`)
+
+### Paleta categórica (1c, validada con `dataviz`)
+
+`color_hex` de una categoría guarda su **slot** (`cat:1`…`cat:9`), no un hex:
+el color cambia entre claro y oscuro. `categoryColor(colorHex, brightness)` en
+`tokens.dart` lo resuelve; cualquier otro valor cae en piedra.
+
+| Slot | Nombre | Semilla | Claro | Oscuro |
+|---|---|---|---|---|
+| 1 | terracota | Comida | `#CA653C` | `#D87248` |
+| 2 | lago | Transporte | `#2266A4` | `#4E90D2` |
+| 3 | mostaza | Vivienda | `#A08318` | `#B0922E` |
+| 4 | uva | Ocio | `#634590` | `#8C6EBD` |
+| 5 | salvia | Salud | `#8A943A` | `#909A40` |
+| 6 | piedra | Otros | `#56524B` | `#726E67` |
+| 7 | ciruela | libre | `#B5689D` | `#C274A9` |
+| 8 | añil | libre | `#424B9C` | `#5A66B9` |
+| 9 | petróleo | libre | `#09919D` | `#029FAB` |
+
+- Todos ≥ 3:1 contra canvas y surface en ambos temas. La piedra es gris a
+  propósito (única excepción al piso de croma).
+- Categorías del usuario: slots 7, 8, 9 y desde la décima **se reutilizan**
+  1, 2… (`(k + 6) % 9 + 1`). Puede haber colores repetidos con 10+ categorías:
+  aceptable porque el color nunca va sin su nombre.
+- **El gasto por categoría se muestra en barras horizontales rotuladas,
+  ordenadas por gasto descendente, no en donut.** Validada con todos los pares,
+  la paleta no separa colores como salvia↔mostaza (ΔE 5) o salvia↔terracota
+  (CVD ΔE 0.8); en un anillo cualquier par puede quedar junto, en barras cada
+  color va pegado a su nombre.
+- Texto en `ink`/`inkMuted`, nunca en el color de la categoría.
+- `lib/dev/palette_preview.dart` muestra la paleta en el emulador:
+  `flutter run -t lib/dev/palette_preview.dart --dart-define=mode=dark`.
 
 Cálido, editorial y sobrio. El color solo comunica significado. Los tokens están
 en `tokens.dart` y `ThemeData` claro/oscuro en `app_theme.dart`. Los colores
@@ -286,7 +337,8 @@ semánticos se leen con `context.palette`.
 ## Stack
 
 - Flutter 3.44 (stable), Dart ^3.12, `flutter_riverpod` ^2.6.
-- `drift` ^2.35 + `drift_flutter` (persistencia), `fl_chart` (gráficos).
+- `drift` ^2.35 + `drift_flutter` (persistencia). Gráficos propios (barras con
+  widgets, línea de runway con `CustomPainter`): sin librería de gráficos.
 - `intl`, `uuid`, `share_plus` + `path_provider` (CSV).
 - `shared_preferences`: solo para `core/legal/legal_acceptance_store.dart` (Fase 2).
 - **Sin dependencias de red.** Salieron `supabase_flutter`, `http`, `pdf`,

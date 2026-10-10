@@ -37,6 +37,17 @@ void main() {
     });
   }
 
+  test('categoryColor: slot → paleta del tema; valor desconocido → piedra', () {
+    expect(categoryColor('cat:1', Brightness.light), const Color(0xFFCA653C));
+    expect(categoryColor('cat:1', Brightness.dark), const Color(0xFFD87248));
+    expect(categoryColor('cat:9', Brightness.light), const Color(0xFF09919D));
+    expect(categoryColor('cat:5', Brightness.dark), const Color(0xFF909A40));
+    for (final bad in ['#525252', 'cat:0', 'cat:10', 'cat:', 'cat:x', '']) {
+      expect(categoryColor(bad, Brightness.light), categoryLight[5], reason: bad);
+      expect(categoryColor(bad, Brightness.dark), categoryDark[5], reason: bad);
+    }
+  });
+
   test('ningún estilo pide un peso no empaquetado', () {
     final packaged = [FontWeight.w400, FontWeight.w500, FontWeight.w600];
     for (final s in [AppType.display, AppType.title, AppType.heading, AppType.body, AppType.label, AppType.link,

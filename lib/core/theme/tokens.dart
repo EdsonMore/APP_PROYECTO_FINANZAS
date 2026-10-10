@@ -100,6 +100,26 @@ extension PaletteX on BuildContext {
   Palette get palette => Theme.of(this).extension<Palette>()!;
 }
 
+/// Paleta categórica (1c, validada con dataviz; SPEC.md §Paleta categórica).
+/// Índice = slot − 1: terracota, lago, mostaza, uva, salvia, piedra, ciruela,
+/// añil, petróleo. La piedra (slot 6, "Otros") es gris a propósito.
+const categoryLight = [
+  Color(0xFFCA653C), Color(0xFF2266A4), Color(0xFFA08318), Color(0xFF634590), Color(0xFF8A943A),
+  Color(0xFF56524B), Color(0xFFB5689D), Color(0xFF424B9C), Color(0xFF09919D),
+];
+const categoryDark = [
+  Color(0xFFD87248), Color(0xFF4E90D2), Color(0xFFB0922E), Color(0xFF8C6EBD), Color(0xFF909A40),
+  Color(0xFF726E67), Color(0xFFC274A9), Color(0xFF5A66B9), Color(0xFF029FAB),
+];
+
+/// Color de una categoría a partir de su `color_hex` ('cat:1'…'cat:9').
+/// Cualquier otro valor cae en piedra.
+Color categoryColor(String colorHex, Brightness brightness) {
+  final slot = colorHex.startsWith('cat:') ? int.tryParse(colorHex.substring(4)) : null;
+  final i = slot != null && slot >= 1 && slot <= 9 ? slot - 1 : 5;
+  return (brightness == Brightness.dark ? categoryDark : categoryLight)[i];
+}
+
 /// Tipografía. Newsreader (serif, solo 500) para el número principal y
 /// títulos ≥ 22 sp; Geist (400/500/600) para todo lo demás, incluidos montos
 /// de listas y chips. Nunca pedir w700: no está empaquetado y Flutter lo

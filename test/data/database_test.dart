@@ -26,6 +26,34 @@ void main() {
     expect((await db.select(db.sources).get()).map((s) => s.name), contains('Chamba'));
   });
 
+  test('instalación nueva: la semilla nace con los slots cat:1…cat:6', () async {
+    final cats = await (db.select(db.categories)..orderBy([(c) => OrderingTerm(expression: c.sortOrder)])).get();
+    expect(cats.map((c) => (c.id, c.colorHex)), [
+      ('comida', 'cat:1'), ('transporte', 'cat:2'), ('vivienda', 'cat:3'),
+      ('ocio', 'cat:4'), ('salud', 'cat:5'), ('otros', 'cat:6'),
+    ]);
+  });
+
+  test('customCategorySlot: 7, 8, 9 y luego reutiliza desde 1', () {
+    expect([for (var k = 0; k < 12; k++) customCategorySlot(k)],
+        ['cat:7', 'cat:8', 'cat:9', 'cat:1', 'cat:2', 'cat:3', 'cat:4', 'cat:5', 'cat:6', 'cat:7', 'cat:8', 'cat:9']);
+  });
+
+  test('addCatalogItem: categorías toman el siguiente slot (con vuelta al 1); fuentes, el neutro', () async {
+    for (final id in ['ropa', 'mascota', 'regalos', 'deudas']) {
+      await db.addCatalogItem(EntryKind.expense, id: id, name: id, icon: 'category');
+    }
+    await db.setArchived(EntryKind.expense, 'ropa', archived: true); // archivar no libera su slot
+    await db.addCatalogItem(EntryKind.expense, id: 'cursos', name: 'cursos', icon: 'category');
+    await db.addCatalogItem(EntryKind.income, id: 'bono', name: 'Bono', icon: 'payments');
+
+    final cats = {for (final c in await db.select(db.categories).get()) c.id: c.colorHex};
+    expect([for (final id in ['ropa', 'mascota', 'regalos', 'deudas', 'cursos']) cats[id]],
+        ['cat:7', 'cat:8', 'cat:9', 'cat:1', 'cat:2']);
+    final bono = await (db.select(db.sources)..where((s) => s.id.equals('bono'))).getSingle();
+    expect(bono.colorHex, newItemColor);
+  });
+
   test('sin fila de settings = onboarding pendiente', () async {
     expect(await db.watchSettings().first, isNull);
   });
