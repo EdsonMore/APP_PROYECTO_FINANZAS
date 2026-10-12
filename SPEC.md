@@ -413,6 +413,17 @@ semánticos se leen con `context.palette`.
 - **Fuera de alcance hasta su fase:** sync (3), multi-cuenta (3), gasto
   recurrente y captura de notificaciones (4), IA (5).
 
+## Legal y Play Store (Fase 2)
+
+- Política de privacidad y Términos viven en `assets/legal/*.md` (la app los
+  muestra con `LegalScreen`) y en `docs/play-store/` para publicarlos; un test
+  exige que sean idénticos. `[CONTACTO]` pendiente (ver `tasks/todo.md`).
+- La release no declara permisos visibles (verificado con `aapt` sobre el APK).
+  Se mantiene la copia de seguridad de Android y la política lo dice.
+- Firma: con `android/key.properties`, keystore de subida; sin él, firma de
+  debug (el build de release no se rompe). Guía en `docs/play-store/firma.md`.
+- Package `com.saldoclar.app`, definitivo. Versión `0.2.0+1`.
+
 ## Aprendido en la 1c
 
 - **Validar la paleta con todos los pares, no solo vecinos.** Con orden fijo

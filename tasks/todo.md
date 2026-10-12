@@ -198,3 +198,7 @@ Decisiones finales después de revisar con el usuario:
 - Recordatorios de facturas: Fase 4.
 - Captura de notificaciones: Fase 4.
 - IA real: Fase 5.
+
+## Pendientes de legal (Fase 2)
+- [ ] Reemplazar [CONTACTO] en politica-privacidad.md, terminos.md y
+      en las pantallas legales de la app con el email real.

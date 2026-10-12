@@ -47,7 +47,13 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            // Con android/key.properties firma con el keystore de subida (docs/play-store/firma.md).
+            // Sin él, con la firma de debug: el build de release no se rompe mientras no haya keystore.
+            signingConfig = if (keystoreProperties.isNotEmpty()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

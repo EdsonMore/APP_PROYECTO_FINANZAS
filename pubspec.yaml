@@ -1,7 +1,7 @@
 name: saldo_claro
 description: "SaldoClaro: finanzas personales local-first para ingresos fijos, variables o inexistentes."
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.2.0+1
 
 environment:
   sdk: ^3.12.2
@@ -50,6 +50,8 @@ flutter:
   # Licencias OFL de las fuentes (se muestran en la pantalla de licencias).
   assets:
     - assets/fonts/licenses/
+    # Textos legales (los mismos que docs/play-store/; un test los compara).
+    - assets/legal/
 
   # Fuentes empaquetadas: cero red. Solo los pesos que usan los tokens.
   fonts:

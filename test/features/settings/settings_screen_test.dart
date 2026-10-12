@@ -85,7 +85,7 @@ void main() {
     expect(rowValue('categories', '6 activas'), findsOneWidget);
     expect(rowValue('sources', '5 activas'), findsOneWidget);
     expect(rowValue('export', 'Todavía no hay movimientos'), findsOneWidget);
-    expect(rowValue('about', 'Versión 0.1.0'), findsOneWidget);
+    expect(rowValue('about', 'Versión 0.2.0'), findsOneWidget);
     await h.unmount(tester);
   });
 
@@ -255,8 +255,9 @@ void main() {
       await pumpApp(tester, await h.seeded(Mode.variable));
       await openSettings(tester);
       await tapRow(tester, 'about');
-      expect(find.text('Versión 0.1.0 (1)'), findsOneWidget);
-      expect(find.text('Política de privacidad: llega en la Fase 2.'), findsOneWidget);
+      expect(find.text('Versión 0.2.0 (1)'), findsOneWidget);
+      expect(find.byKey(const Key('about.privacy')), findsOneWidget);
+      expect(find.byKey(const Key('about.terms')), findsOneWidget);
       expect(find.byKey(const Key('about.licenses')), findsOneWidget);
       await h.unmount(tester);
     });
