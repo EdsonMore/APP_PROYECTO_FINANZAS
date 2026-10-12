@@ -30,6 +30,16 @@ Todo se guarda en el teléfono. No hay login, ni servidor, ni conexión a intern
 - **Ajustes:** modo, nombre, saldo inicial, ventana del cálculo, categorías y
   fuentes, exportación a CSV (lista para Excel en Perú).
 
+| Presupuesto | Insights (Estable) | Insights (Supervivencia) |
+|---|---|---|
+| ![Presupuesto con techos por categoría](docs/screenshots/fase-1c-presupuesto/presupuesto-con-techos-claro.png) | ![Insights en modo Estable](docs/screenshots/fase-1c-insights/insights-estable-claro.png) | ![Insights en modo Supervivencia con la línea de colchón](docs/screenshots/fase-1c-insights/insights-supervivencia-claro.png) |
+
+- **Presupuesto (modo Estable):** un techo mensual por categoría contra el
+  gasto real, con sugerencias sacadas de tu historial.
+- **Insights:** en qué se fue la plata en 30 días, cómo se movió tu colchón en
+  60 días, tu racha sin pasarte del límite diario y tus mejores y peores meses.
+  El orden de los bloques cambia según el modo.
+
 Más capturas, en claro y oscuro, en [`docs/screenshots/`](docs/screenshots/).
 
 ## Stack
@@ -39,7 +49,9 @@ Más capturas, en claro y oscuro, en [`docs/screenshots/`](docs/screenshots/).
   se recalcula solo al guardar.
 - **Sin dependencias de red.** Las fuentes Newsreader y Geist van como asset
   (licencia OFL).
-- Las métricas (runway, promedios, semáforo, presupuesto) son funciones puras
+- Los gráficos son propios (barras con widgets y la línea con `CustomPainter`),
+  sin librería de gráficos. La paleta de categorías se validó para daltonismo.
+- Las métricas (runway, promedios, semáforo, presupuesto, insights) son funciones puras
   en `lib/domain/metrics.dart`, escritas con TDD. El dinero se maneja siempre
   en centavos enteros.
 

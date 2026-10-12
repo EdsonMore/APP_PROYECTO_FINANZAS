@@ -377,6 +377,23 @@ semánticos se leen con `context.palette`.
 - **CTAs "− Gasto" y "+ Ingreso":** mismo tamaño y peso visual. Solo cambia el
   color semántico.
 
+## Aprendido en la 1c
+
+- **Validar la paleta con todos los pares, no solo vecinos.** Con orden fijo
+  y categorías sin gasto, cualquier par puede quedar junto; salvia↔mostaza
+  (ΔE 5) no se distinguen. Por eso el gasto va en barras rotuladas.
+- **Guardar el slot, no el hex** (`cat:N`): el color cambia entre temas.
+- **Un mismo número, una sola fórmula:** el total de Presupuesto y el del Home
+  (todo el gasto del mes contra techos de activas), y el ingreso típico del
+  Home e Insights, salen de las mismas funciones.
+- **Las alternativas de una frase tienen que poder aplicarse:** V2 y S2
+  repetían la condición de la frase anterior; los tests lo mostraron.
+- **Texto de espera solo sin datos:** con historial, "registra unos días más"
+  es falso.
+- **Capturas del emulador "Resizable":** tiene 2 displays; usar
+  `adb exec-out screencap -p -d <id del display 0>` y, si sale negro, lanzarlo
+  con `-gpu swiftshader_indirect`.
+
 ## Stack
 
 - Flutter 3.44 (stable), Dart ^3.12, `flutter_riverpod` ^2.6.

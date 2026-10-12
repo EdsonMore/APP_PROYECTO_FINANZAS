@@ -37,13 +37,13 @@
     aun así no reflejar la plata real (ej.: S/ 500 sin registrar + 800 de ingreso − 200 de gasto da +600,
     pero el saldo real es 1,100). La X la oculta hasta reiniciar la app (estado en memoria).
 
-## 1c — Presupuesto + Insights ⏭ siguiente (skills: design-taste-frontend + dataviz)
+## 1c — Presupuesto + Insights ✅ completa (tag `fase-1c-completa`, 406 tests)
 Arranca como siempre: ficha + wireframes antes de código. Antes de 1c, revisar el "Roadmap pendiente".
 - [x] Pantalla de Presupuesto (solo Estable): techos por categoría editables (`budgets`), sugeridos por histórico (`suggestedCaps`)
 - [x] Insights: barras de gasto por categoría 30 días (ordenadas por monto; el donut se descartó en 1c), línea de runway (60 días), mejor/peor mes de ingreso, racha (umbral congelado), frases
 - [x] Tarjeta de techos sugeridos dentro de Insights (solo Supervivencia)
-- [ ] Paleta de colores por categoría con `dataviz` (hoy los ítems nuevos usan el neutro `#525252`)
-- [ ] Revisar con el usuario: "Ingreso típico 30d" (normalizado) junto a "Entró S/ X" (real) puede confundir
+- [x] Paleta de colores por categoría con `dataviz` (slots `cat:N`, migración v3)
+- [x] Revisado: Home e Insights usan los mismos `avgIncome30`/`avgExpense30` (I2); "Entró S/ X" es el monto real
 ### Checkpoint 1c — code-review + security-review
 
 ## Roadmap pendiente de revisión (al cerrar 1b) — ✅ revisado el 2026-10-09, ver "Roadmap revisado" al final
