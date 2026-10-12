@@ -59,7 +59,7 @@ void main() {
     }
   });
 
-  testWidgets('Estable: frase E1 y orden presupuesto → gasto → racha → meses → colchón', (tester) async {
+  testWidgets('Estable: frase E1 y orden presupuesto → gasto → racha → meses → reserva', (tester) async {
     await openInsights(
         tester,
         await h.seeded(Mode.stable, (s) async {
@@ -76,7 +76,7 @@ void main() {
     await h.unmount(tester);
   });
 
-  testWidgets('Variable: entra y sale → meses → gasto → colchón → racha', (tester) async {
+  testWidgets('Variable: entra y sale → meses → gasto → reserva → racha', (tester) async {
     await openInsights(tester, await h.seeded(Mode.variable, full));
     expect(find.textContaining('En un mes típico te sobran'), findsOneWidget);
     expectOrder(tester, ['insights.phrase', 'insights.flow', 'insights.months', 'insights.spend', 'insights.runway',
@@ -86,12 +86,14 @@ void main() {
     await h.unmount(tester);
   });
 
-  testWidgets('Supervivencia: colchón alto primero, meses al fondo', (tester) async {
+  testWidgets('Supervivencia: reserva alto primero, meses al fondo', (tester) async {
     await openInsights(tester, await h.seeded(Mode.survival, full));
     expect(find.text('A este ritmo te alcanza para 170 días.'), findsOneWidget);
     expectOrder(tester, ['insights.phrase', 'insights.runway', 'insights.streak', 'insights.suggested', 'insights.spend',
       'insights.months']);
     expect(tester.getSize(find.byKey(const Key('insights.runwayLine'))).height, 140);
+    expect(find.descendant(of: find.byKey(const Key('insights.runway')), matching: find.text('Reserva')), findsOneWidget,
+        reason: 'título del bloque (antes "Colchón")');
     await h.unmount(tester);
   });
 
@@ -153,7 +155,7 @@ void main() {
     await h.unmount(tester);
   });
 
-  testWidgets('colchón: la serie con días sin colchón corta la línea y el rótulo lo dice', (tester) async {
+  testWidgets('reserva: la serie con días sin reserva corta la línea y el rótulo lo dice', (tester) async {
     await openInsights(
         tester,
         await h.seeded(Mode.survival, (s) async {
@@ -168,11 +170,11 @@ void main() {
         as RunwayLine;
     expect(painter.series.last, isNull);
     expect(RunwayLine.segments(painter.series), hasLength(1), reason: 'un tramo y luego el corte');
-    expect(find.textContaining('días → sin colchón', findRichText: true), findsOneWidget);
+    expect(find.textContaining('días → sin reserva', findRichText: true), findsOneWidget);
     await h.unmount(tester);
   });
 
-  testWidgets('colchón con menos de 7 días de serie: texto de espera, sin línea', (tester) async {
+  testWidgets('reserva con menos de 7 días de serie: texto de espera, sin línea', (tester) async {
     await openInsights(
         tester,
         await h.seeded(Mode.survival, (s) async {

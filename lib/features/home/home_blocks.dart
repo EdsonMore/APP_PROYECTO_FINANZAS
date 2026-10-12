@@ -12,8 +12,12 @@ import 'providers.dart';
 Duration _motion(BuildContext context, Duration d) => MediaQuery.disableAnimationsOf(context) ? Duration.zero : d;
 
 class HomeHeader extends StatelessWidget {
-  const HomeHeader({super.key, required this.title, required this.onInsights, required this.onSettings});
+  const HomeHeader(
+      {super.key, required this.title, required this.onInfo, required this.onInsights, required this.onSettings});
   final String title;
+
+  /// ⓘ junto al nombre: explica el modo actual.
+  final VoidCallback onInfo;
   final VoidCallback onInsights;
   final VoidCallback onSettings;
 
@@ -24,11 +28,22 @@ class HomeHeader extends StatelessWidget {
       height: 48,
       child: Row(children: [
         Expanded(
-          child: Semantics(
-            header: true,
-            child: Text(title,
-                maxLines: 1, overflow: TextOverflow.ellipsis, style: AppType.heading.copyWith(color: p.ink)),
-          ),
+          child: Row(children: [
+            Flexible(
+              child: Semantics(
+                header: true,
+                child: Text(title,
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: AppType.heading.copyWith(color: p.ink)),
+              ),
+            ),
+            IconButton(
+              key: const Key('home.modeInfo'),
+              onPressed: onInfo,
+              tooltip: 'Cómo funciona tu modo',
+              icon: Icon(Icons.info_outline, size: 18, color: p.inkMuted),
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            ),
+          ]),
         ),
         IconButton(
           onPressed: onInsights,

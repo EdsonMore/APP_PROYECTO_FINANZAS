@@ -133,9 +133,9 @@ void main() {
       expect(s.headline.stats, isEmpty);
     });
 
-    test('balance ≤ 0 → "Sin colchón"', () {
+    test('balance ≤ 0 → "Sin reserva"', () {
       final s = build(Mode.survival, [e(EntryKind.expense, 50, ago(1))]);
-      expect(s.headline.value, 'Sin colchón');
+      expect(s.headline.value, 'Sin reserva');
       expect(s.headline.lead, isNull);
     });
 
@@ -217,9 +217,9 @@ void main() {
         expect(h.context, isNull);
       });
 
-      test('${mode.name}: sin colchón → "Registra un ingreso para activar el cálculo." neutro', () {
+      test('${mode.name}: sin reserva → "Registra un ingreso para activar el cálculo." neutro', () {
         final h = build(mode, [e(EntryKind.expense, 50, ago(1))]).headline;
-        expect(h.value, 'Sin colchón');
+        expect(h.value, 'Sin reserva');
         expect(h.context, 'Registra un ingreso para activar el cálculo.');
         expect(h.contextUrgent, isFalse);
       });

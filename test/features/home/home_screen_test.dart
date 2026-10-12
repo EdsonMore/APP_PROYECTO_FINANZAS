@@ -277,7 +277,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('Supervivencia sin colchón: "Registra un ingreso para activar el cálculo." en inkMuted', (tester) async {
+    testWidgets('Supervivencia sin reserva: "Registra un ingreso para activar el cálculo." en inkMuted', (tester) async {
       await pumpHome(tester, await seeded(Mode.survival, (s) => s.expense(50, ago(1))));
       expect(find.text('Registra un ingreso para activar el cálculo.'), findsOneWidget);
       expect(contextColor(tester), Palette.light.inkMuted);

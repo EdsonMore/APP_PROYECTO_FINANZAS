@@ -107,7 +107,7 @@ void main() {
       expect(s.phrase, 'Vas 21 días gastando menos de S/ 23.81 al día.');
     });
 
-    test('con datos pero sin colchón ni racha → "Sin colchón por ahora.", nunca la de espera', () {
+    test('con datos pero sin reserva ni racha → "Sin reserva por ahora.", nunca la de espera', () {
       final s = build(Mode.survival, [e(EntryKind.income, 50, ago(20)), e(EntryKind.expense, 300, today)]);
       expect(s.phrase, noCushionPhrase);
     });
@@ -134,7 +134,7 @@ void main() {
           [FlowBlock, MonthsBlock, SpendBlock, RunwayBlock, StreakBlock]);
     });
 
-    test('Supervivencia: colchón alto primero, meses al fondo', () {
+    test('Supervivencia: reserva alto primero, meses al fondo', () {
       final s = build(Mode.survival, full());
       expect(types(s), [RunwayBlock, StreakBlock, SuggestedBlock, SpendBlock, MonthsBlock]);
       expect((s.blocks.first as RunwayBlock).tall, isTrue);

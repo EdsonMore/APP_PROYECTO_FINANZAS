@@ -109,7 +109,7 @@ void main() {
       });
       await h.pumpHome(tester, seed);
       expect(tester.takeException(), isNull);
-      expect(find.text('Sin colchón'), findsOneWidget, reason: 'el S/ 1,000 sin instante cuenta como 0');
+      expect(find.text('Sin reserva'), findsOneWidget, reason: 'el S/ 1,000 sin instante cuenta como 0');
       expect(card, findsOneWidget);
       await h.unmount(tester);
     });
@@ -133,7 +133,7 @@ void main() {
     testWidgets('guardar escribe monto e instante; la tarjeta se va y el número cambia', (tester) async {
       final seed = await h.seeded(Mode.survival, (s) => s.expense(50, h.ago(1)));
       await h.pumpHome(tester, seed);
-      expect(find.text('Sin colchón'), findsOneWidget);
+      expect(find.text('Sin reserva'), findsOneWidget);
       await openSheet(tester);
       await keys(tester, '1100');
       final before = DateTime.now();
@@ -146,7 +146,7 @@ void main() {
       expect(s.openingBalanceAt!, greaterThanOrEqualTo(before.millisecondsSinceEpoch - 1000));
       expect(sheet, findsNothing);
       expect(card, findsNothing);
-      expect(find.text('Sin colchón'), findsNothing);
+      expect(find.text('Sin reserva'), findsNothing);
       expect(find.textContaining('días'), findsWidgets);
       await h.unmount(tester);
     });

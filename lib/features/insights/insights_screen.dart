@@ -118,7 +118,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> with SingleTick
         StreakBlock() => _Titled(key: const Key('insights.streak'), title: 'Racha', child: _StreakBody(b)),
         MonthsBlock() => _Titled(key: const Key('insights.months'), title: 'Tus meses', child: _MonthsBody(b)),
         FlowBlock() => _Titled(key: const Key('insights.flow'), title: 'Entra y sale', child: _FlowBody(b)),
-        RunwayBlock() => _Titled(key: const Key('insights.runway'), title: 'Colchón', child: _RunwayBody(b)),
+        RunwayBlock() => _Titled(key: const Key('insights.runway'), title: 'Reserva', child: _RunwayBody(b)),
         SuggestedBlock() =>
           _Titled(key: const Key('insights.suggested'), title: 'Techos sugeridos', child: _SuggestedBody(b)),
       };
@@ -330,11 +330,11 @@ class _RunwayBody extends StatelessWidget {
     final last = s.last;
     final end = last != null
         ? days(last)
-        : (block.today.status == RunwayStatus.noCushion ? 'sin colchón' : 'sin gastos recientes');
+        : (block.today.status == RunwayStatus.noCushion ? 'sin reserva' : 'sin gastos recientes');
     final bold = AppType.amount.copyWith(color: p.ink);
     final muted = AppType.body.copyWith(color: p.inkMuted);
     return Semantics(
-      label: 'Tu colchón pasó de $first días a ${last != null ? '$end días' : end} en los últimos ${s.length} días',
+      label: 'Tu reserva pasó de $first días a ${last != null ? '$end días' : end} en los últimos ${s.length} días',
       excludeSemantics: true,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         SizedBox(

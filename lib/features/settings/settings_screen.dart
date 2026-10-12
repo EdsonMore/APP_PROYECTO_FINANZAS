@@ -13,6 +13,7 @@ import 'about_screen.dart';
 import 'catalog_screen.dart';
 import 'csv_exporter.dart';
 import 'mode_picker.dart';
+import 'modes_screen.dart';
 import 'name_dialog.dart';
 import 'runway_picker.dart';
 
@@ -71,10 +72,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: Space.lg),
             SettingsRow(
               key: const Key('settings.mode'),
-              label: 'Modo de uso',
+              label: 'Modo actual',
               value: modeLabels[settings?.mode ?? Mode.variable]!,
               link: 'Cambiar',
               onTap: () => showModePicker(context),
+            ),
+            SettingsRow(
+              key: const Key('settings.modes'),
+              label: 'Modos de uso',
+              value: 'Qué hace cada modo',
+              chevron: true,
+              onTap: () => _push(context, ModesScreen(current: settings?.mode ?? Mode.variable)),
             ),
             SettingsRow(
               key: const Key('settings.name'),

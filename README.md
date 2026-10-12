@@ -32,7 +32,7 @@ Todo se guarda en el teléfono. No hay login, ni servidor, ni conexión a intern
 
 | Presupuesto | Insights (Estable) | Insights (Supervivencia) |
 |---|---|---|
-| ![Presupuesto con techos por categoría](docs/screenshots/fase-1c-presupuesto/presupuesto-con-techos-claro.png) | ![Insights en modo Estable](docs/screenshots/fase-1c-insights/insights-estable-claro.png) | ![Insights en modo Supervivencia con la línea de colchón](docs/screenshots/fase-1c-insights/insights-supervivencia-claro.png) |
+| ![Presupuesto con techos por categoría](docs/screenshots/fase-1c-presupuesto/presupuesto-con-techos-claro.png) | ![Insights en modo Estable](docs/screenshots/fase-1c-insights/insights-estable-claro.png) | ![Insights en modo Supervivencia con la línea de reserva](docs/screenshots/fase-1c-insights/insights-supervivencia-claro.png) |
 
 | Ajustes | Saldo inicial | Insights (oscuro) |
 |---|---|---|
@@ -40,7 +40,7 @@ Todo se guarda en el teléfono. No hay login, ni servidor, ni conexión a intern
 
 - **Presupuesto (modo Estable):** un techo mensual por categoría contra el
   gasto real, con sugerencias sacadas de tu historial.
-- **Insights:** en qué se fue la plata en 30 días, cómo se movió tu colchón en
+- **Insights:** en qué se fue la plata en 30 días, cómo se movió tu reserva en
   60 días, tu racha sin pasarte del límite diario y tus mejores y peores meses.
   El orden de los bloques cambia según el modo.
 
@@ -91,7 +91,7 @@ punta en el teléfono, sin red. 413 tests, `flutter analyze` limpio.
 | Fase | Qué entra |
 |---|---|
 | **1** ✅ | App local completa: registro, Home por modo, Presupuesto, Insights |
-| **2** | Legal (privacidad, términos) y beta cerrada en Play Store. Del uso real: explicación de los modos, texto de "Sin colchón", tema manual, calculadora "¿cuánto puedo gastar hoy?", historial completo |
+| **2** | Legal (privacidad, términos) y beta cerrada en Play Store. Del uso real: explicación de los modos, "Sin reserva" en lugar de "Sin colchón", tema manual, calculadora "¿cuánto puedo gastar hoy?", historial completo |
 | **3** | Sync opcional con Supabase, multi-cuenta, cuenta compartida |
 | **4** | Gasto recurrente (recordatorios de facturas) y captura de notificaciones como experimento (puede no funcionar en todos los fabricantes) |
 | **5** | IA real, siempre detrás de un backend proxy (nunca con API keys en el APK) |

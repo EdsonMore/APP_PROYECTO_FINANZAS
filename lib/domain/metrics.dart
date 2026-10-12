@@ -314,7 +314,7 @@ List<Movement> recentMovements(List<Movement> movements, {required DateTime toda
 
 
 /// Runway de cada uno de los últimos [days] días (hoy al final), con la misma
-/// ventana que el Home. null corta la línea: sin colchón o sin gastos en la
+/// ventana que el Home. null corta la línea: sin reserva o sin gastos en la
 /// ventana (infinito). Empieza en el primer día con datos válidos (I4 de 1c):
 /// el del saldo inicial si existe (antes no se sabe cuánto había), si no el
 /// del primer movimiento. Sin datos → lista vacía.

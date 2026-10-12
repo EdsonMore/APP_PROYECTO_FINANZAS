@@ -64,6 +64,14 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
   los techos sugeridos). Una categoría sin techo y sin gasto en 90 días no
   aparece: la pantalla es para ponerle techo a lo que el usuario ya usa.
 
+- **Explicación de los modos (Fase 2):** ícono ⓘ junto al nombre del espacio
+  en el Home → hoja "Modo X" con su explicación y "Ver todos los modos". En
+  Ajustes, "Modo actual" (cambia el modo) y debajo "Modos de uso" (pantalla
+  de solo lectura con los 3 modos, un ejemplo ficticio rotulado "Ejemplo" y
+  check en el actual). Textos en `modeExplanations` (`modes_screen.dart`),
+  sin "sueldo".
+- **"Sin reserva"** (antes "Sin colchón"): saldo ≤ 0. En Insights el bloque
+  de la línea se llama "Reserva".
 - **Nombres visibles de los modos** (Ajustes, Insights): Estable, Variable y
   **Supervivencia**. El Onboarding conserva sus 4 opciones; Ajustes ofrece 3,
   porque Mixto se guarda como Variable.
@@ -208,7 +216,7 @@ Es división entera. Equivale a `floor(B / g)` sin perder centavos.
 | Caso | Resultado | UI |
 |---|---|---|
 | Sin eventos ni saldo inicial | `empty` | Estado vacío + CTAs |
-| `B ≤ 0` (se evalúa primero) | `noCushion`, 0 días | "Sin colchón" |
+| `B ≤ 0` (se evalúa primero) | `noCushion`, 0 días | "Sin reserva" |
 | `G = 0` en la ventana | `noSpending` | "Sin gastos en los últimos N días" |
 | `D < 7` | `estimated = true` | "estimado · pocos datos" |
 | `R > 999` | `days = 999`, `capped = true` | "+999 días" |
@@ -290,21 +298,21 @@ header del Home (los 3 modos). Bloques ya ordenados por modo en
 
 | Estable | Variable | Supervivencia |
 |---|---|---|
-| Presupuesto | Entra y sale | Colchón (línea de 140 px) |
+| Presupuesto | Entra y sale | Reserva (línea de 140 px) |
 | En qué se fue | Tus meses | Racha |
 | Racha | En qué se fue | Techos sugeridos |
-| Tus meses | Colchón | En qué se fue |
-| Colchón | Racha | Tus meses |
+| Tus meses | Reserva | En qué se fue |
+| Reserva | Racha | Tus meses |
 
 - **Frase principal** con alternativas: Estable E1 (techos) → E2 (categoría
   mayor) → E3 (racha). Variable V1 (te sobran/faltan, exige ingreso típico) →
   V2 (montos reales de 30 días) → V3 (mejor mes). Supervivencia S1 (runway) →
   S3 (racha). S2 se descartó: necesita el runway de hoy, justo lo que falta
   cuando S1 no aplica. Si ninguna aplica: sin datos → "Registra unos días más
-  y aquí verás tu patrón."; con datos y sin colchón → "Sin colchón por
+  y aquí verás tu patrón."; con datos y sin reserva → "Sin reserva por
   ahora."; con datos viejos → "Sin movimientos en los últimos 30 días."
 - **`runwaySeries`**: runway de cada uno de los últimos 60 días con la ventana
-  del Home; `null` (sin colchón o sin gastos en la ventana) corta la línea.
+  del Home; `null` (sin reserva o sin gastos en la ventana) corta la línea.
   Empieza el día del saldo inicial o, sin saldo, el del primer movimiento
   (antes no se sabe cuánto había). Con < 7 puntos: texto de espera.
 - **`incomeByClosedMonth`**: meses cerrados y completos (el del primer
@@ -387,7 +395,7 @@ semánticos se leen con `context.palette`.
 - **Hecho:** app local sin red ni login. Onboarding de 2 pasos; Home por modo
   (Estable, Variable, Supervivencia); registro en 2 toques con borrador;
   saldo inicial; Ajustes con catálogos y CSV; Presupuesto por techos (solo
-  Estable); Insights con barras, línea de colchón, racha, meses y techos
+  Estable); Insights con barras, línea de reserva, racha, meses y techos
   sugeridos.
 - **Datos:** drift `schemaVersion 3` (v2: `accounts` vacía +
   `entries.account_id`; v3: slots de color `cat:N`). Migraciones en una
@@ -399,8 +407,8 @@ semánticos se leen con `context.palette`.
 - **Tags:** `fase-1a-completa`, `fase-1b-completa-v3`, `fase-1c-completa`,
   `fase-1-completa-v2`.
 - **Pendiente para Fase 2** (detalle en `tasks/todo.md`, feedback del
-  2026-10-12): legal y beta cerrada; explicar los modos; reemplazar "Sin
-  colchón"; tema manual; calculadora "¿cuánto puedo gastar hoy?"; historial
+  2026-10-12): legal y beta cerrada; explicar los modos; reemplazar "Sin colchón"
+  (hecho en Fase 2: "Sin reserva"); tema manual; calculadora "¿cuánto puedo gastar hoy?"; historial
   completo; cap del sugerido a gasto real × 1.2.
 - **Fuera de alcance hasta su fase:** sync (3), multi-cuenta (3), gasto
   recurrente y captura de notificaciones (4), IA (5).

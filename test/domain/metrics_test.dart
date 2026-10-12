@@ -431,7 +431,7 @@ void main() {
       expect(s, hasLength(6), reason: 'del 3 al 8 de octubre');
     });
 
-    test('sin colchón o sin gastos en la ventana → null (corta la línea)', () {
+    test('sin reserva o sin gastos en la ventana → null (corta la línea)', () {
       final m = [inc(100, ago(9)), exp(10, ago(9)), exp(200, ago(4))];
       final s = runwaySeries(m, today: today, window: 3);
       expect(s[0], isNotNull, reason: 'día 9: 90 de saldo y gasto');

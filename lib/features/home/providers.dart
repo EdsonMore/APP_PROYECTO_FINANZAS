@@ -72,7 +72,7 @@ class Headline {
   /// "Te queda", "Gastaste", "Te alcanza para"; null en bienvenida.
   final String? lead;
 
-  /// Lo que va a 52 sp: "S/ 640.00", "~23 días", "Empecemos", "Sin colchón".
+  /// Lo que va a 52 sp: "S/ 640.00", "~23 días", "Empecemos", "Sin reserva".
   final String value;
   final String? secondary;
 
@@ -233,7 +233,7 @@ Headline _headline(Mode mode, Setting? settings, List<Movement> movements, List<
     }
     final clause = switch (r.status) {
       RunwayStatus.days => ' Te alcanza para ${_days(r)}.',
-      RunwayStatus.noCushion => ' Sin colchón por ahora.',
+      RunwayStatus.noCushion => ' Sin reserva por ahora.',
       _ => '',
     };
     return Headline(
@@ -248,7 +248,7 @@ Headline _headline(Mode mode, Setting? settings, List<Movement> movements, List<
   switch (r.status) {
     case RunwayStatus.noCushion:
       return const Headline(
-          kind: HeadlineKind.runway, value: 'Sin colchón', context: 'Registra un ingreso para activar el cálculo.');
+          kind: HeadlineKind.runway, value: 'Sin reserva', context: 'Registra un ingreso para activar el cálculo.');
     case RunwayStatus.noSpending:
     case RunwayStatus.empty:
       return Headline(

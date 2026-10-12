@@ -109,7 +109,7 @@ class InsightsSummary {
 // Armado
 
 const emptyPhrase = 'Registra unos días más y aquí verás tu patrón.';
-const noCushionPhrase = 'Sin colchón por ahora.';
+const noCushionPhrase = 'Sin reserva por ahora.';
 const quietPhrase = 'Sin movimientos en los últimos 30 días.';
 const minRunwayPoints = 7;
 
@@ -178,7 +178,7 @@ InsightsSummary buildInsightsSummary({
       ], hasData: hasData, today: todayRunway),
     Mode.survival => _first([
         () => todayRunway.status == RunwayStatus.days ? 'A este ritmo te alcanza para ${_days(todayRunway)}.' : null,
-        // S2 ("tu colchón pasó de X a Y") se descartó: necesita el runway de hoy,
+        // S2 ("tu reserva pasó de X a Y") se descartó: necesita el runway de hoy,
         // justo lo que falta cuando S1 no aplica.
         () => streakDays > 0 ? 'Vas ${_n(streakDays, 'día')} gastando menos de ${Formatters.soles(threshold!)} al día.' : null,
       ], hasData: hasData, today: todayRunway),

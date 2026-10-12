@@ -180,11 +180,11 @@ Decisiones finales después de revisar con el usuario:
 
 ### Acciones para Fase 2
 
-- [ ] Explicación de modos:
+- [x] Explicación de modos:
   - Ícono de info en el header del Home que explica el modo actual.
   - Pantalla nueva "Modos de uso" en Ajustes con los 3 modos y ejemplos.
-- [ ] Cambiar "Sin colchón" a "Sin reserva" (o similar). Decidir el
-  texto exacto.
+- [x] Cambiar "Sin colchón" a "Sin reserva" (decidido; el bloque de
+  Insights pasa a "Reserva").
 - [ ] Toggle de tema en Ajustes: Sistema / Claro / Oscuro.
 - [ ] Calculadora "¿Cuánto puedo gastar hoy?": fórmula determinista
   basada en saldo, gasto diario promedio y días que el usuario necesita
