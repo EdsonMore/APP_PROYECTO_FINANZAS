@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -62,6 +63,19 @@ void main() {
     expect(long.length, lessThanOrEqualTo(4000));
     expect(s, isNot(contains('—')));
   });
+
+  for (final (asset, page) in [(privacyAsset, 'docs/landing/privacidad.html'), (termsAsset, 'docs/landing/terminos.html')]) {
+    test('landing: $page dice lo mismo que $asset (correr generar_legal.py si cambia)', () {
+      final html = File(page).readAsStringSync();
+      String esc(String s) => const HtmlEscape(HtmlEscapeMode.element).convert(s);
+      final doc = parseLegal(File(asset).readAsStringSync());
+      expect(html, contains(esc(doc.updated)));
+      for (final b in doc.blocks) {
+        expect(html, contains(esc(b.text)), reason: b.text);
+      }
+      expect(html, isNot(contains('<script')));
+    });
+  }
 
   test('release firma con debug si no hay android/key.properties (el build no se rompe)', () {
     final gradle = File('android/app/build.gradle.kts').readAsStringSync();

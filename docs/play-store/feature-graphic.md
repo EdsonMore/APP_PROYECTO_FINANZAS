@@ -1,6 +1,17 @@
 # Feature graphic (1024 × 500 PNG)
 
-Concepto elegido: **1, "El número"**. Todavía no está generado.
+Concepto elegido: **1, "El número"**. Generado: `feature-graphic.png` (1024 × 500, RGB, sin transparencia).
+
+## Cómo regenerarlo
+
+La fuente es `feature-graphic.html` (usa las fuentes de `../landing/fonts/` y el ícono de
+`assets/icons/`). Con Chrome, desde la raíz del repo:
+
+```
+chrome --headless=new --hide-scrollbars --allow-file-access-from-files --force-device-scale-factor=1 --window-size=1024,500 --screenshot=docs/play-store/feature-graphic.png docs/play-store/feature-graphic.html
+```
+
+(en Windows, con la ruta completa a `chrome.exe` y la página como `file:///…`).
 
 ## Concepto
 
@@ -9,8 +20,7 @@ Lo que la app responde, en una imagen: cuántos días te alcanza la plata.
 - **Izquierda (≈ 40 %):** el ícono de la app (`assets/icons/logo-app-1024.png`,
   ~140 px) y debajo "SaldoClaro".
 - **Derecha (≈ 60 %):** el número "~23 días" grande y, debajo, la línea de
-  reserva: un trazo de 2 px en tinta que baja suave de izquierda a derecha,
-  sin ejes ni grilla.
+  reserva: un trazo horizontal de 2 px en tinta, sin ejes ni grilla.
 - **Único acento:** un punto terracota de ~10 px al final de la línea ("hoy").
 
 ## Paleta (sistema "Cuaderno", tema claro)

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<!-- Fuente del feature graphic (1024 × 500). Se exporta con Chrome headless:
+     ver docs/play-store/feature-graphic.md. Sin dependencias externas. -->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>SaldoClaro feature graphic</title>
+  <style>
+    @font-face {
+      font-family: "Newsreader";
+      src: url("../landing/fonts/Newsreader16pt-Medium.woff2") format("woff2");
+      font-weight: 500;
+    }
+    html, body { margin: 0; }
+    .canvas {
+      width: 1024px;
+      height: 500px;
+      background: #f7f6f3;
+      color: #2b2a27;
+      font-family: "Newsreader", serif;
+      font-weight: 500;
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      align-items: center;
+      overflow: hidden;
+    }
+    .brand { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+    .brand img { width: 150px; height: 150px; border-radius: 34px; }
+    .brand span { font-size: 68px; line-height: 1; letter-spacing: -1px; }
+    .number { padding-right: 70px; }
+    .number span { display: block; font-size: 136px; line-height: 1; letter-spacing: -3px; }
+    .number svg { display: block; margin-top: 34px; }
+  </style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="brand">
+      <img src="../../assets/icons/logo-app-1024.png" alt="">
+      <span>SaldoClaro</span>
+    </div>
+    <div class="number">
+      <span>~23 días</span>
+      <!-- Línea de reserva (2 px, tinta) y el punto terracota de "hoy". -->
+      <svg width="480" height="20" viewBox="0 0 480 20" aria-hidden="true">
+        <line x1="0" y1="10" x2="466" y2="10" stroke="#2b2a27" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="469" cy="10" r="7" fill="#ca653c"/>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

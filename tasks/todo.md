@@ -202,3 +202,26 @@ Decisiones finales después de revisar con el usuario:
 ## Pendientes de legal (Fase 2)
 - [ ] Reemplazar [CONTACTO] en politica-privacidad.md, terminos.md y
       en las pantallas legales de la app con el email real.
+
+## Antes de la Fase 2C (publicación beta)
+
+Requisitos:
+- [ ] Cuenta de Google Play Console (25 USD).
+- [ ] Keystore de producción (generado con keytool).
+- [ ] 12 testers comprometidos para la beta cerrada.
+- [ ] 14 días de beta cerrada (requisito de Google).
+- [ ] Landing page publicada (GitHub Pages o Netlify).
+- [ ] Feature graphic final (1024×500 PNG).
+
+Antes de publicar:
+- [ ] Reemplazar [CONTACTO] con el email real en:
+  - assets/legal/privacidad.md
+  - assets/legal/terminos.md
+  - docs/play-store/politica-privacidad.md
+  - docs/play-store/terminos.md
+  - docs/landing/privacidad.html
+  - docs/landing/terminos.html
+  - docs/landing/index.html
+- [ ] Verificar que todo el HTML de la landing tenga el email actualizado.
+- [ ] Firmar el AAB con el keystore real.
+- [ ] Subir a Play Console en canal de prueba cerrada.
