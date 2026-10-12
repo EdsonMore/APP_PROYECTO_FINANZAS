@@ -12,6 +12,7 @@ import '../../domain/metrics.dart';
 import '../budget/budget_screen.dart';
 import '../entry/entry_sheet.dart';
 import '../entry/opening_balance_sheet.dart';
+import '../insights/insights_screen.dart';
 import '../settings/settings_screen.dart';
 import 'home_blocks.dart';
 import 'providers.dart';
@@ -42,7 +43,12 @@ class HomeScreen extends ConsumerWidget {
             key: const Key('home.scroll'),
             padding: const EdgeInsets.fromLTRB(Space.gutter, Space.lg, Space.gutter, Space.xl),
             children: [
-              HomeHeader(title: s.title, onSettings: () => _openSettings(context)),
+              HomeHeader(
+                title: s.title,
+                onInsights: () =>
+                    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const InsightsScreen())),
+                onSettings: () => _openSettings(context),
+              ),
               NumberBlock(
                 headline: s.headline,
                 // Solo existe en Estable con techos e ingreso en el mes.

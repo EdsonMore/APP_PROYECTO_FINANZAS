@@ -312,3 +312,46 @@ List<Movement> recentMovements(List<Movement> movements, {required DateTime toda
   return list.take(limit).toList();
 }
 
+
+/// Runway de cada uno de los últimos [days] días (hoy al final), con la misma
+/// ventana que el Home. null corta la línea: sin colchón o sin gastos en la
+/// ventana (infinito). Empieza en el primer día con datos válidos (I4 de 1c):
+/// el del saldo inicial si existe (antes no se sabe cuánto había), si no el
+/// del primer movimiento. Sin datos → lista vacía.
+List<int?> runwaySeries(List<Movement> movements,
+    {required DateTime today, int window = 14, Opening? opening, int days = 60}) {
+  final start = opening?.day ?? firstDay(movements, today: today);
+  if (start == null || start.isAfter(today)) return const [];
+  final earliest = today.subtract(Duration(days: days - 1));
+  final from = start.isAfter(earliest) ? start : earliest;
+  return [
+    for (var d = from; !d.isAfter(today); d = d.add(const Duration(days: 1)))
+      switch (runway(movements, today: d, window: window, opening: opening)) {
+        Runway(status: RunwayStatus.days, :final days) => days,
+        _ => null,
+      },
+  ];
+}
+
+/// Ingreso de cada mes cerrado y completo (I3 de 1c), del más viejo al más
+/// nuevo, como mucho los últimos [months]. Un mes cuenta si empezó después del
+/// primer movimiento; el mes del primer movimiento solo si ese día fue el 1.
+/// Los meses sin ingreso salen con 0. El mes en curso nunca cuenta.
+List<({DateTime month, int cents})> incomeByClosedMonth(List<Movement> movements,
+    {required DateTime today, int months = 6}) {
+  final first = firstDay(movements, today: today);
+  if (first == null) return const [];
+  final firstFull = DateTime.utc(first.year, first.month + (first.day == 1 ? 0 : 1));
+  final current = DateTime.utc(today.year, today.month);
+  final earliest = DateTime.utc(today.year, today.month - months);
+  final from = firstFull.isAfter(earliest) ? firstFull : earliest;
+  final byMonth = {
+    for (var m = from; m.isBefore(current); m = DateTime.utc(m.year, m.month + 1)) m: 0,
+  };
+  for (final m in movements) {
+    if (!m.isIncome) continue;
+    final key = DateTime.utc(m.day.year, m.day.month);
+    if (byMonth.containsKey(key)) byMonth[key] = byMonth[key]! + m.cents;
+  }
+  return [for (final e in byMonth.entries) (month: e.key, cents: e.value)];
+}

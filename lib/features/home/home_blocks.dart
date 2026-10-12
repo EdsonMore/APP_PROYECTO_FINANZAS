@@ -12,8 +12,9 @@ import 'providers.dart';
 Duration _motion(BuildContext context, Duration d) => MediaQuery.disableAnimationsOf(context) ? Duration.zero : d;
 
 class HomeHeader extends StatelessWidget {
-  const HomeHeader({super.key, required this.title, required this.onSettings});
+  const HomeHeader({super.key, required this.title, required this.onInsights, required this.onSettings});
   final String title;
+  final VoidCallback onInsights;
   final VoidCallback onSettings;
 
   @override
@@ -28,6 +29,12 @@ class HomeHeader extends StatelessWidget {
             child: Text(title,
                 maxLines: 1, overflow: TextOverflow.ellipsis, style: AppType.heading.copyWith(color: p.ink)),
           ),
+        ),
+        IconButton(
+          onPressed: onInsights,
+          tooltip: 'Insights',
+          icon: Icon(Icons.insights_outlined, color: p.inkMuted),
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
         ),
         IconButton(
           onPressed: onSettings,

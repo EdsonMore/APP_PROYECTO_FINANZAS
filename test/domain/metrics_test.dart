@@ -410,5 +410,74 @@ void main() {
       expect(recentMovements(const [], today: today), isEmpty);
     });
   });
-}
+  group('runwaySeries', () {
+    test('un valor por día, hoy al final, con la misma cuenta que runway()', () {
+      final m = [inc(1000, ago(13)), for (var i = 0; i < 14; i++) exp(10, ago(i))];
+      final s = runwaySeries(m, today: today);
+      expect(s, hasLength(14), reason: 'empieza en el primer movimiento (I4)');
+      expect(s.last, runway(m, today: today).days);
+      expect(s.first, runway(m, today: ago(13)).days);
+    });
 
+    test('como mucho 60 días', () {
+      final m = [inc(5000, ago(100)), for (var i = 0; i <= 100; i++) exp(10, ago(i))];
+      expect(runwaySeries(m, today: today), hasLength(60));
+    });
+
+    test('con saldo inicial empieza ese día, aunque haya movimientos más viejos', () {
+      final o = Opening(cents: 50000, setAt: DateTime(2026, 10, 3, 9));
+      final m = [exp(20, ago(20)), exp(10, ago(2))];
+      final s = runwaySeries(m, today: today, opening: o);
+      expect(s, hasLength(6), reason: 'del 3 al 8 de octubre');
+    });
+
+    test('sin colchón o sin gastos en la ventana → null (corta la línea)', () {
+      final m = [inc(100, ago(9)), exp(10, ago(9)), exp(200, ago(4))];
+      final s = runwaySeries(m, today: today, window: 3);
+      expect(s[0], isNotNull, reason: 'día 9: 90 de saldo y gasto');
+      expect(s[3], isNull, reason: 'día 6: sin gastos en los últimos 3 días');
+      expect(s[5], isNull, reason: 'día 4: saldo negativo');
+      expect(s.last, isNull);
+    });
+
+    test('tope en 999', () {
+      final s = runwaySeries([inc(100000, ago(1)), exp(1, ago(1))], today: today);
+      expect(s, everyElement(maxRunwayDays));
+    });
+
+    test('sin datos → vacía; solo futuros → vacía', () {
+      expect(runwaySeries(const [], today: today), isEmpty);
+      expect(runwaySeries([exp(10, today.add(const Duration(days: 2)))], today: today), isEmpty);
+    });
+  });
+
+  group('incomeByClosedMonth', () {
+    test('el mes parcial del primer movimiento no cuenta; el mes en curso tampoco', () {
+      final m = [inc(500, day(2026, 7, 15)), inc(800, day(2026, 8, 3)), inc(300, day(2026, 9, 20)), inc(999, today)];
+      expect(incomeByClosedMonth(m, today: today), [
+        (month: DateTime.utc(2026, 8), cents: 80000),
+        (month: DateTime.utc(2026, 9), cents: 30000),
+      ]);
+    });
+
+    test('si el primer movimiento fue el día 1, ese mes cuenta', () {
+      final m = [exp(5, day(2026, 8, 1)), inc(300, day(2026, 9, 2))];
+      expect(incomeByClosedMonth(m, today: today).map((x) => (x.month.month, x.cents)), [(8, 0), (9, 30000)]);
+    });
+
+    test('meses sin ingreso salen con 0 (un gasto también marca el inicio)', () {
+      final m = [exp(5, day(2026, 6, 30)), inc(400, day(2026, 8, 10))];
+      expect(incomeByClosedMonth(m, today: today).map((x) => x.cents), [0, 40000, 0]);
+    });
+
+    test('como mucho los últimos 6 meses cerrados', () {
+      final m = [inc(100, day(2025, 1, 1))];
+      final r = incomeByClosedMonth(m, today: today);
+      expect(r, hasLength(6));
+      expect(r.first.month, DateTime.utc(2026, 4));
+      expect(r.last.month, DateTime.utc(2026, 9));
+    });
+
+    test('sin datos → vacía', () => expect(incomeByClosedMonth(const [], today: today), isEmpty));
+  });
+}

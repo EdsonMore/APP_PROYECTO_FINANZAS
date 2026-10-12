@@ -49,7 +49,7 @@ class BudgetScreen extends ConsumerWidget {
               if (s.isEmpty)
                 _EmptyBlock(summary: s)
               else ...[
-                _TotalBlock(summary: s),
+                BudgetTotal(summary: s),
                 const SizedBox(height: Space.xl),
                 for (final r in s.capped) _CappedRow(row: r),
               ],
@@ -65,8 +65,9 @@ class BudgetScreen extends ConsumerWidget {
   }
 }
 
-class _TotalBlock extends StatelessWidget {
-  const _TotalBlock({required this.summary});
+/// Total del mes: "S/ X de S/ Y", barra y "Quedan…"/"…por encima". Lo reutiliza Insights.
+class BudgetTotal extends StatelessWidget {
+  const BudgetTotal({super.key, required this.summary});
   final BudgetSummary summary;
 
   @override

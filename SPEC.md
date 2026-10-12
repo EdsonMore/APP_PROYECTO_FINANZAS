@@ -220,6 +220,11 @@ avgIncome30(W) = round(Σ ingresos(ventana W) · 30 / D(W)),  W ∈ {30, 60, 90}
 Cualquier otro `W` lanza `ArgumentError`. Sin ingresos devuelve 0, y se muestra
 "S/ 0" (no se oculta). `avgExpense30` es idéntico, sobre gastos.
 
+**Mismo número en el Home y en Insights (I2 de 1c).** "Ingreso típico 30d" y
+"Gasto 30d" del Home y el bloque "Entra y sale" y la frase V1 de Insights usan
+`avgIncome30` / `avgExpense30`. Si algún día cambia el criterio (p. ej. mediana
+de meses), se cambia en los dos lugares a la vez.
+
 ### Ratio entrada/salida (semáforo de 30 días efectivos)
 
 `I` = ingresos y `G` = gastos de la ventana. Se compara sin dividir:
@@ -272,12 +277,42 @@ round(Σ gasto de la categoría en 90 días efectivos · 30 / D(90), a S/ 10)
 
 Mínimo S/ 10 si hubo gasto. Se basan solo en el histórico, nunca en el ingreso.
 
-### Pendientes para 1c (no están en 1a)
+### Insights (1c, `lib/features/insights/`)
 
-- Serie de runway para la línea de 60 días: `R(d)` con la misma fórmula,
-  calculado al vuelo.
-- Mejor y peor mes de ingreso.
-- "Tu colchón bajó X %": `(B_fin − B_inicio) / B_inicio`, solo si `B_inicio > 0`.
+Una sola pantalla con scroll, acceso por el ícono `insights_outlined` del
+header del Home (los 3 modos). Bloques ya ordenados por modo en
+`buildInsightsSummary`:
+
+| Estable | Variable | Supervivencia |
+|---|---|---|
+| Presupuesto | Entra y sale | Colchón (línea de 140 px) |
+| En qué se fue | Tus meses | Racha |
+| Racha | En qué se fue | Techos sugeridos |
+| Tus meses | Colchón | En qué se fue |
+| Colchón | Racha | Tus meses |
+
+- **Frase principal** con alternativas: Estable E1 (techos) → E2 (categoría
+  mayor) → E3 (racha). Variable V1 (te sobran/faltan, exige ingreso típico) →
+  V2 (montos reales de 30 días) → V3 (mejor mes). Supervivencia S1 (runway) →
+  S3 (racha). S2 se descartó: necesita el runway de hoy, justo lo que falta
+  cuando S1 no aplica. Si ninguna aplica: sin datos → "Registra unos días más
+  y aquí verás tu patrón."; con datos y sin colchón → "Sin colchón por
+  ahora."; con datos viejos → "Sin movimientos en los últimos 30 días."
+- **`runwaySeries`**: runway de cada uno de los últimos 60 días con la ventana
+  del Home; `null` (sin colchón o sin gastos en la ventana) corta la línea.
+  Empieza el día del saldo inicial o, sin saldo, el del primer movimiento
+  (antes no se sabe cuánto había). Con < 7 puntos: texto de espera.
+- **`incomeByClosedMonth`**: meses cerrados y completos (el del primer
+  movimiento solo si fue el día 1), últimos 6, con 0 si no hubo ingreso.
+  Mejor/peor con ≥ 2 meses.
+- **En qué se fue**: 30 días, archivadas incluidas, top 5 sin "Otros"; la
+  categoría "Otros" y el resto se pliegan en una fila final piedra. Barras sin
+  carril, largo relativo a la fila mayor; texto en ink.
+- **Techos sugeridos** (Supervivencia): hasta 3, activas sin techo. [Usar]
+  desvanece la fila, guarda el techo y avisa 3 s: "Techo de X guardado. Lo
+  verás en Presupuesto cuando cambies a modo Estable."
+- Racha en 0 por el gasto de hoy: "Hoy pasaste tu límite diario." en
+  inkMuted, sin rojo.
 
 ## Sistema visual: "Cuaderno" (`lib/core/theme/`)
 
