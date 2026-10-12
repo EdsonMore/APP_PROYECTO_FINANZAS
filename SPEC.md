@@ -382,6 +382,29 @@ semánticos se leen con `context.palette`.
 - **CTAs "− Gasto" y "+ Ingreso":** mismo tamaño y peso visual. Solo cambia el
   color semántico.
 
+## Estado del proyecto al cierre de la Fase 1 (2026-10-12)
+
+- **Hecho:** app local sin red ni login. Onboarding de 2 pasos; Home por modo
+  (Estable, Variable, Supervivencia); registro en 2 toques con borrador;
+  saldo inicial; Ajustes con catálogos y CSV; Presupuesto por techos (solo
+  Estable); Insights con barras, línea de colchón, racha, meses y techos
+  sugeridos.
+- **Datos:** drift `schemaVersion 3` (v2: `accounts` vacía +
+  `entries.account_id`; v3: slots de color `cat:N`). Migraciones en una
+  transacción, probadas con bases reales v1 y v2 y en el celular del usuario.
+- **Calidad:** 413 tests (unitarios de métricas, armado de pantallas,
+  widgets, migraciones), verificados con mutantes; `flutter analyze` limpio;
+  code-review y security-review de la 1c cerrados (sin hallazgos de
+  seguridad).
+- **Tags:** `fase-1a-completa`, `fase-1b-completa-v3`, `fase-1c-completa`,
+  `fase-1-completa-v2`.
+- **Pendiente para Fase 2** (detalle en `tasks/todo.md`, feedback del
+  2026-10-12): legal y beta cerrada; explicar los modos; reemplazar "Sin
+  colchón"; tema manual; calculadora "¿cuánto puedo gastar hoy?"; historial
+  completo; cap del sugerido a gasto real × 1.2.
+- **Fuera de alcance hasta su fase:** sync (3), multi-cuenta (3), gasto
+  recurrente y captura de notificaciones (4), IA (5).
+
 ## Aprendido en la 1c
 
 - **Validar la paleta con todos los pares, no solo vecinos.** Con orden fijo

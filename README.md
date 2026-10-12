@@ -14,7 +14,7 @@ Todo se guarda en el teléfono. No hay login, ni servidor, ni conexión a intern
 
 | Onboarding | Home | Registro |
 |---|---|---|
-| ![Onboarding: ¿Cómo son tus ingresos?](docs/screenshots/fase-1b-onboarding/paso1-claro.png) | ![Home en modo Variable: te alcanza para ~25 días](docs/screenshots/fase-1b-home/home-variable-claro.png) | ![Registro de gasto con teclado propio](docs/screenshots/fase-1b-registro/registro-gasto-monto-claro.png) |
+| ![Onboarding: ¿Cómo son tus ingresos?](docs/screenshots/fase-1b-onboarding/paso1-claro.png) | ![Home en modo Variable: te alcanza para ~68 días](docs/screenshots/fase-1-final/home-variable-claro.png) | ![Registro de gasto con teclado propio](docs/screenshots/fase-1b-registro/registro-gasto-monto-claro.png) |
 
 - **Onboarding de 2 pasos:** elige cómo son tus ingresos (Estables, Variables,
   Mixtos o Sin ingreso fijo) y, si quieres, un nombre. No pide montos.
@@ -33,6 +33,10 @@ Todo se guarda en el teléfono. No hay login, ni servidor, ni conexión a intern
 | Presupuesto | Insights (Estable) | Insights (Supervivencia) |
 |---|---|---|
 | ![Presupuesto con techos por categoría](docs/screenshots/fase-1c-presupuesto/presupuesto-con-techos-claro.png) | ![Insights en modo Estable](docs/screenshots/fase-1c-insights/insights-estable-claro.png) | ![Insights en modo Supervivencia con la línea de colchón](docs/screenshots/fase-1c-insights/insights-supervivencia-claro.png) |
+
+| Ajustes | Saldo inicial | Insights (oscuro) |
+|---|---|---|
+| ![Ajustes](docs/screenshots/fase-1b-ajustes/ajustes-principal-claro.png) | ![Hoja de saldo inicial](docs/screenshots/fase-1b-saldo/saldo-hoja-claro.png) | ![Insights en modo Estable, tema oscuro](docs/screenshots/fase-1c-insights/insights-estable-oscuro.png) |
 
 - **Presupuesto (modo Estable):** un techo mensual por categoría contra el
   gasto real, con sugerencias sacadas de tu historial.
@@ -73,12 +77,24 @@ En Windows, `flutter pub get` pide activar el Modo de desarrollador
 
 ## Estado
 
-- **Fase 1b completa** (`fase-1b-completa`): Onboarding, Home, registro, saldo
-  inicial y Ajustes.
-- **Fase 1c en progreso:** Presupuesto e Insights.
-- Después: legal y canal cerrado de testers (Fase 2), sync opcional con
-  Supabase (Fase 3) y captura de notificaciones como experimento (Fase 4,
-  código archivado en `lib/features/capture/`).
+**Fase 1 completa** (tag `fase-1-completa-v2`): la app funciona de punta a
+punta en el teléfono, sin red. 413 tests, `flutter analyze` limpio.
+
+- **1a:** modelo de datos (drift), fórmulas en `metrics.dart` y sistema
+  visual "Cuaderno".
+- **1b:** Onboarding, Home por modo, registro en 2 toques, saldo inicial y
+  Ajustes con exportación a CSV.
+- **1c:** paleta de categorías (migración v3), Presupuesto e Insights.
+
+## Roadmap
+
+| Fase | Qué entra |
+|---|---|
+| **1** ✅ | App local completa: registro, Home por modo, Presupuesto, Insights |
+| **2** | Legal (privacidad, términos) y beta cerrada en Play Store. Del uso real: explicación de los modos, texto de "Sin colchón", tema manual, calculadora "¿cuánto puedo gastar hoy?", historial completo |
+| **3** | Sync opcional con Supabase, multi-cuenta, cuenta compartida |
+| **4** | Gasto recurrente (recordatorios de facturas) y captura de notificaciones como experimento (puede no funcionar en todos los fabricantes) |
+| **5** | IA real, siempre detrás de un backend proxy (nunca con API keys en el APK) |
 
 El detalle de producto, fórmulas y decisiones está en [`SPEC.md`](SPEC.md). El
 plan de trabajo, en [`tasks/todo.md`](tasks/todo.md).

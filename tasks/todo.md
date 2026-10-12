@@ -166,3 +166,35 @@ Decisiones finales después de revisar con el usuario:
 - [ ] suggestedCaps: cap el sugerido a gasto_real × 1.2. Hoy, con poco
       historial (26 días de 30), sugiere S/ 810 cuando el usuario gastó
       S/ 700. Se siente como "gasta más". Cambio de 1 línea + test.
+
+## Feedback del día de uso (2026-10-12)
+
+### Comentarios del usuario
+1. Faltan funciones (multicuentas, etc.). → Roadmap, ya anotado.
+2. No queda claro cómo funciona cada modo. → Fix de diseño, Fase 2.
+3. "Sin colchón" no se entiende. → Fix de copy, Fase 2.
+4. IA chatbot (¿puedo gastar X?). → Decidir: calculadora simple en
+   Fase 2, IA real en Fase 5.
+5. Modo oscuro manual. → Toggle en Ajustes, Fase 2.
+6. Sync con Supabase. → Fase 3, ya anotado.
+
+### Acciones para Fase 2
+
+- [ ] Explicación de modos:
+  - Ícono de info en el header del Home que explica el modo actual.
+  - Pantalla nueva "Modos de uso" en Ajustes con los 3 modos y ejemplos.
+- [ ] Cambiar "Sin colchón" a "Sin reserva" (o similar). Decidir el
+  texto exacto.
+- [ ] Toggle de tema en Ajustes: Sistema / Claro / Oscuro.
+- [ ] Calculadora "¿Cuánto puedo gastar hoy?": fórmula determinista
+  basada en saldo, gasto diario promedio y días que el usuario necesita
+  cubrir. Decidir dónde vive (Home, Insights, o pantalla propia).
+- [ ] Decidir: IA real (Fase 5) o chatbot con calculadora (Fase 2).
+
+### Roadmap, ya anotado
+- Multi-cuenta: Fase 3.
+- Supabase sync: Fase 3.
+- Historial completo: Fase 2.
+- Recordatorios de facturas: Fase 4.
+- Captura de notificaciones: Fase 4.
+- IA real: Fase 5.
