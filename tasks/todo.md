@@ -161,3 +161,8 @@ Decisiones finales después de revisar con el usuario:
       sin backend). Estimación: 2-3 días.
 - Gamificación: descartada definitivamente (no vuelve al roadmap).
 
+
+## Revisión post-1c
+- [ ] suggestedCaps: cap el sugerido a gasto_real × 1.2. Hoy, con poco
+      historial (26 días de 30), sugiere S/ 810 cuando el usuario gastó
+      S/ 700. Se siente como "gasta más". Cambio de 1 línea + test.
