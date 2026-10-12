@@ -33,18 +33,13 @@ final openingCardDismissedProvider = StateProvider<bool>((_) => false);
 
 /// Todo lo que el Home pinta, ya calculado y formateado. La UI no hace cuentas.
 final homeSummaryProvider = Provider<AsyncValue<HomeSummary>>((ref) {
-  final parts = <AsyncValue<Object?>>[
+  return combineAsync([
     ref.watch(settingsProvider),
     ref.watch(entriesStreamProvider),
     ref.watch(categoriesStreamProvider),
     ref.watch(sourcesStreamProvider),
     ref.watch(budgetsStreamProvider),
-  ];
-  for (final p in parts) {
-    if (p.hasError) return AsyncError(p.error!, p.stackTrace ?? StackTrace.current);
-  }
-  if (parts.any((p) => !p.hasValue)) return const AsyncLoading();
-  return AsyncData(buildHomeSummary(
+  ], () => buildHomeSummary(
     settings: ref.watch(settingsProvider).value,
     entries: ref.watch(entriesStreamProvider).value!,
     categories: ref.watch(categoriesStreamProvider).value!,

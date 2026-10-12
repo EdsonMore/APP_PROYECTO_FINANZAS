@@ -23,10 +23,16 @@ class BudgetScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Si el modo deja de ser Estable con la pantalla abierta, vuelve atrás.
+    // Si el modo deja de ser Estable con la pantalla abierta, vuelve atrás,
+    // cerrando también la hoja de edición si está encima (hallazgo 7).
     ref.listen(settingsProvider, (_, next) {
       final mode = next.value?.mode;
-      if (mode != null && mode != Mode.stable) Navigator.of(context).maybePop();
+      if (mode == null || mode == Mode.stable) return;
+      final route = ModalRoute.of(context);
+      if (route == null || !route.isActive) return;
+      Navigator.of(context)
+        ..popUntil((r) => r == route)
+        ..pop();
     });
     final summary = ref.watch(budgetSummaryProvider);
     final p = context.palette;
@@ -189,12 +195,37 @@ class _CappedRow extends StatelessWidget {
   }
 }
 
-class _UncappedRow extends ConsumerWidget {
+class _UncappedRow extends ConsumerStatefulWidget {
   const _UncappedRow({required this.row});
   final BudgetRow row;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_UncappedRow> createState() => _UncappedRowState();
+}
+
+class _UncappedRowState extends ConsumerState<_UncappedRow> {
+  bool _saving = false;
+
+  /// [Usar]: espera el guardado; si falla, avisa (hallazgo 6). Un doble toque no guarda dos veces.
+  Future<void> _use(int cents) async {
+    if (_saving) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _saving = true);
+    try {
+      await ref.read(databaseProvider).setBudget(widget.row.categoryId, cents);
+      HapticFeedback.lightImpact();
+    } catch (_) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text(saveCapError), behavior: SnackBarBehavior.floating));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final row = widget.row;
     final p = context.palette;
     final suggested = row.suggestedCents;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -231,10 +262,7 @@ class _UncappedRow extends ConsumerWidget {
                 key: Key('budget.use.${row.categoryId}'),
                 label: 'Usar',
                 semanticsLabel: 'Usar ${Formatters.soles(suggested)} como techo de ${row.name}',
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  ref.read(databaseProvider).setBudget(row.categoryId, suggested);
-                },
+                onTap: _saving ? null : () => _use(suggested),
               ),
             ),
           ]),
@@ -267,6 +295,8 @@ class _EmptyBlock extends StatelessWidget {
     ]);
   }
 }
+
+const saveCapError = 'No se pudo guardar el techo. Intenta de nuevo.';
 
 // ---------------------------------------------------------------------------
 // Hoja de edición del techo

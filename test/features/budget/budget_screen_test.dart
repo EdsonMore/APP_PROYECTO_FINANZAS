@@ -260,4 +260,29 @@ void main() {
     expect(fills(tester, 'budget.bar.transporte'), contains(Palette.dark.expenseFg));
     await h.unmount(tester);
   });
+
+  testWidgets('hallazgo 6: si [Usar] no puede guardar, avisa y la fila sigue sin techo', (tester) async {
+    final seed = await h.seeded(Mode.stable, (s) => s.expense(30, h.ago(1), cat: 'ocio'), h.FailingBudgetDb());
+    await pumpBudget(tester, seed);
+    await tester.tap(find.byKey(const Key('budget.use.ocio')));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull, reason: 'el error se maneja, no se escapa');
+    expect(find.text('No se pudo guardar el techo. Intenta de nuevo.'), findsOneWidget);
+    expect(find.text('Sin techo'), findsOneWidget);
+    await h.unmount(tester);
+  });
+
+  testWidgets('hallazgo 7: si el modo cambia con la hoja abierta, se cierran la hoja y Presupuesto', (tester) async {
+    final seed = await withCaps();
+    await pumpBudget(tester, seed);
+    await tester.tap(row('comida'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('budget.sheet')), findsOneWidget);
+    await seed.db.setMode(Mode.variable);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('budget.sheet')), findsNothing);
+    expect(find.byType(BudgetScreen), findsNothing);
+    expect(find.text('abrir'), findsOneWidget);
+    await h.unmount(tester);
+  });
 }

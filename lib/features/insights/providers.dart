@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/utils/formatters.dart';
 import '../../data/database.dart';
@@ -10,17 +9,12 @@ import '../home/providers.dart';
 
 /// Todo lo que pinta Insights, con los bloques ya ordenados por modo.
 final insightsSummaryProvider = Provider<AsyncValue<InsightsSummary>>((ref) {
-  final parts = <AsyncValue<Object?>>[
+  return combineAsync([
     ref.watch(settingsProvider),
     ref.watch(entriesStreamProvider),
     ref.watch(categoriesStreamProvider),
     ref.watch(budgetsStreamProvider),
-  ];
-  for (final p in parts) {
-    if (p.hasError) return AsyncError(p.error!, p.stackTrace ?? StackTrace.current);
-  }
-  if (parts.any((p) => !p.hasValue)) return const AsyncLoading();
-  return AsyncData(buildInsightsSummary(
+  ], () => buildInsightsSummary(
     settings: ref.watch(settingsProvider).value,
     entries: ref.watch(entriesStreamProvider).value!,
     categories: ref.watch(categoriesStreamProvider).value!,
@@ -67,7 +61,7 @@ class StreakBlock extends InsightBlock {
 
 typedef MonthIncome = ({DateTime month, int cents});
 
-/// [best]/[worst] null = menos de 2 meses cerrados (texto de espera).
+/// [best] null = menos de 2 meses cerrados (texto de espera); [worst] null = todos empatan.
 class MonthsBlock extends InsightBlock {
   const MonthsBlock({this.best, this.worst});
   final MonthIncome? best;
@@ -137,18 +131,23 @@ InsightsSummary buildInsightsSummary({
   };
   final hasData = firstDay(movements, today: today, opening: opening) != null;
 
-  final threshold = streakThreshold(movements, today: today, mode: mode, capsCents: activeCaps, opening: opening);
+  // Un umbral de 0 (sin ingreso ni gasto reciente) haría decir "menos de S/ 0.00": sin umbral útil, sin racha.
+  final raw = streakThreshold(movements, today: today, mode: mode, capsCents: activeCaps, opening: opening);
+  final threshold = raw != null && raw > 0 ? raw : null;
   final streakDays = threshold == null ? 0 : streak(movements, today: today, thresholdCents: threshold);
   final streakB = threshold == null ? null : StreakBlock(days: streakDays, thresholdCents: threshold);
 
   final spend = _spend(movements, catById, today);
   final months = incomeByClosedMonth(movements, today: today);
-  final monthsB = months.length < 2
-      ? const MonthsBlock()
-      : MonthsBlock(
-          best: months.reduce((a, b) => b.cents >= a.cents ? b : a),
-          worst: months.reduce((a, b) => b.cents < a.cents ? b : a),
-        );
+  // Sin ningún mes con ingreso no hay nada que comparar (se oculta); si todos
+  // empatan, "peor" repetiría a "mejor" y se muestra solo el mejor.
+  final best = months.length < 2 ? null : months.reduce((a, b) => b.cents >= a.cents ? b : a);
+  final worst = months.length < 2 ? null : months.reduce((a, b) => b.cents < a.cents ? b : a);
+  final monthsB = switch (best) {
+    null => const MonthsBlock(),
+    _ when best.cents == 0 => null,
+    _ => MonthsBlock(best: best, worst: worst!.cents == best.cents ? null : worst),
+  };
   final series = runwaySeries(movements, today: today, window: window, opening: opening);
   final todayRunway = runway(movements, today: today, window: window, opening: opening);
   final runwayB = RunwayBlock(series: series, today: todayRunway, tall: mode == Mode.survival);
@@ -173,9 +172,9 @@ InsightsSummary buildInsightsSummary({
               ? 'En 30 días entró ${Formatters.soles(r.incomeCents)} y salió ${Formatters.soles(r.expenseCents)}.'
               : null;
         },
-        () => monthsB.best == null
+        () => monthsB?.best == null
             ? null
-            : 'Tu mejor mes fue ${_monthName(monthsB.best!.month)}, con ${Formatters.soles(monthsB.best!.cents)}.',
+            : 'Tu mejor mes fue ${Formatters.month(monthsB!.best!.month).toLowerCase()}, con ${Formatters.soles(monthsB.best!.cents)}.',
       ], hasData: hasData, today: todayRunway),
     Mode.survival => _first([
         () => todayRunway.status == RunwayStatus.days ? 'A este ritmo te alcanza para ${_days(todayRunway)}.' : null,
@@ -238,21 +237,12 @@ String _n(int n, String word) => '$n ${n == 1 ? word : '${word}s'}';
 
 String _days(Runway r) => r.capped ? '+$maxRunwayDays días' : _n(r.days, 'día');
 
-/// "agosto".
-String _monthName(DateTime m) => DateFormat('MMMM', 'es_PE').format(DateTime(m.year, m.month));
-
-/// "Agosto".
-String monthLabel(DateTime m) {
-  final s = _monthName(m);
-  return '${s[0].toUpperCase()}${s.substring(1)}';
-}
-
 const _foldId = 'otros';
 
 /// Top 5 de 30 días (archivadas incluidas, V3) sin la categoría "Otros", que se
 /// pliega con el resto en una sola fila final en piedra (nunca dos "Otros").
 List<SpendRow> _spend(List<Movement> movements, Map<String, Category> catById, DateTime today) {
-  final all = topCategories(movements, today: today, top: 1 << 20, days: 30);
+  final all = topCategories(movements, today: today, top: null, days: 30);
   final total = all.fold<int>(0, (a, x) => a + x.cents);
   if (total == 0) return const [];
   final named = all.where((x) => x.categoryId != _foldId).take(5).toList();

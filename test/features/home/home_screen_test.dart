@@ -22,9 +22,9 @@ var _n = 0;
 
 /// Base en memoria con settings y movimientos ya cargados.
 class Seed {
-  Seed(this.mode);
+  Seed(this.mode, [AppDatabase? db]) : db = db ?? AppDatabase(NativeDatabase.memory());
   final Mode mode;
-  final db = AppDatabase(NativeDatabase.memory());
+  final AppDatabase db;
 
   Future<void> expense(int soles, DateTime d, {String cat = 'comida'}) => db.insertManualEntry(
       id: 'x${_n++}', kind: EntryKind.expense, amountCents: soles * 100, day: d, pickId: cat, now: DateTime(2026, 10, 8, 0, 0, _n));
@@ -43,8 +43,8 @@ class Seed {
   }
 }
 
-Future<Seed> seeded(Mode mode, [Future<void> Function(Seed s)? fill]) async {
-  final s = Seed(mode);
+Future<Seed> seeded(Mode mode, [Future<void> Function(Seed s)? fill, AppDatabase? db]) async {
+  final s = Seed(mode, db);
   await s.db.completeOnboarding(mode: mode);
   if (fill != null) await fill(s);
   return s;
@@ -66,6 +66,14 @@ Future<void> pumpHome(WidgetTester tester, Seed seed, {Size size = const Size(41
     child: MaterialApp(theme: theme ?? AppTheme.light, home: const HomeScreen()),
   ));
   await tester.pumpAndSettle();
+}
+
+/// Base cuyo guardado de techos siempre falla (para probar el manejo de errores).
+class FailingBudgetDb extends AppDatabase {
+  FailingBudgetDb() : super(NativeDatabase.memory());
+
+  @override
+  Future<void> setBudget(String categoryId, int cents) async => throw StateError('falla simulada');
 }
 
 /// Desmonta y drena el timer que drift agenda al cancelar los streams.

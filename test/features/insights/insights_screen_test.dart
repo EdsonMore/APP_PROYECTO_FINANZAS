@@ -191,4 +191,32 @@ void main() {
     expect((bar.decoration! as BoxDecoration).color, categoryDark[0]);
     await h.unmount(tester);
   });
+
+  testWidgets('hallazgo 2: si [Usar] no puede guardar, la fila vuelve y avisa el error', (tester) async {
+    await openInsights(tester, await h.seeded(Mode.survival, full, h.FailingBudgetDb()));
+    await scrollTo(tester, 'insights.use.ocio');
+    await tester.tap(find.byKey(const Key('insights.use.ocio')));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull, reason: 'el error se maneja, no se escapa');
+    expect(find.text('No se pudo guardar el techo. Intenta de nuevo.'), findsOneWidget);
+    expect(find.byKey(const Key('insights.suggestedSnack')), findsNothing);
+    final fade = tester.widget<AnimatedOpacity>(
+        find.ancestor(of: find.byKey(const Key('insights.use.ocio')), matching: find.byType(AnimatedOpacity)));
+    expect(fade.opacity, 1, reason: 'la fila vuelve a verse y se puede reintentar');
+    await h.unmount(tester);
+  });
+
+  testWidgets('hallazgo 5: reconstruir Insights reutiliza las animaciones de entrada (no crea nuevas)', (tester) async {
+    final seed = await h.seeded(Mode.stable, full);
+    await openInsights(tester, seed);
+    Listenable reveal() => tester
+        .widget<AnimatedBuilder>(
+            find.ancestor(of: find.byKey(const Key('insights.phrase')), matching: find.byType(AnimatedBuilder)).first)
+        .animation;
+    final before = reveal();
+    await seed.expense(1, h.today); // cada movimiento reconstruye Insights
+    await tester.pumpAndSettle();
+    expect(reveal(), same(before));
+    await h.unmount(tester);
+  });
 }

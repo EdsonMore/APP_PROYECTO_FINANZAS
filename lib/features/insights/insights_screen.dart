@@ -46,11 +46,21 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> with SingleTick
     super.dispose();
   }
 
+  /// Una animación por bloque, creada solo cuando cambia la cantidad de bloques:
+  /// reconstruir por un dato nuevo no crea objetos ni suma listeners (hallazgo 5).
+  var _anims = <Animation<double>>[];
+
   Widget _revealed(int i, int count, Widget child) {
-    final total = (_each + _stagger * count).inMilliseconds;
-    final start = (_stagger * i).inMilliseconds / total;
-    final a = CurvedAnimation(
-        parent: _reveal, curve: Interval(start, start + _each.inMilliseconds / total, curve: Motion.easeOut));
+    if (_anims.length != count) {
+      final total = (_each + _stagger * count).inMilliseconds;
+      _anims = [
+        for (var k = 0; k < count; k++)
+          _reveal.drive(CurveTween(
+              curve: Interval((_stagger * k).inMilliseconds / total,
+                  ((_stagger * k) + _each).inMilliseconds / total, curve: Motion.easeOut))),
+      ];
+    }
+    final a = _anims[i];
     return AnimatedBuilder(
       animation: a,
       child: child,
@@ -240,21 +250,26 @@ class _MonthsBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final best = block.best, worst = block.worst;
-    if (best == null || worst == null) return const _Waiting('Cuando cierres dos meses te muestro tu mes típico.');
+    if (best == null) return const _Waiting('Cuando cierres dos meses te muestro tu mes típico.');
     final p = context.palette;
     Widget column(String label, MonthIncome m) => Expanded(
           child: Semantics(
-            label: '$label: ${monthLabel(m.month)}, ${Formatters.soles(m.cents)}',
+            label: '$label: ${Formatters.month(m.month)}, ${Formatters.soles(m.cents)}',
             excludeSemantics: true,
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(label, style: AppType.caption.copyWith(color: p.inkMuted)),
               const SizedBox(height: Space.xs),
-              Text(monthLabel(m.month), style: AppType.label.copyWith(color: p.ink)),
+              Text(Formatters.month(m.month), style: AppType.label.copyWith(color: p.ink)),
               Text(Formatters.soles(m.cents), style: AppType.amount.copyWith(color: p.ink)),
             ]),
           ),
         );
-    return Row(children: [column('Mejor', best), const SizedBox(width: Space.lg), column('Peor', worst)]);
+    return Row(children: [
+      column('Mejor', best),
+      const SizedBox(width: Space.lg),
+      // Todos los meses empatan: "Peor" repetiría el mismo monto.
+      if (worst != null) column('Peor', worst) else const Spacer(),
+    ]);
   }
 }
 
@@ -366,7 +381,16 @@ class _SuggestedTileState extends ConsumerState<_SuggestedTile> {
   Future<void> _save() async {
     final r = widget.row;
     final messenger = ScaffoldMessenger.of(context);
-    await ref.read(databaseProvider).setBudget(r.categoryId, r.cents);
+    try {
+      await ref.read(databaseProvider).setBudget(r.categoryId, r.cents);
+    } catch (_) {
+      // La fila vuelve a verse para poder reintentar.
+      if (mounted) setState(() => _leaving = false);
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text(saveCapError), behavior: SnackBarBehavior.floating));
+      return;
+    }
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(

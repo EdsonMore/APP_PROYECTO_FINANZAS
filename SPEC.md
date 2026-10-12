@@ -13,7 +13,7 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
 - Funciona desde el día 1 con S/ 0 de ingreso y solo gastos.
 - El onboarding **no** pide ingreso mensual, día de pago ni meta de ahorro.
 - Una entrada de dinero es **"ingreso"**, nunca "sueldo". No se asume periodicidad.
-- Nunca se muestra "presupuesto restante" sin ingreso registrado en el mes.
+- Nunca se muestra "presupuesto restante" sin ingreso registrado en el mes (en el Home; ver "Quedan S/ X" en §Modos de uso).
   En su lugar se muestra el gasto del período + runway.
 - Registrar gasto e ingreso tiene la misma prioridad: ambos a ≤ 2 toques de
   navegación desde el Home.
@@ -46,6 +46,11 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
 - La pestaña Presupuesto existe **solo en `stable`**. En `survival`, los techos
   sugeridos aparecen como tarjeta en Insights ("Sugerido por tu historial:
   Comida ~S/ 150 [Usar como techo]"). En `variable` no se muestran.
+- **"Quedan S/ X" en Presupuesto e Insights:** es la diferencia entre
+  techos de categorías activas y gasto real del mes. No depende del
+  ingreso. La regla "nunca presupuesto restante sin ingreso" aplica solo
+  al Home (donde el bloque de presupuesto no aparece sin ingreso en el
+  mes).
 - **Total de Presupuesto y del Home:** Σ techos de categorías **activas** contra
   **todo** el gasto del mes calendario (`spentInMonth`). El techo de una
   archivada queda guardado y vuelve al desarchivar. Si hubo gasto fuera de los
@@ -473,7 +478,7 @@ test/
   `schemaVersion`), agregar dependencias, cualquier dependencia de red, usar las
   skills prohibidas.
 - **Nunca:** borrar el código de captura; guardar dinero en `double`; mostrar
-  "presupuesto restante" sin ingreso; llamar "sueldo" a un ingreso.
+  "presupuesto restante" sin ingreso en el Home; llamar "sueldo" a un ingreso.
 
 ## Criterios de éxito de la Fase 1a
 

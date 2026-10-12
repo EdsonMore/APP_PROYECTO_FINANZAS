@@ -285,9 +285,9 @@ BudgetStatus? budgetStatus(Map<String, int> capsCents, {required int spentCents}
 }
 
 /// Categorías con más gasto en los últimos [days] días calendario (hoy incluido),
-/// de mayor a menor; empate por id para un orden estable.
+/// de mayor a menor; empate por id para un orden estable. [top] null = todas.
 List<({String categoryId, int cents})> topCategories(List<Movement> movements,
-    {required DateTime today, int top = 3, int days = 30}) {
+    {required DateTime today, int? top = 3, int days = 30}) {
   final from = today.subtract(Duration(days: days - 1));
   final byCat = <String, int>{};
   for (final m in movements) {
@@ -297,7 +297,7 @@ List<({String categoryId, int cents})> topCategories(List<Movement> movements,
   }
   final list = [for (final e in byCat.entries) (categoryId: e.key, cents: e.value)]
     ..sort((a, b) => b.cents != a.cents ? b.cents.compareTo(a.cents) : a.categoryId.compareTo(b.categoryId));
-  return list.take(top).toList();
+  return top == null ? list : list.take(top).toList();
 }
 
 /// Últimos [limit] movimientos: por fecha del movimiento y luego por hora de

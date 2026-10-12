@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:saldo_claro/core/utils/formatters.dart';
 import 'package:saldo_claro/data/database.dart';
 import 'package:saldo_claro/domain/metrics.dart';
 import 'package:saldo_claro/features/insights/providers.dart';
@@ -152,7 +153,7 @@ void main() {
     // Septiembre: 600 + 1,000 de hace 13 días (25 de septiembre).
     expect((m.best!.month, m.best!.cents), (DateTime.utc(2026, 9), 160000));
     expect((m.worst!.month, m.worst!.cents), (DateTime.utc(2026, 8), 90000));
-    expect(monthLabel(m.best!.month), 'Septiembre');
+    expect(Formatters.month(m.best!.month), 'Septiembre');
   });
 
   test('gasto: top 5 sin "Otros"; "Otros" real + el resto en una fila final piedra; archivada incluida', () {
@@ -195,5 +196,28 @@ void main() {
       [(6, 2), (7, 1)],
     ]);
     expect(RunwayLine.segments(const [null, null]), isEmpty);
+  });
+
+  group('hallazgos del code-review', () {
+    test('3: con umbral 0 no hay racha ni frase S3 ("menos de S/ 0.00")', () {
+      // Sin ingreso y sin gastos en la ventana de 14 días: el umbral redondea a 0.
+      final s = build(Mode.survival, [e(EntryKind.expense, 20, ago(20))]);
+      expect(s.blocks.whereType<StreakBlock>(), isEmpty);
+      expect(s.phrase, isNot(contains('S/ 0.00')));
+      expect(build(Mode.stable, [e(EntryKind.expense, 20, ago(20))]).phrase, isNot(contains('sin pasarte')));
+    });
+
+    test('4: meses cerrados sin ningún ingreso → sin mejor/peor y sin "mejor mes … S/ 0.00"', () {
+      final s = build(Mode.variable, [e(EntryKind.expense, 5, day(2026, 6, 1))]);
+      expect(s.blocks.whereType<MonthsBlock>(), isEmpty);
+      expect(s.phrase, isNot(contains('mejor mes')));
+    });
+
+    test('4: si todos los meses empatan, se muestra solo el mejor', () {
+      final s = build(Mode.variable, [e(EntryKind.income, 500, day(2026, 8, 1)), e(EntryKind.income, 500, day(2026, 9, 1))]);
+      final m = s.blocks.whereType<MonthsBlock>().single;
+      expect(m.best!.cents, 50000);
+      expect(m.worst, isNull);
+    });
   });
 }

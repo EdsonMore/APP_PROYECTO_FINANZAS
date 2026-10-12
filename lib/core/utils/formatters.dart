@@ -23,6 +23,12 @@ abstract final class Formatters {
 
   static String date(DateTime date) => _date.format(date);
 
+  /// "Octubre": nombre del mes con mayúscula inicial (títulos y columnas).
+  static String month(DateTime d) {
+    final s = DateFormat('MMMM', 'es_PE').format(DateTime(d.year, d.month));
+    return '${s[0].toUpperCase()}${s.substring(1)}';
+  }
+
   static String time(DateTime date) => _time.format(date);
 
   static String dateTime(DateTime date) => '${_date.format(date)} · ${_time.format(date)}';

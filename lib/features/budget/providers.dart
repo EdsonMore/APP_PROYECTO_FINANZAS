@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
+import '../../core/utils/formatters.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/metrics.dart';
@@ -8,17 +8,12 @@ import '../home/providers.dart';
 
 /// Todo lo que pinta Presupuesto, ya calculado. La UI no hace cuentas.
 final budgetSummaryProvider = Provider<AsyncValue<BudgetSummary>>((ref) {
-  final parts = <AsyncValue<Object?>>[
+  return combineAsync([
     ref.watch(settingsProvider),
     ref.watch(entriesStreamProvider),
     ref.watch(categoriesStreamProvider),
     ref.watch(budgetsStreamProvider),
-  ];
-  for (final p in parts) {
-    if (p.hasError) return AsyncError(p.error!, p.stackTrace ?? StackTrace.current);
-  }
-  if (parts.any((p) => !p.hasValue)) return const AsyncLoading();
-  return AsyncData(buildBudgetSummary(
+  ], () => buildBudgetSummary(
     settings: ref.watch(settingsProvider).value,
     entries: ref.watch(entriesStreamProvider).value!,
     categories: ref.watch(categoriesStreamProvider).value!,
@@ -129,9 +124,8 @@ BudgetSummary buildBudgetSummary({
     first = row(byMonth(pick) > 0 ? pick : (by90(pick90) > 0 ? pick90 : active.first));
   }
 
-  final month = DateFormat('MMMM', 'es_PE').format(DateTime(today.year, today.month));
   return BudgetSummary(
-    month: '${month[0].toUpperCase()}${month.substring(1)}',
+    month: Formatters.month(today),
     total: budgetStatus({for (final r in capped) r.categoryId: r.capCents!}, spentCents: spentAll),
     uncappedSpentCents: spentAll - cappedSpent,
     capped: capped,
