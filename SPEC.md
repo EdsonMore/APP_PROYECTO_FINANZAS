@@ -440,7 +440,14 @@ semánticos se leen con `context.palette`.
   muestra con `LegalScreen`) y en `docs/play-store/` para publicarlos; un test
   exige que sean idénticos. Correo de contacto provisional `saldoclaro.oficial@gmail.com`
   (por confirmar, ver `tasks/todo.md`).
-- La release no declara permisos visibles (verificado con `aapt` sobre el APK).
+- **Fase 3 (textos):** la política y los términos explican el sync opcional
+  (Supabase, servidores en São Paulo, transferencia internacional, banco de datos
+  de la Ley 29733, derechos, mayores de 18). Titular: Edson More, Lima. Queda un
+  placeholder que no se publica: `[CÓDIGO DE INSCRIPCIÓN]` (ver `tasks/todo.md`). "Crear cuenta" exige marcar "Acepto la Política de privacidad
+  y que mis datos se guarden fuera del Perú." (los ingresos son dato sensible en
+  la Ley 29733); sin marcar, el botón queda deshabilitado y Enter no hace nada.
+- La release declara solo `INTERNET` (permiso normal, Android no lo pregunta); sin
+  cuenta la app no abre conexiones.
   Se mantiene la copia de seguridad de Android y la política lo dice.
 - Firma: con `android/key.properties`, keystore de subida; sin él, firma de
   debug (el build de release no se rompe). Guía en `docs/play-store/firma.md`.

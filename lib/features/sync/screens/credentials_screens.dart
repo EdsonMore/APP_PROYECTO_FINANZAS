@@ -1,8 +1,10 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/text_link.dart';
+import '../../settings/legal_screen.dart';
 import '../auth_gateway.dart';
 import '../providers.dart';
 import '../status.dart';
@@ -71,15 +73,24 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> with _Form {
   final _repeat = TextEditingController();
   String? _emailError, _passwordError, _repeatError;
 
+  /// Ley 29733: los ingresos son dato sensible; sin este consentimiento
+  /// expreso no se crea la cuenta (ni con el botón ni con Enter).
+  bool _consent = false;
+  late final _privacyTap = TapGestureRecognizer()
+    ..onTap = () => Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => const LegalScreen(title: 'Política de privacidad', asset: privacyAsset)));
+
   @override
   void dispose() {
     _email.dispose();
     _password.dispose();
     _repeat.dispose();
+    _privacyTap.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
+    if (!_consent) return;
     setState(() {
       _emailError = emailError(_email.text);
       _passwordError = passwordError(_password.text);
@@ -120,9 +131,42 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> with _Form {
             error: _repeatError,
             password: true,
             onSubmitted: _submit),
-        AccountButton(label: 'Crear cuenta', busy: busy, onPressed: _submit),
+        _consentRow(context),
+        const SizedBox(height: Space.lg),
+        AccountButton(label: 'Crear cuenta', busy: busy, onPressed: _consent ? _submit : null),
         AccountError(serverError),
       ]);
+
+  Widget _consentRow(BuildContext context) {
+    final p = context.palette;
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Transform.translate(
+        offset: const Offset(-Space.md, 0), // el área táctil de 48 no corre el cuadro del margen
+        child: Checkbox(
+          key: const Key('signUp.consent'),
+          value: _consent,
+          onChanged: (v) => setState(() => _consent = v ?? false),
+        ),
+      ),
+      Expanded(
+        child: Padding(
+          padding: const EdgeInsets.only(top: Space.md),
+          child: Text.rich(
+            TextSpan(children: [
+              const TextSpan(text: 'Acepto la '),
+              TextSpan(
+                text: 'Política de privacidad',
+                recognizer: _privacyTap,
+                style: TextStyle(color: p.ink, fontWeight: FontWeight.w500, decoration: TextDecoration.underline),
+              ),
+              const TextSpan(text: ' y que mis datos se guarden fuera del Perú.'),
+            ]),
+            style: AppType.label.copyWith(color: p.inkMuted, fontWeight: FontWeight.w400, height: 1.5),
+          ),
+        ),
+      ),
+    ]);
+  }
 }
 
 class SignInScreen extends ConsumerStatefulWidget {

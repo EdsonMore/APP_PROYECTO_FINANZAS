@@ -25,14 +25,16 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: Space.xs),
             Text('Versión $appVersion ($appBuild)', style: AppType.caption.copyWith(color: p.inkMuted)),
             const SizedBox(height: Space.xl),
-            Text('Tus datos se guardan solo en este teléfono. SaldoClaro no usa internet.',
+            Text(
+                'Sin cuenta, tus datos se guardan solo en este teléfono. '
+                'Si activas la sincronización, también se guarda una copia en tu cuenta.',
                 style: AppType.body.copyWith(color: p.ink)),
             const SizedBox(height: Space.xl),
             Divider(color: p.border, height: 1),
             SettingsRow(
               key: const Key('about.privacy'),
               label: 'Política de privacidad',
-              value: 'Qué datos guarda la app (ninguno)',
+              value: 'Qué datos guarda la app y dónde',
               chevron: true,
               onTap: () => _push(context, const LegalScreen(title: 'Política de privacidad', asset: privacyAsset)),
             ),

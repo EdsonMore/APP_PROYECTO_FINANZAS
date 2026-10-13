@@ -44,9 +44,10 @@ INSIGHTS
 • Tu mejor y tu peor mes de ingresos.
 
 TUS DATOS SON TUYOS
-• Todo se guarda solo en tu teléfono.
-• Sin cuenta, sin login y sin internet: la app ni siquiera tiene permiso para usarlo.
+• Sin cuenta, todo se guarda solo en tu teléfono y la app no se conecta a internet.
+• Sincronización opcional: crea una cuenta y usa tus datos en otro teléfono. Viajan y se guardan cifrados.
 • Sin publicidad, sin analítica y sin vender datos.
+• Borra tu cuenta y tus datos de la nube cuando quieras, desde la app.
 • Exporta todos tus movimientos a CSV cuando quieras, listo para Excel.
 
 HECHA PARA PERÚ

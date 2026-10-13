@@ -11,6 +11,7 @@ import 'package:saldo_claro/data/providers.dart';
 import 'package:saldo_claro/domain/metrics.dart';
 import 'package:saldo_claro/features/entry/draft_store.dart';
 import 'package:saldo_claro/features/home/home_screen.dart';
+import 'package:saldo_claro/features/settings/legal_screen.dart';
 import 'package:saldo_claro/features/sync/auth_gateway.dart';
 import 'package:saldo_claro/features/sync/fake_auth_gateway.dart';
 import 'package:saldo_claro/features/sync/providers.dart';
@@ -99,6 +100,7 @@ Future<void> signUpUntilCode(WidgetTester tester, {String email = 'ana@correo.co
   await type(tester, 'signUp.email', email);
   await type(tester, 'signUp.password', 'secreto1');
   await type(tester, 'signUp.repeat', 'secreto1');
+  await tapKey(tester, 'signUp.consent');
   await press(tester, 'Crear cuenta');
 }
 
@@ -124,6 +126,62 @@ void main() {
     expect(find.descendant(of: find.byKey(const Key('settings.sync')), matching: find.text('Sin cuenta')), findsOneWidget);
     expect(find.descendant(of: find.byKey(const Key('settings.sync')), matching: find.text('Activar')), findsOneWidget);
     await h.unmount(tester);
+  });
+
+  group('consentimiento al crear cuenta (Ley 29733)', () {
+    Future<void> fillForm(WidgetTester tester) async {
+      await press(tester, 'Crear cuenta');
+      await type(tester, 'signUp.email', 'ana@correo.com');
+      await type(tester, 'signUp.password', 'secreto1');
+      await type(tester, 'signUp.repeat', 'secreto1');
+    }
+
+    bool enabled(WidgetTester tester) =>
+        tester.widget<FilledButton>(find.byKey(const Key('account.button.Crear cuenta'))).onPressed != null;
+
+    testWidgets('sin marcar: "Crear cuenta" deshabilitado y nada llega al servidor (tampoco con Enter)',
+        (tester) async {
+      await openSync(tester);
+      await fillForm(tester);
+      expect(find.text('Acepto la Política de privacidad y que mis datos se guarden fuera del Perú.'), findsOneWidget);
+      expect(tester.widget<Checkbox>(find.byKey(const Key('signUp.consent'))).value, isFalse);
+      expect(enabled(tester), isFalse);
+      await tester.tap(find.byKey(const Key('account.button.Crear cuenta')));
+      await tester.testTextInput.receiveAction(TextInputAction.done); // Enter en "Repite la contraseña"
+      await tester.pumpAndSettle();
+      expect(auth.calls, isNot(contains('signUp')));
+
+      await tapKey(tester, 'signUp.consent');
+      expect(enabled(tester), isTrue);
+      await tapKey(tester, 'signUp.consent');
+      expect(enabled(tester), isFalse, reason: 'desmarcar lo vuelve a deshabilitar');
+      await h.unmount(tester);
+    });
+
+    testWidgets('marcado: crea la cuenta', (tester) async {
+      await openSync(tester);
+      await fillForm(tester);
+      await tapKey(tester, 'signUp.consent');
+      await press(tester, 'Crear cuenta');
+      expect(auth.calls, contains('signUp'));
+      expect(find.byType(CodeScreen), findsOneWidget);
+      await h.unmount(tester);
+    });
+
+    testWidgets('el link abre la Política de privacidad y al volver el formulario sigue igual', (tester) async {
+      await openSync(tester);
+      await fillForm(tester);
+      await tester.tapOnText(find.textRange.ofSubstring('Política de privacidad'));
+      await tester.pumpAndSettle();
+      expect(find.byType(LegalScreen), findsOneWidget);
+      expect(find.text('En pocas palabras'), findsOneWidget, reason: 'la política vigente (Fase 3)');
+      await tester.tap(find.byTooltip('Volver'));
+      await tester.pumpAndSettle();
+      expect(find.byType(SignUpScreen), findsOneWidget);
+      expect(tester.widget<Checkbox>(find.byKey(const Key('signUp.consent'))).value, isFalse,
+          reason: 'leer la política no la acepta');
+      await h.unmount(tester);
+    });
   });
 
   testWidgets('crear cuenta: código malo da error; el bueno conecta y SUBE todo (D2)', (tester) async {
@@ -152,6 +210,7 @@ void main() {
     await type(tester, 'signUp.email', 'ana');
     await type(tester, 'signUp.password', '123');
     await type(tester, 'signUp.repeat', '1234');
+    await tapKey(tester, 'signUp.consent');
     await press(tester, 'Crear cuenta');
     expect(find.text('Escribe un correo válido.'), findsOneWidget);
     expect(find.text('Mínimo 6 caracteres.'), findsOneWidget);

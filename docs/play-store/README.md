@@ -51,12 +51,22 @@ sube nada.
 6. **Contenido de la app** (Política → Contenido de la app):
    - Política de privacidad: la URL pública.
    - Anuncios: no tiene.
-   - Acceso a la app: no requiere login.
+   - Acceso a la app: no requiere login (la cuenta es opcional).
    - Clasificación de contenido: completa el cuestionario (app de finanzas,
      sin contenido sensible).
-   - Público objetivo: mayores de 18 (o 13+, coherente con la política).
-   - **Seguridad de los datos:** "No se recopilan datos" y "No se comparten
-     datos". Es cierto: la app no tiene permiso de internet.
+   - Público objetivo: mayores de 18 (coherente con la política).
+   - **Seguridad de los datos** (Fase 3: sync opcional):
+     - ¿Recopila datos? **Sí**, solo si el usuario activa la sincronización.
+       Marcar **"opcional"** en cada tipo:
+       - Información personal → Dirección de correo electrónico. Finalidad:
+         funcionalidad de la app y administración de la cuenta.
+       - Información financiera → Otra información financiera (movimientos,
+         saldo, techos). Finalidad: funcionalidad de la app.
+     - ¿Comparte datos? **No.** Supabase y el servicio de correo procesan los
+       datos por nuestra cuenta; Google no lo cuenta como compartir.
+     - Datos cifrados en tránsito: **Sí.**
+     - El usuario puede pedir que se borren: **Sí**, desde la app y desde la
+       URL pública de `docs/landing/borrar-cuenta.html`.
    - Apps financieras: declarar que no ofrece préstamos ni servicios
      financieros; es una herramienta de registro personal.
 7. **Prueba cerrada** (Pruebas → Prueba cerrada): crea un track, sube el

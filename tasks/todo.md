@@ -245,6 +245,39 @@ Antes de publicar:
       cuenta: cargar en uno, ver en el otro; "Unir" y "Usar solo los de la nube".
 - [ ] El test de punta a punta sigue en skip (ver Fase 3B).
 
+## Fase 3 (textos legales): pendientes del usuario
+- [ ] Confirmar que saldoclaro.oficial@gmail.com es el correo definitivo. Si no,
+      reemplazar en:
+  - assets/legal/privacidad.md
+  - assets/legal/terminos.md
+  - docs/play-store/politica-privacidad.md
+  - docs/play-store/terminos.md
+  - docs/landing/index.html
+  - docs/landing/privacidad.html
+  - docs/landing/terminos.html
+- [ ] Antes de publicar en Play Store: inscribir el banco de datos personales ante
+      la Autoridad Nacional de Protección de Datos Personales (Ley 29733). Obtener
+      el código y reemplazar [CÓDIGO DE INSCRIPCIÓN] en:
+  - assets/legal/privacidad.md
+  - docs/play-store/politica-privacidad.md
+  - docs/landing/privacidad.html
+- [ ] Antes del primer cambio de política (después de publicar): construir el
+      aviso en la app. Reusar LegalAcceptanceStore o implementar algo similar.
+  - El mismo aviso cubre lo que prometen los Términos ("Sin garantías"): si algún
+    día se deja de ofrecer la sincronización, avisar dentro de la app con tiempo
+    para exportar.
+- [ ] En saldoclaro-prod y saldoclaro-test: Authentication → Audit Logs → apagar
+      "Write audit logs to the database". Si queda prendido, la tabla
+      auth.audit_log_entries guarda la IP de cada login sin borrarla nunca. Con
+      eso apagado, solo quedan los logs de la plataforma (1 día en el plan Free,
+      7 en Pro). La política dice "puede guardar por seguridad", que es cierto en
+      los dos casos.
+- [ ] Fase 4: guardar cuándo se aceptó la política y qué versión
+      (consentimiento demostrable, Ley 29733). Requiere migración local (la base
+      ya está en v5: sería v6) + migración remota. No bloquea la beta. Hoy el
+      checkbox de "Crear cuenta" bloquea el registro, pero no deja registro.
+- [ ] Que un abogado revise la política y los términos antes de publicar.
+
 ## Pendientes técnicos
 - [ ] Mutation testing completo sobre pull/engine/scheduler/push
       (27 mutantes restantes). Correr en lotes chicos (5-10 por

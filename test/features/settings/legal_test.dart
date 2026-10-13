@@ -92,7 +92,7 @@ void main() {
   });
 
   for (final (row, title, heading) in [
-    ('privacy', 'Política de privacidad', 'Qué datos recolectamos'),
+    ('privacy', 'Política de privacidad', 'Si activas la sincronización'),
     ('terms', 'Términos y condiciones', 'SaldoClaro no es un asesor financiero'),
   ]) {
     testWidgets('Acerca de → $title: header, fecha y subtítulos', (tester) async {
@@ -103,10 +103,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(LegalScreen), findsOneWidget);
       expect(find.text(title), findsOneWidget);
-      expect(find.text('Última actualización: 12 de octubre de 2026'), findsOneWidget);
+      expect(find.text('Última actualización: 13 de octubre de 2026'), findsOneWidget);
       await tester.scrollUntilVisible(find.text(heading), 200, scrollable: find.byType(Scrollable).last);
       expect(find.text(heading), findsOneWidget);
       await tester.scrollUntilVisible(find.text('Contacto'), 300, scrollable: find.byType(Scrollable).last);
+      await tester.scrollUntilVisible(find.text('saldoclaro.oficial@gmail.com'), 100,
+          scrollable: find.byType(Scrollable).last);
       expect(find.text('saldoclaro.oficial@gmail.com'), findsWidgets);
       await h.unmount(tester);
     });
