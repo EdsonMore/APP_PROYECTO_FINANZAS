@@ -8,7 +8,9 @@ ingresos variables o que hoy vive de entradas sueltas. Funciona desde el día 1
 con solo gastos, sin pedir sueldo ni día de pago, y calcula cuántos días te
 alcanza la plata con tu ritmo de gasto real.
 
-Todo se guarda en el teléfono. No hay login, ni servidor, ni conexión a internet.
+Sin cuenta, todo se guarda en el teléfono y la app no se conecta a internet. La
+cuenta es opcional: si la creas, tus datos se sincronizan con la nube (Supabase)
+para usarlos en otro teléfono.
 
 ## Pantallas
 
@@ -44,6 +46,15 @@ Todo se guarda en el teléfono. No hay login, ni servidor, ni conexión a intern
   60 días, tu racha sin pasarte del límite diario y tus mejores y peores meses.
   El orden de los bloques cambia según el modo.
 
+| Home con sync | Detalle de sync | Sin conexión |
+|---|---|---|
+| ![Home con el ícono de sync al día en el header](docs/screenshots/fase-3d/home-sync-ok-claro.png) | ![Hoja de sync: todo sincronizado, última vez y por subir](docs/screenshots/fase-3d/hoja-ok-claro.png) | ![Hoja de sync sin conexión: 4 cambios por subir](docs/screenshots/fase-3d/hoja-offline-claro.png) |
+
+- **Sincronización opcional (Fase 3):** cuenta con correo y contraseña en
+  Ajustes, Sincronizar con la nube. Bidireccional entre teléfonos (último en
+  escribir gana), automática al abrir, al volver y después de cada cambio. Un
+  ícono en el header del Home muestra el estado y, al tocarlo, el detalle.
+
 Más capturas, en claro y oscuro, en [`docs/screenshots/`](docs/screenshots/).
 
 ## Stack
@@ -51,8 +62,8 @@ Más capturas, en claro y oscuro, en [`docs/screenshots/`](docs/screenshots/).
 - **Flutter** (stable) + **Riverpod** para el estado.
 - **drift** (SQLite) para la persistencia local, con streams reactivos: el Home
   se recalcula solo al guardar.
-- **Sin dependencias de red.** Las fuentes Newsreader y Geist van como asset
-  (licencia OFL).
+- **supabase_flutter** solo para la sincronización opcional: sin sesión no abre
+  conexiones. Las fuentes Newsreader y Geist van como asset (licencia OFL).
 - Los gráficos son propios (barras con widgets y la línea con `CustomPainter`),
   sin librería de gráficos. La paleta de categorías se validó para daltonismo.
 - Las métricas (runway, promedios, semáforo, presupuesto, insights) son funciones puras
@@ -89,24 +100,29 @@ En Windows, `flutter pub get` pide activar el Modo de desarrollador
 
 ## Estado
 
-**Fase 1 completa** (tag `fase-1-completa-v2`): la app funciona de punta a
-punta en el teléfono, sin red. 413 tests, `flutter analyze` limpio.
+**Fase 3 completa** (tag `fase-3-completa`): sync opcional con Supabase. 600
+tests, `flutter analyze` limpio. La publicación (Fase 2C) espera la cuenta de
+Play Console y el SMTP propio.
 
-- **1a:** modelo de datos (drift), fórmulas en `metrics.dart` y sistema
-  visual "Cuaderno".
-- **1b:** Onboarding, Home por modo, registro en 2 toques, saldo inicial y
-  Ajustes con exportación a CSV.
-- **1c:** paleta de categorías (migración v3), Presupuesto e Insights.
+- **Fase 1** (`fase-1-completa-v2`): app local completa. 1a datos y fórmulas;
+  1b Onboarding, Home, registro y Ajustes; 1c Presupuesto e Insights.
+- **Fase 2** (`fase-2-*`): explicación de los modos, política de privacidad y
+  términos, preparación para Play Store y landing.
+- **Fase 3** (`fase-3a` … `fase-3-textos`): 3A esquema del servidor con RLS;
+  3E columnas de sync en local; 3B cuenta opcional (crear, entrar, recuperar,
+  borrar); 3C sync bidireccional; 3D ícono de estado; Textos legales con el
+  consentimiento al crear la cuenta.
 
 ## Roadmap
 
 | Fase | Qué entra |
 |---|---|
-| **1** ✅ | App local completa: registro, Home por modo, Presupuesto, Insights |
-| **2** | Legal (privacidad, términos) y beta cerrada en Play Store. Del uso real: explicación de los modos, "Sin reserva" en lugar de "Sin colchón", tema manual, calculadora "¿cuánto puedo gastar hoy?", historial completo |
-| **3** | Sync opcional con Supabase, multi-cuenta, cuenta compartida |
-| **4** | Gasto recurrente (recordatorios de facturas) y captura de notificaciones como experimento (puede no funcionar en todos los fabricantes) |
-| **5** | IA real, siempre detrás de un backend proxy (nunca con API keys en el APK) |
+| **1** ✅ | MVP: app local completa con registro, Home por modo, Presupuesto e Insights |
+| **2A/2B** ✅ | Legal (privacidad, términos) y preparación para Play Store |
+| **2C** ⏸️ | Publicación beta cerrada: pendiente la cuenta de Play Console (25 USD) y el SMTP propio |
+| **3** ✅ | Sync opcional con Supabase: 3A, 3E, 3B, 3C, 3D y Textos |
+| **4** | Multi-cuenta, captura de notificaciones (experimental), recordatorios de facturas, historial completo |
+| **5** | IA real (siempre detrás de un backend proxy, nunca con API keys en el APK) y publicación pública |
 
 El detalle de producto, fórmulas y decisiones está en [`SPEC.md`](SPEC.md). El
 plan de trabajo, en [`tasks/todo.md`](tasks/todo.md).

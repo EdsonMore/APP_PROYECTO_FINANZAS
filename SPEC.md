@@ -94,7 +94,7 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
   `id;kind;amount_cents;amount;occurred_on;category_or_source;category_or_source_id;note;origin;created_at;updated_at;account_label`.
   `kind` va en español (gasto/ingreso); las fechas, en ISO local.
 
-## Modelo de datos (drift, `lib/data/database.dart`, schemaVersion 4)
+## Modelo de datos (drift, `lib/data/database.dart`, schemaVersion 5)
 
 Convenciones:
 
@@ -434,6 +434,38 @@ semánticos se leen con `context.palette`.
 - **Fuera de alcance hasta su fase:** sync (3), multi-cuenta (3), gasto
   recurrente y captura de notificaciones (4), IA (5).
 
+## Estado del proyecto al cierre de la Fase 3 (2026-10-13)
+
+- **Hecho:** sync opcional con Supabase (proyecto saldoclaro-prod, São Paulo).
+  - 3A (`fase-3a`): esquema del servidor, RLS por usuario, trigger
+    last-write-wins y `delete_account()`.
+  - 3E (`fase-3e`): local v4 con `updated_at`, `synced_at` y lápidas.
+  - 3B (`fase-3b`): cuenta opcional (crear con código, entrar, recuperar,
+    cerrar sesión, borrar cuenta) y push.
+  - 3C (`fase-3c`): pull, motor, scheduler y estado; local v5 (`sync_cursors`).
+  - 3D (`fase-3d`): ícono de estado en el Home y hoja de detalle.
+  - Textos (`fase-3-textos`): política y términos con el sync, consentimiento
+    explícito al crear la cuenta (Ley 29733), ficha de Play y landing.
+- **Calidad:** 600 tests y 1 skip (el e2e contra Supabase real, que espera el
+  SMTP); `flutter analyze` limpio; convergencia de dos teléfonos probada con
+  semillas aleatorias; mutantes en las partes nuevas (ver pendiente abajo).
+- **Tag de cierre:** `fase-3-completa`.
+- **Pendientes del usuario:**
+  - [ ] Configurar SMTP propio (Gmail dedicado) en saldoclaro-prod y
+    saldoclaro-test, con las plantillas de `supabase/plantillas/`.
+  - [ ] Inscribir el banco de datos personales (Ley 29733) y reemplazar
+    `[CÓDIGO DE INSCRIPCIÓN]` en la política.
+  - [x] Apagar "Write audit logs to the database" en los dos proyectos.
+  - [ ] Confirmar que `saldoclaro.oficial@gmail.com` es el correo definitivo.
+  - [ ] Crear la cuenta de Play Console (25 USD).
+- **Pendientes técnicos:**
+  - [ ] Mutation testing de pull/engine/scheduler/push: 27 mutantes restantes,
+    en lotes de 5 a 10.
+  - [ ] Test e2e contra Supabase real (quitar el skip cuando haya SMTP).
+- **Para la Fase 4** (detalle en `tasks/todo.md`): consentimiento demostrable
+  (fecha y versión aceptadas), aviso de cambios de política en la app,
+  multi-cuenta, captura, recordatorios e historial.
+
 ## Legal y Play Store (Fase 2)
 
 - Política de privacidad y Términos viven en `assets/legal/*.md` (la app los
@@ -585,7 +617,8 @@ header del Home, en el grupo derecho antes de Insights; en los 3 modos.
 - `shared_preferences`: para `core/legal/legal_acceptance_store.dart` (Fase 2) y
   los borradores del registro. **Excepción documentada (3D):** `sync.lastOkAt`,
   la hora del último sync bueno. Es solo un timestamp, ningún dato del usuario.
-- **Sin dependencias de red.** Salieron `supabase_flutter`, `http`, `pdf`,
+- `supabase_flutter` (Fase 3B) solo para el sync opcional: sin sesión no abre
+  conexiones. En la Fase 1 habían salido `supabase_flutter`, `http`, `pdf`,
   `google_fonts` (descarga fuentes en runtime; en 1b la fuente va como asset), `local_auth`,
   `permission_handler`, `flutter_local_notifications`, `timezone` y
   `flutter_vector_icons`.

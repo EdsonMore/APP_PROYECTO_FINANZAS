@@ -266,7 +266,7 @@ Antes de publicar:
   - El mismo aviso cubre lo que prometen los Términos ("Sin garantías"): si algún
     día se deja de ofrecer la sincronización, avisar dentro de la app con tiempo
     para exportar.
-- [ ] En saldoclaro-prod y saldoclaro-test: Authentication → Audit Logs → apagar
+- [x] (Hecho por el usuario, 2026-10-13) En saldoclaro-prod y saldoclaro-test: Authentication → Audit Logs → apagar
       "Write audit logs to the database". Si queda prendido, la tabla
       auth.audit_log_entries guarda la IP de cada login sin borrarla nunca. Con
       eso apagado, solo quedan los logs de la plataforma (1 día en el plan Free,
