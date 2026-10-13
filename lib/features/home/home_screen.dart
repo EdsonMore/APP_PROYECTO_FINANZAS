@@ -12,6 +12,7 @@ import '../../domain/metrics.dart';
 import '../budget/budget_screen.dart';
 import '../entry/entry_sheet.dart';
 import '../entry/opening_balance_sheet.dart';
+import '../history/history_screen.dart';
 import '../insights/insights_screen.dart';
 import '../settings/modes_screen.dart';
 import '../settings/settings_screen.dart';
@@ -73,7 +74,16 @@ class HomeScreen extends ConsumerWidget {
               ),
               LightCard(view: s.light),
               if (s.top.isNotEmpty) TopCategoriesBlock(rows: s.top),
-              if (s.recents.isNotEmpty) RecentMovementsBlock(rows: s.recents),
+              if (s.recents.isNotEmpty)
+                RecentMovementsBlock(
+                  rows: s.recents,
+                  onTapRow: (id) {
+                    final entry = ref.read(entriesStreamProvider).value?.where((e) => e.id == id).firstOrNull;
+                    if (entry != null) editEntry(context, entry);
+                  },
+                  onSeeAll: () =>
+                      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const HistoryScreen())),
+                ),
             ],
           ),
         ),

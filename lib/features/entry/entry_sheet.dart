@@ -21,7 +21,8 @@ import 'amount_keypad.dart';
 import 'draft_store.dart';
 
 /// Abre la hoja de registro. Devuelve el movimiento guardado, o null si se cerró.
-Future<Entry?> showEntrySheet(BuildContext context, EntryKind kind) {
+/// Con [editing] (4B) es la misma hoja precargada; devuelve null si no hubo cambios.
+Future<Entry?> showEntrySheet(BuildContext context, EntryKind kind, {Entry? editing}) {
   final reduced = MediaQuery.disableAnimationsOf(context);
   return showModalBottomSheet<Entry>(
     context: context,
@@ -35,8 +36,25 @@ Future<Entry?> showEntrySheet(BuildContext context, EntryKind kind) {
             duration: Duration(milliseconds: 350),
             reverseDuration: Duration(milliseconds: 250),
             curve: Motion.emphasized),
-    builder: (_) => EntrySheet(kind: kind),
+    builder: (_) => EntrySheet(kind: kind, editing: editing),
   );
+}
+
+/// Toca un movimiento (Recientes o Historial) → hoja en modo edición. Si se
+/// guardó algún cambio, "Cambios guardados" 2 s.
+Future<void> editEntry(BuildContext context, Entry entry) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final updated = await showEntrySheet(context, entry.kind, editing: entry);
+  if (updated == null) return;
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(const SnackBar(
+      key: Key('entry.editedSnack'),
+      content: Text('Cambios guardados'),
+      duration: Duration(seconds: 2),
+      behavior: SnackBarBehavior.floating,
+      dismissDirection: DismissDirection.down,
+    ));
 }
 
 /// Umbrales del cronómetro de guardado (C2). null = no se loguea.
@@ -57,8 +75,12 @@ const _imeHiddenGrace = Duration(milliseconds: 150);
 /// Registro de gasto o ingreso. Un solo widget; [kind] cambia título, color,
 /// catálogo (categorías/fuentes) y la columna que se llena al guardar.
 class EntrySheet extends ConsumerStatefulWidget {
-  const EntrySheet({super.key, required this.kind});
+  const EntrySheet({super.key, required this.kind, this.editing});
   final EntryKind kind;
+
+  /// Modo edición: precarga este movimiento. El tipo no cambia y el borrador
+  /// ni se lee ni se escribe (V3).
+  final Entry? editing;
 
   @override
   ConsumerState<EntrySheet> createState() => _EntrySheetState();
@@ -86,6 +108,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
   Timer? _imeHidden;
 
   bool get _isExpense => widget.kind == EntryKind.expense;
+  bool get _editing => widget.editing != null;
 
   String get _noOptionsText => _isExpense
       ? 'No tienes categorías activas. Actívalas en Ajustes.'
@@ -104,6 +127,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
   }
 
   Future<void> _load() async {
+    if (widget.editing case final e?) return _loadEditing(e);
     final options = await _db.activeOptions(widget.kind);
     final lastUsed = await _db.lastUsedPick(widget.kind);
     final draft = _store.load(widget.kind);
@@ -120,6 +144,31 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
         _note.text = draft.note;
         _noteOpen = draft.note.isNotEmpty;
       }
+    });
+  }
+
+  /// Precarga [e]. Su categoría o fuente aparece aunque esté archivada (O3),
+  /// marcada como tal; en modo creación las archivadas no se ofrecen.
+  Future<void> _loadEditing(Entry e) async {
+    final pickId = (_isExpense ? e.categoryId : e.sourceId)!;
+    final options = [...await _db.activeOptions(widget.kind)];
+    if (!options.any((o) => o.id == pickId)) {
+      if (await _db.pickOption(widget.kind, pickId) case final found?) {
+        final o = found.option;
+        options.add((id: o.id, name: found.archived ? '${o.name} (archivada)' : o.name, icon: o.icon));
+      }
+    }
+    if (!mounted) return;
+    final today = ref.read(todayProvider);
+    final d = parseIsoDay(e.occurredOn);
+    final cents = e.amountCents;
+    setState(() {
+      _options = options;
+      _pick = pickId;
+      _amount = _sanitize(cents % 100 == 0 ? '${cents ~/ 100}' : '${cents ~/ 100}.${(cents % 100).toString().padLeft(2, '0')}');
+      _day = d == today ? null : d;
+      _note.text = e.note ?? '';
+      _noteOpen = _note.text.isNotEmpty;
     });
   }
 
@@ -141,7 +190,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
   }
 
   void _writeDraft() {
-    if (_done || _options == null) return;
+    if (_editing || _done || _options == null) return;
     unawaited(_store.save(widget.kind, _draft));
   }
 
@@ -238,6 +287,20 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
     });
     try {
       final note = _note.text.trim();
+      if (widget.editing case final e?) {
+        final updated = await _db.updateEntry(
+          id: e.id,
+          amountCents: _amount.cents,
+          day: _day ?? ref.read(todayProvider),
+          pickId: _pick!,
+          note: note.isEmpty ? null : note,
+        );
+        _done = true;
+        HapticFeedback.lightImpact();
+        // Sin cambios (o borrado en otro teléfono): cierra sin aviso.
+        if (mounted) Navigator.of(context).pop(updated == null || updated.updatedAt == e.updatedAt ? null : updated);
+        return;
+      }
       final entry = await _db.insertManualEntry(
         id: const Uuid().v4(),
         kind: widget.kind,
@@ -274,7 +337,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
   // ---- Cerrar / descartar
 
   Future<void> _showDiscardMenu(BuildContext buttonContext) async {
-    if (_draft.isEmpty) return; // sin borrador, mantener presionado no hace nada
+    if (_editing || _draft.isEmpty) return; // sin borrador, mantener presionado no hace nada
     final box = buttonContext.findRenderObject()! as RenderBox;
     final overlay = Overlay.of(buttonContext).context.findRenderObject()! as RenderBox;
     final rect = box.localToGlobal(Offset.zero, ancestor: overlay) & box.size;
@@ -301,7 +364,8 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
     final picked = await showDatePicker(
       context: context,
       initialDate: local(_day ?? today),
-      firstDate: local(today.subtract(const Duration(days: 730))),
+      // En edición, un movimiento más viejo que 2 años no puede quedar fuera del calendario.
+      firstDate: local([today.subtract(const Duration(days: 730)), ?_day].reduce((a, b) => a.isBefore(b) ? a : b)),
       lastDate: local(today), // nunca futuro: las métricas lo ignorarían
     );
     if (picked == null) return;
@@ -415,7 +479,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
               button: true,
               label: 'Cerrar',
               customSemanticsActions: {
-                const CustomSemanticsAction(label: 'Descartar borrador'): () => _discard(),
+                if (!_editing) const CustomSemanticsAction(label: 'Descartar borrador'): () => _discard(),
               },
               excludeSemantics: true,
               child: GestureDetector(
@@ -563,7 +627,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2, color: p.canvas),
                         )
-                      : const Text('Guardar'),
+                      : Text(_editing ? 'Guardar cambios' : 'Guardar'),
                 ),
               ),
             ),

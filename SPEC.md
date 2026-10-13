@@ -434,6 +434,35 @@ semánticos se leen con `context.palette`.
 - **Fuera de alcance hasta su fase:** sync (3), multi-cuenta (3), gasto
   recurrente y captura de notificaciones (4), IA (5).
 
+## Historial (Fase 4B)
+
+`lib/features/history/`: `filters.dart` (lógica pura, TDD) y `history_screen.dart`.
+Acceso: "Ver todo" en Recientes del Home y la fila "Historial" en Ajustes.
+
+- **Filtra en memoria** sobre el mismo stream de movimientos que el Home (sin
+  paginar en SQL): una lista perezosa da el scroll infinito. Techo conocido:
+  decenas de miles de movimientos.
+- **Filtros:** tipo (Todos / Gastos / Ingresos; cambiar el tipo limpia los
+  chips), chips de categoría o fuente según el tipo (activas + archivadas con
+  movimientos; se suman con O) y Fecha: Todo, Este mes, Mes pasado, Últimos 30
+  días, Últimos 90 días o Personalizado (calendario de rango). La fila de tipo y
+  Fecha se desliza en pantallas angostas. Los filtros duran mientras la pantalla
+  está abierta.
+- **Búsqueda en vivo** en la nota y el nombre de la categoría o fuente, sin
+  mayúsculas, tildes ni ñ (`normalizeForSearch`).
+- **Agrupada por día** siempre: Hoy, Ayer, "lun 5 oct"; de otro año, con el año.
+- **Totales** del filtro: "N movimientos · Gastos S/ X · Ingresos S/ Y" en una
+  línea si cabe; si no, el conteo arriba y los montos (completos) abajo.
+- **Editar:** tocar un movimiento (aquí o en Recientes) abre la hoja de registro
+  en modo edición: precargada, "Guardar cambios", el tipo no cambia, el borrador
+  no se lee ni se escribe, la categoría o fuente archivada del movimiento aparece
+  como "Nombre (archivada)". `updateEntry` sube `updated_at` (el sync lo vuelve a
+  subir); sin cambios no escribe.
+- **Borrar:** deslizar a la izquierda → "¿Borrar este movimiento?" →
+  `deleteEntry` (lápida si estaba sincronizado). La fila sale de la lista en el
+  acto, sin esperar a la base. Acción de accesibilidad "Borrar" con la misma
+  confirmación.
+
 ## Estado del proyecto al cierre de la Fase 3 (2026-10-13)
 
 - **Hecho:** sync opcional con Supabase (proyecto saldoclaro-prod, São Paulo).

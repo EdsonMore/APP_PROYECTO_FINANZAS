@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/budget_bar.dart';
 import '../../core/widgets/icon_catalog.dart';
+import '../../core/widgets/text_link.dart';
 import '../../domain/metrics.dart';
 import 'providers.dart';
 
@@ -287,40 +289,64 @@ class TopCategoriesBlock extends StatelessWidget {
 }
 
 class RecentMovementsBlock extends StatelessWidget {
-  const RecentMovementsBlock({super.key, required this.rows});
+  const RecentMovementsBlock({super.key, required this.rows, this.onTapRow, this.onSeeAll});
   final List<RecentRow> rows;
+
+  /// Tocar un movimiento lo abre para editar (4B).
+  final void Function(String id)? onTapRow;
+  final VoidCallback? onSeeAll;
 
   @override
   Widget build(BuildContext context) => Padding(
         key: const Key('home.recents'),
         padding: const EdgeInsets.only(top: Space.xl),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const _SectionTitle('Recientes'),
-          for (final r in rows) _RecentTile(key: ValueKey(r.id), row: r),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Expanded(child: _SectionTitle('Recientes')),
+            if (onSeeAll != null)
+              Transform.translate(
+                // TextLink trae 16 de padding: el texto queda alineado al margen.
+                offset: const Offset(Space.lg, -Space.md),
+                child: TextLink(
+                    key: const Key('home.seeAll'), label: 'Ver todo', semanticsLabel: 'Ver todo el historial', onTap: onSeeAll),
+              ),
+          ]),
+          for (final r in rows)
+            MovementTile(key: ValueKey(r.id), row: r, onTap: onTapRow == null ? null : () => onTapRow!(r.id)),
         ]),
       );
 }
 
-class _RecentTile extends StatelessWidget {
-  const _RecentTile({super.key, required this.row});
+/// Fila de un movimiento: Recientes del Home e Historial (4B).
+class MovementTile extends StatelessWidget {
+  const MovementTile({super.key, required this.row, this.onTap, this.fadeIn = true, this.actions = const {}});
   final RecentRow row;
+  final VoidCallback? onTap;
+
+  /// Fundido de entrada (Recientes). El Historial no lo usa: con cientos de
+  /// filas, el fundido al hacer scroll molesta.
+  final bool fadeIn;
+
+  /// Acciones extra para lectores de pantalla (p. ej. "Borrar" en el Historial).
+  final Map<CustomSemanticsAction, VoidCallback> actions;
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     final r = row;
-    // ponytail: solo fundido de entrada; la salida al deshacer es instantánea.
-    // Animar salidas exige diffear la lista del stream (AnimatedList).
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: _motion(context, Motion.numberChange),
-      builder: (context, v, child) => Opacity(opacity: v, child: child),
-      child: Semantics(
+    final tile = Semantics(
         container: true,
-        label: '${r.name}, ${r.subtitle}, ${r.isIncome ? 'ingreso' : 'gasto'} de ${r.amount.substring(2)}'
+        button: onTap != null,
+        label: '${r.name}${r.subtitle.isEmpty ? '' : ', ${r.subtitle}'}, '
+            '${r.isIncome ? 'ingreso' : 'gasto'} de ${r.amount.substring(2)}'
             '${r.isAuto ? ', capturado automáticamente' : ''}',
+        onTap: onTap,
+        customSemanticsActions: actions,
         excludeSemantics: true,
-        child: SizedBox(
+        child: GestureDetector(
+         behavior: HitTestBehavior.opaque,
+         onTap: onTap,
+         child: SizedBox(
           height: 56,
           child: Row(children: [
             Icon(IconCatalog.iconFor(r.icon), size: 20, color: p.inkMuted),
@@ -342,15 +368,25 @@ class _RecentTile extends StatelessWidget {
                     ),
                   ],
                 ]),
-                Text(r.subtitle,
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: AppType.caption.copyWith(color: p.inkMuted)),
+                if (r.subtitle.isNotEmpty)
+                  Text(r.subtitle,
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: AppType.caption.copyWith(color: p.inkMuted)),
               ]),
             ),
             const SizedBox(width: Space.md),
             Text(r.amount, style: AppType.amount.copyWith(color: r.isIncome ? p.incomeFg : p.expenseFg)),
           ]),
+         ),
         ),
-      ),
+      );
+    if (!fadeIn) return tile;
+    // ponytail: solo fundido de entrada; la salida al deshacer es instantánea.
+    // Animar salidas exige diffear la lista del stream (AnimatedList).
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: _motion(context, Motion.numberChange),
+      builder: (context, v, child) => Opacity(opacity: v, child: child),
+      child: tile,
     );
   }
 }

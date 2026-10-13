@@ -314,11 +314,14 @@ List<RecentRow> _recents(List<Movement> movements, List<Entry> entries, Map<Stri
   final byId = {for (final e in entries) e.id: e};
   return [
     for (final m in recentMovements(movements, today: today))
-      if (byId[m.id] case final e?) _recentRow(e, catById, srcById, today),
+      if (byId[m.id] case final e?) movementRow(e, catById, srcById, today),
   ];
 }
 
-RecentRow _recentRow(Entry e, Map<String, Category> catById, Map<String, Source> srcById, DateTime today) {
+/// Fila de un movimiento (Recientes e Historial). [withDay] false: el
+/// Historial ya agrupa por día, el subtítulo es solo la nota.
+RecentRow movementRow(Entry e, Map<String, Category> catById, Map<String, Source> srcById, DateTime today,
+    {bool withDay = true}) {
   final income = e.kind == EntryKind.income;
   final pick = income ? srcById[e.sourceId] : null;
   final cat = income ? null : catById[e.categoryId];
@@ -328,7 +331,11 @@ RecentRow _recentRow(Entry e, Map<String, Category> catById, Map<String, Source>
     id: e.id,
     icon: (income ? pick?.icon : cat?.icon) ?? '',
     name: (income ? pick?.name : cat?.name) ?? (income ? 'Ingreso' : 'Gasto'),
-    subtitle: note == null || note.isEmpty ? shortDay(day, today) : '${shortDay(day, today)} · $note',
+    subtitle: !withDay
+        ? note ?? ''
+        : note == null || note.isEmpty
+            ? shortDay(day, today)
+            : '${shortDay(day, today)} · $note',
     amount: '${income ? '+' : '−'} ${Formatters.soles(e.amountCents)}',
     isIncome: income,
     isAuto: e.origin == Origin.auto,

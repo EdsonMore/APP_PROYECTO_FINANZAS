@@ -434,6 +434,16 @@ class AppDatabase extends _$AppDatabase {
     return [for (final r in rows) (id: r.id, name: r.name, icon: r.icon)];
   }
 
+  /// Una categoría o fuente aunque esté archivada (edición, O3 de la 4B).
+  Future<({PickOption option, bool archived})?> pickOption(EntryKind kind, String id) async {
+    if (kind == EntryKind.expense) {
+      final r = await (select(categories)..where((c) => c.id.equals(id))).getSingleOrNull();
+      return r == null ? null : (option: (id: r.id, name: r.name, icon: r.icon), archived: r.archived);
+    }
+    final r = await (select(sources)..where((s) => s.id.equals(id))).getSingleOrNull();
+    return r == null ? null : (option: (id: r.id, name: r.name, icon: r.icon), archived: r.archived);
+  }
+
   /// Categoría/fuente del último movimiento de ese tipo (por created_at).
   Future<String?> lastUsedPick(EntryKind kind) async {
     final e = await (select(entries)
@@ -452,6 +462,37 @@ class AppDatabase extends _$AppDatabase {
         final n = await (delete(entries)..where((e) => e.id.equals(id))).go();
         if (row?.syncedAt != null) await _tombstone('entries', id, row!.updatedAt);
         return n;
+      });
+
+  /// Edición desde el Historial (4B). El tipo no cambia: [pickId] es la
+  /// categoría de un gasto o la fuente de un ingreso. Sin cambios no escribe
+  /// (no deja nada pendiente de sync). null = el movimiento ya no existe.
+  Future<Entry?> updateEntry({
+    required String id,
+    required int amountCents,
+    required DateTime day,
+    required String pickId,
+    String? note,
+  }) =>
+      transaction(() async {
+        final query = select(entries)..where((e) => e.id.equals(id));
+        final e = await query.getSingleOrNull();
+        if (e == null) return null;
+        final expense = e.kind == EntryKind.expense;
+        if (e.amountCents == amountCents &&
+            e.occurredOn == isoDay(day) &&
+            (expense ? e.categoryId : e.sourceId) == pickId &&
+            e.note == note) {
+          return e;
+        }
+        await (update(entries)..where((e) => e.id.equals(id))).write(bumped(EntriesCompanion(
+          amountCents: Value(amountCents),
+          occurredOn: Value(isoDay(day)),
+          categoryId: expense ? Value(pickId) : const Value.absent(),
+          sourceId: expense ? const Value.absent() : Value(pickId),
+          note: Value(note),
+        )));
+        return query.getSingle();
       });
 
   // ---- Sync (Fase 3B): lo que necesita push(). La bajada llega en la 3C.

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../history/history_screen.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/database.dart';
@@ -139,6 +140,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: () => _push(context, const CatalogScreen(kind: EntryKind.income)),
             ),
             Divider(color: p.border, height: Space.xl),
+            SettingsRow(
+              key: const Key('settings.history'),
+              label: 'Historial',
+              value: switch (entries.length) {
+                0 => 'Todavía no hay movimientos',
+                1 => '1 movimiento',
+                final n => '$n movimientos',
+              },
+              chevron: true,
+              onTap: () => _push(context, const HistoryScreen()),
+            ),
             SettingsRow(
               key: const Key('settings.export'),
               label: 'Exportar CSV',

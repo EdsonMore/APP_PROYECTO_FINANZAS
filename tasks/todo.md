@@ -278,6 +278,11 @@ Antes de publicar:
       checkbox de "Crear cuenta" bloquea el registro, pero no deja registro.
 - [ ] Que un abogado revise la política y los términos antes de publicar.
 
+## Fase 4A (multi-cuenta): anotado al aprobar el plan
+- [ ] El CSV debe incluir `account_id` (o el nombre resuelto) además de
+      `account_label`. Sin esto, la importación futura no sabrá a qué cuenta va
+      cada movimiento.
+
 ## Pendientes técnicos
 - [ ] Mutation testing completo sobre pull/engine/scheduler/push
       (27 mutantes restantes). Correr en lotes chicos (5-10 por
