@@ -22,6 +22,7 @@ class Palette extends ThemeExtension<Palette> {
     required this.expenseFg,
     required this.amberBg,
     required this.amberFg,
+    required this.attention,
   });
 
   final Color canvas;
@@ -42,6 +43,11 @@ class Palette extends ThemeExtension<Palette> {
   final Color amberBg;
   final Color amberFg;
 
+  /// Terracota de "requiere una acción tuya" (ícono de sync en needsChoice, 3D).
+  /// Mismo tono que la categoría 1, pero otro significado: no usar
+  /// categoryColor para esto.
+  final Color attention;
+
   static const light = Palette(
     canvas: Color(0xFFF7F6F3),
     surface: Color(0xFFFFFFFF),
@@ -55,6 +61,7 @@ class Palette extends ThemeExtension<Palette> {
     expenseFg: Color(0xFF9F2F2D),
     amberBg: Color(0xFFFBF3DB),
     amberFg: Color(0xFF8A5D00),
+    attention: Color(0xFFCA653C),
   );
 
   static const dark = Palette(
@@ -70,6 +77,7 @@ class Palette extends ThemeExtension<Palette> {
     expenseFg: Color(0xFFEFA29E),
     amberBg: Color(0xFF332A12),
     amberFg: Color(0xFFE3B85C),
+    attention: Color(0xFFD87248),
   );
 
   @override
@@ -92,6 +100,7 @@ class Palette extends ThemeExtension<Palette> {
       expenseFg: l(expenseFg, other.expenseFg),
       amberBg: l(amberBg, other.amberBg),
       amberFg: l(amberFg, other.amberFg),
+      attention: l(attention, other.attention),
     );
   }
 }

@@ -551,6 +551,15 @@ class AppDatabase extends _$AppDatabase {
     return (await customSelect('SELECT 1 FROM tombstones LIMIT 1').get()).isNotEmpty;
   }
 
+  /// Cambios por subir (filas pendientes más lápidas), para la hoja de la 3D.
+  Future<int> pendingCount() async {
+    final parts = [
+      for (final t in syncTables.keys) '(SELECT COUNT(*) FROM $t WHERE synced_at IS NULL OR synced_at < updated_at)',
+      '(SELECT COUNT(*) FROM tombstones)',
+    ];
+    return (await customSelect('SELECT ${parts.join(' + ')} AS n').getSingle()).read<int>('n');
+  }
+
   TableInfo<Table, dynamic> syncTable(String table) {
     _syncKey(table);
     return allTables.firstWhere((t) => t.actualTableName == table);

@@ -13,8 +13,16 @@ Duration _motion(BuildContext context, Duration d) => MediaQuery.disableAnimatio
 
 class HomeHeader extends StatelessWidget {
   const HomeHeader(
-      {super.key, required this.title, required this.onInfo, required this.onInsights, required this.onSettings});
+      {super.key,
+      required this.title,
+      required this.onInfo,
+      required this.onInsights,
+      required this.onSettings,
+      this.sync = const SizedBox.shrink()});
   final String title;
+
+  /// Ícono de estado de sync (3D), en el grupo derecho antes de Insights.
+  final Widget sync;
 
   /// ⓘ junto al nombre: explica el modo actual.
   final VoidCallback onInfo;
@@ -45,6 +53,7 @@ class HomeHeader extends StatelessWidget {
             ),
           ]),
         ),
+        sync,
         IconButton(
           onPressed: onInsights,
           tooltip: 'Insights',

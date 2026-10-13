@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../data/database.dart';
 import 'auth_gateway.dart';
 import 'pull.dart';
@@ -11,12 +13,18 @@ import 'status.dart';
 /// solo candado: nunca hay dos operaciones de sync a la vez. Primero pull y
 /// después push: si el servidor tiene algo más nuevo, el pull lo aplica y el
 /// push no sube una versión perdedora.
+/// Hora del último sync bueno (D6 de la 3D). Solo un timestamp, ningún dato.
+const lastOkAtKey = 'sync.lastOkAt';
+
 class SyncEngine {
-  SyncEngine(this._db, SyncRemote remote, this._auth, {Pusher? pusher, DateTime Function()? clock})
+  SyncEngine(this._db, SyncRemote remote, this._auth, {Pusher? pusher, DateTime Function()? clock, SharedPreferences? prefs})
       : _puller = Puller(_db, remote),
         _pusher = pusher ?? Pusher(_db, remote),
-        _clock = clock ?? DateTime.now {
+        _clock = clock ?? DateTime.now,
+        _prefs = prefs {
     _email = _auth.currentEmail;
+    final saved = prefs?.getInt(lastOkAtKey);
+    if (saved != null) _status = SyncStatus(SyncState.off, lastSyncAt: DateTime.fromMillisecondsSinceEpoch(saved));
     _authSub = _auth.emailChanges.listen(_onSession);
   }
 
@@ -25,6 +33,7 @@ class SyncEngine {
   final Puller _puller;
   final Pusher _pusher;
   final DateTime Function() _clock;
+  final SharedPreferences? _prefs;
   late final StreamSubscription<String?> _authSub;
   String? _email;
 
@@ -111,7 +120,9 @@ class SyncEngine {
     // Lo que el servidor descartó (versión más nueva allá): traer la ganadora.
     final fixed = pushed.discarded.isEmpty ? const PullResult() : await _puller.reconcile(pushed.discarded);
     final issues = pulled.skipped + fixed.skipped + pushed.failed;
-    return _emit(SyncStatus(issues > 0 ? SyncState.issues : SyncState.ok, lastSyncAt: _clock(), issues: issues));
+    final at = _clock();
+    await _prefs?.setInt(lastOkAtKey, at.millisecondsSinceEpoch);
+    return _emit(SyncStatus(issues > 0 ? SyncState.issues : SyncState.ok, lastSyncAt: at, issues: issues));
   }
 
   /// Errores de red y de sesión, con un solo reintento tras refrescar (D7).
@@ -154,8 +165,14 @@ class SyncEngine {
     _expired = false;
     _serial(() async {
       await _db.detachSync();
+      await _prefs?.remove(lastOkAtKey);
       _emit(SyncStatus(state));
     });
+  }
+
+  /// D8 "Ahora no" en la sesión vencida: sin cuenta, sin ícono.
+  void dismissLogin() {
+    if (_status.state == SyncState.needsLogin) _emit(const SyncStatus(SyncState.off));
   }
 
   Future<void> dispose() async {

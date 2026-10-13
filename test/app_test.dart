@@ -9,7 +9,9 @@ import 'package:saldo_claro/core/theme/tokens.dart';
 import 'package:saldo_claro/data/database.dart';
 import 'package:saldo_claro/data/providers.dart';
 import 'package:saldo_claro/domain/metrics.dart';
+import 'package:saldo_claro/features/entry/draft_store.dart';
 import 'package:saldo_claro/features/home/home_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Future<AppDatabase> pumpApp(WidgetTester tester, {AppDatabase? db}) async {
   tester.view.physicalSize = const Size(1080, 2400);
@@ -17,7 +19,12 @@ Future<AppDatabase> pumpApp(WidgetTester tester, {AppDatabase? db}) async {
   addTearDown(tester.view.reset);
   final d = db ?? AppDatabase(NativeDatabase.memory());
   addTearDown(d.close);
-  await tester.pumpWidget(ProviderScope(overrides: [databaseProvider.overrideWithValue(d)], child: const App()));
+  SharedPreferences.setMockInitialValues({});
+  SharedPreferences.resetStatic();
+  final prefs = await SharedPreferences.getInstance(); // main.dart siempre lo provee
+  await tester.pumpWidget(ProviderScope(
+      overrides: [databaseProvider.overrideWithValue(d), sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: const App()));
   await tester.pumpAndSettle();
   return d;
 }

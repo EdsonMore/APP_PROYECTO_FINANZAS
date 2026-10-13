@@ -15,6 +15,7 @@ import '../entry/opening_balance_sheet.dart';
 import '../insights/insights_screen.dart';
 import '../settings/modes_screen.dart';
 import '../settings/settings_screen.dart';
+import '../sync/sync_indicator.dart';
 import 'home_blocks.dart';
 import 'providers.dart';
 
@@ -50,6 +51,7 @@ class HomeScreen extends ConsumerWidget {
                 onInsights: () =>
                     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const InsightsScreen())),
                 onSettings: () => _openSettings(context),
+                sync: const SyncIndicator(),
               ),
               NumberBlock(
                 headline: s.headline,

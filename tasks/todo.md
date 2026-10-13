@@ -245,3 +245,11 @@ Antes de publicar:
       cuenta: cargar en uno, ver en el otro; "Unir" y "Usar solo los de la nube".
 - [ ] El test de punta a punta sigue en skip (ver Fase 3B).
 
+## Pendientes técnicos
+- [ ] Mutation testing completo sobre pull/engine/scheduler/push
+      (27 mutantes restantes). Correr en lotes chicos (5-10 por
+      vez) para no agotar memoria. Verificar después de cada lote
+      que lib/ no quede con un mutante aplicado.
+- [ ] Ícono de sync (3D): si en las pruebas el badge se vuelve confuso, considerar
+      mostrarlo también con issues(1) (hoy solo con n > 1).
+

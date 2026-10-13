@@ -392,6 +392,7 @@ semánticos se leen con `context.palette`.
 | ingreso bg/fg | `#EDF3EC` / `#346538` | `#1F2B20` / `#8FC493` |
 | gasto bg/fg | `#FDEBEC` / `#9F2F2D` | `#35201F` / `#EFA29E` |
 | ámbar bg/fg | `#FBF3DB` / `#8A5D00` | `#332A12` / `#E3B85C` |
+| attention (3D) | `#CA653C` | `#D87248` |
 
 - **Tipografía:**
   - **Newsreader 16pt Medium**, solo para el número principal (52 sp) y los
@@ -515,11 +516,41 @@ Código en `lib/features/sync/`: `pull.dart`, `sync_engine.dart`, `scheduler.dar
   pendientes (nunca antes de D5). Sin sesión: ni timers ni red. Sin sync en
   background (D3).
 - **Estado** (`SyncStatus`): off, syncing, ok(hora), offline, needsLogin,
-  needsChoice, issues(n). Hoy se ve como texto en "Sincronizar con la nube"; la
-  3D lo convierte en ícono.
+  needsChoice, issues(n). Texto en "Sincronizar con la nube" e ícono en el
+  Home (Fase 3D).
 - **Tests:** `pull_test`, `engine_test`, `scheduler_test` (fake_async),
   `two_phones_test` (dos bases contra un servidor falso, más una prueba aleatoria
   con semilla: `--dart-define=SEED=n --dart-define=ROUNDS=n` para explorar).
+
+## Indicador de sync (Fase 3D)
+
+`lib/features/sync/sync_indicator.dart`. Ícono de 20 px (área táctil de 48) en el
+header del Home, en el grupo derecho antes de Insights; en los 3 modos.
+
+| Estado | Ícono | Color |
+|---|---|---|
+| off | ninguno (no ocupa lugar) | |
+| syncing | spinner de 16 px, trazo 1.5 (con "reducir movimiento": `cloud_sync_outlined`) | inkMuted |
+| ok | `cloud_done_outlined` | inkMuted |
+| offline | `cloud_off_outlined` (no escala aunque dure horas) | inkMuted |
+| needsLogin | `error_outline` | expenseFg |
+| needsChoice | `cloud_outlined` + punto de 6 px | attention (terracota) |
+| issues(n) | `sync_problem_outlined`; badge con n solo si n > 1, "9+" desde 10 | expenseFg |
+
+- **Spinner:** aparece si el sync dura más de 1 s y se queda al menos 600 ms
+  (el polling no hace parpadear el header).
+- **Hoja** (al tocar): título y texto por estado, "Última vez"
+  (`relativeSyncTime`: hace un momento, hace N min, hace N h, ayer a las HH:mm,
+  d MMM) y "Por subir" (`pendingCount`: filas pendientes + lápidas), solo en
+  syncing/ok/offline/issues. Botón: "Sincronizar ahora" (spinner en el botón, la
+  hoja queda abierta, sin snackbar), "Elegir qué datos usar" (needsChoice) o
+  "Volver a entrar" (needsLogin). Links: "Ajustes de sync" y "Cerrar sesión"
+  (solo con sesión); en needsLogin, "Ahora no" (`dismissLogin()`: pasa a off).
+- **Último sync bueno** persistido en `shared_preferences` (`sync.lastOkAt`,
+  epoch ms): se ve aunque se reabra la app sin conexión; se borra al cerrar
+  sesión por cualquier causa.
+- **Token `attention`** (`#CA653C` / `#D87248`): "requiere una acción tuya".
+  Mismo tono que la categoría 1, pero es otro significado.
 
 ## Aprendido en la 1c
 
@@ -544,7 +575,9 @@ Código en `lib/features/sync/`: `pull.dart`, `sync_engine.dart`, `scheduler.dar
 - `drift` ^2.35 + `drift_flutter` (persistencia). Gráficos propios (barras con
   widgets, línea de runway con `CustomPainter`): sin librería de gráficos.
 - `intl`, `uuid`, `share_plus` + `path_provider` (CSV).
-- `shared_preferences`: solo para `core/legal/legal_acceptance_store.dart` (Fase 2).
+- `shared_preferences`: para `core/legal/legal_acceptance_store.dart` (Fase 2) y
+  los borradores del registro. **Excepción documentada (3D):** `sync.lastOkAt`,
+  la hora del último sync bueno. Es solo un timestamp, ningún dato del usuario.
 - **Sin dependencias de red.** Salieron `supabase_flutter`, `http`, `pdf`,
   `google_fonts` (descarga fuentes en runtime; en 1b la fuente va como asset), `local_auth`,
   `permission_handler`, `flutter_local_notifications`, `timezone` y

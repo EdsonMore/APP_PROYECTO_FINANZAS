@@ -8,6 +8,7 @@ import 'package:saldo_claro/features/sync/push.dart';
 import 'package:saldo_claro/features/sync/remote.dart';
 import 'package:saldo_claro/features/sync/status.dart';
 import 'package:saldo_claro/features/sync/sync_engine.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Cuenta las peticiones en vuelo: si alguna vez hay 2, hubo dos sync() a la vez
 /// (dentro de un mismo sync las peticiones van una detrás de otra).
@@ -342,5 +343,61 @@ void main() {
 
     remote.user = 'a';
     expect(remote.rows['entries']!.keys, ['de-a'], reason: 'la nube de A no se tocó');
+  });
+
+  group('3D', () {
+    late SharedPreferences prefs;
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      SharedPreferences.resetStatic();
+      prefs = await SharedPreferences.getInstance();
+      await engine.dispose();
+      engine = SyncEngine(db, remote, auth, clock: () => DateTime.fromMillisecondsSinceEpoch(now), prefs: prefs);
+    });
+
+    test('D6: lastOkAt sobrevive a reabrir la app', () async {
+      now = 5000;
+      await engine.sync();
+      await engine.dispose();
+      engine = SyncEngine(db, remote, auth, clock: () => DateTime.fromMillisecondsSinceEpoch(now), prefs: prefs);
+      expect(engine.status.lastSyncAt, DateTime.fromMillisecondsSinceEpoch(5000));
+      remote.offline = true;
+      expect((await engine.sync()).lastSyncAt, DateTime.fromMillisecondsSinceEpoch(5000),
+          reason: 'sin conexión se sigue viendo el último sync bueno');
+    });
+
+    test('D6: cerrar sesión borra lastOkAt (es de esa cuenta)', () async {
+      await engine.sync();
+      expect(prefs.getInt(lastOkAtKey), isNotNull);
+      await auth.signOut();
+      await engine.idle;
+      expect(prefs.getInt(lastOkAtKey), isNull);
+      expect(engine.status.lastSyncAt, isNull);
+    });
+
+    test('D8: dismissLogin pasa needsLogin a off (y no toca otros estados)', () async {
+      await engine.sync();
+      engine.dismissLogin();
+      expect(engine.status.state, SyncState.ok);
+      remote.sessionExpired = true;
+      auth.refreshOutcome = RefreshOutcome.invalid;
+      expect((await engine.sync()).state, SyncState.needsLogin);
+      await engine.idle;
+      engine.dismissLogin();
+      expect(engine.status.state, SyncState.off);
+    });
+
+    test('pendingCount: filas pendientes más lápidas', () async {
+      expect(await db.pendingCount(), 12, reason: 'semilla (6 + 5) y ajustes, nunca subidos');
+      await expense(db, 'e1');
+      expect(await db.pendingCount(), 13);
+      await engine.sync();
+      expect(await db.pendingCount(), 0);
+      now = 2000;
+      await db.deleteEntry('e1');
+      expect(await db.pendingCount(), 1, reason: 'la lápida');
+      await db.setBudget('comida', 1000);
+      expect(await db.pendingCount(), 2);
+    });
   });
 }

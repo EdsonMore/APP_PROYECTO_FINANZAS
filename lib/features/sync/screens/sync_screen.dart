@@ -107,7 +107,7 @@ class SyncScreen extends ConsumerWidget {
                 label: 'Cerrar sesión',
                 value: 'Tus datos se quedan en este teléfono',
                 chevron: true,
-                onTap: () => _signOut(context, ref),
+                onTap: () => confirmSignOut(context, ref),
               ),
               SettingsRow(
                 key: const Key('sync.delete'),
@@ -120,34 +120,36 @@ class SyncScreen extends ConsumerWidget {
             ],
     );
   }
+}
 
-  Future<void> _signOut(BuildContext context, WidgetRef ref) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('¿Cerrar sesión?'),
-        content: const Text('Tus datos se quedan en este teléfono.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(c).pop(false), child: const Text('Cancelar')),
-          TextButton(
-              key: const Key('sync.signOut.confirm'),
-              onPressed: () => Navigator.of(c).pop(true),
-              child: const Text('Cerrar sesión')),
-        ],
-      ),
-    );
-    if (ok != true || !context.mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      await ref.read(authGatewayProvider).signOut();
-    } on AuthFailure {
-      // Sin red igual se cierra la sesión local (supabase la borra igual).
-    }
-    // Todo vuelve a quedar pendiente: otra cuenta recibirá todos los datos.
-    await ref.read(databaseProvider).detachSync();
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(
-          content: Text('Sesión cerrada. Tus datos siguen en este teléfono.'), behavior: SnackBarBehavior.floating));
+/// Pide confirmación y cierra la sesión; los datos se quedan en el teléfono.
+/// La usan esta pantalla y la hoja del ícono de sync (3D).
+Future<void> confirmSignOut(BuildContext context, WidgetRef ref) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: const Text('¿Cerrar sesión?'),
+      content: const Text('Tus datos se quedan en este teléfono.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(c).pop(false), child: const Text('Cancelar')),
+        TextButton(
+            key: const Key('sync.signOut.confirm'),
+            onPressed: () => Navigator.of(c).pop(true),
+            child: const Text('Cerrar sesión')),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    await ref.read(authGatewayProvider).signOut();
+  } on AuthFailure {
+    // Sin red igual se cierra la sesión local (supabase la borra igual).
   }
+  // Todo vuelve a quedar pendiente: otra cuenta recibirá todos los datos.
+  await ref.read(databaseProvider).detachSync();
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(const SnackBar(
+        content: Text('Sesión cerrada. Tus datos siguen en este teléfono.'), behavior: SnackBarBehavior.floating));
 }

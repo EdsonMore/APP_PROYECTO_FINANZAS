@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
+import '../entry/draft_store.dart';
 import 'auth_gateway.dart';
 import 'fake_auth_gateway.dart';
 import 'push.dart';
@@ -18,7 +19,7 @@ final pusherProvider = Provider<Pusher>((ref) => Pusher(ref.watch(databaseProvid
 
 final syncEngineProvider = Provider<SyncEngine>((ref) {
   final engine = SyncEngine(ref.watch(databaseProvider), ref.watch(syncRemoteProvider), ref.watch(authGatewayProvider),
-      pusher: ref.watch(pusherProvider));
+      pusher: ref.watch(pusherProvider), prefs: ref.watch(sharedPreferencesProvider));
   ref.onDispose(engine.dispose);
   return engine;
 });
@@ -52,4 +53,14 @@ final accountEmailProvider = StreamProvider<String?>((ref) async* {
   final gateway = ref.watch(authGatewayProvider);
   yield gateway.currentEmail;
   yield* gateway.emailChanges;
+});
+
+/// Cambios por subir, al día con cada escritura (hoja de la 3D: vive solo
+/// mientras la hoja está abierta).
+final syncPendingProvider = StreamProvider.autoDispose<int>((ref) async* {
+  final db = ref.watch(databaseProvider);
+  yield await db.pendingCount();
+  await for (final _ in db.tableUpdates()) {
+    yield await db.pendingCount();
+  }
 });
