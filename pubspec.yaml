@@ -35,6 +35,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
   drift_dev: ^2.35.1
+  fake_async: ^1.3.1
   build_runner: ^2.15.1
 
 # Genera el icono del launcher (Android legacy + adaptive) desde el logo.

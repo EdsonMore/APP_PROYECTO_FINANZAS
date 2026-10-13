@@ -240,3 +240,8 @@ Antes de publicar:
       quitar el skip y seguir los pasos de su encabezado, contra saldoclaro-test.
 - [ ] Probar en el celular: crear cuenta → código → datos en la nube → cerrar sesión → borrar cuenta.
 
+## Fase 3C: pendientes del usuario
+- [ ] Con el SMTP listo: probar en dos teléfonos (o emulador + teléfono) con la misma
+      cuenta: cargar en uno, ver en el otro; "Unir" y "Usar solo los de la nube".
+- [ ] El test de punta a punta sigue en skip (ver Fase 3B).
+

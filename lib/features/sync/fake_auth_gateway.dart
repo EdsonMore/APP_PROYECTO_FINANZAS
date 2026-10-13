@@ -24,6 +24,12 @@ class FakeAuthGateway implements AuthGateway {
   /// Si no es null, la próxima operación falla con este error.
   AuthFailure? nextFailure;
 
+  /// Lo que devuelve refreshSession().
+  RefreshOutcome refreshOutcome = RefreshOutcome.ok;
+
+  /// Se llama en cada refreshSession() (p. ej. para "arreglar" el servidor falso).
+  void Function()? onRefresh;
+
   /// Agrega una cuenta ya confirmada (para "Ya tengo cuenta").
   void addAccount(String email, String password) {
     _accounts[email] = password;
@@ -111,6 +117,19 @@ class FakeAuthGateway implements AuthGateway {
   @override
   Future<void> signOut() async {
     _check('signOut');
+    _setEmail(null);
+  }
+
+  @override
+  Future<RefreshOutcome> refreshSession() async {
+    calls.add('refreshSession');
+    onRefresh?.call();
+    return refreshOutcome;
+  }
+
+  @override
+  Future<void> signOutLocal() async {
+    calls.add('signOutLocal');
     _setEmail(null);
   }
 

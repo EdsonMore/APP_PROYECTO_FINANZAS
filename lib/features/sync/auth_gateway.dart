@@ -80,6 +80,17 @@ Future<T> withAuthTimeout<T>(Future<T> operation, {Duration timeout = authTimeou
   }
 }
 
+/// Resultado de refrescar la sesión (Fase 3C, sesión vencida).
+enum RefreshOutcome {
+  ok,
+
+  /// Sin red: la sesión puede seguir siendo válida; se reintenta después.
+  offline,
+
+  /// La sesión ya no sirve (contraseña cambiada, cuenta borrada): volver a entrar.
+  invalid,
+}
+
 /// Lo que la app necesita de la autenticación (Fase 3B). Real:
 /// SupabaseAuthGateway; tests: FakeAuthGateway. Todo error sale como
 /// [AuthFailure]. Nunca expone tokens.
@@ -100,6 +111,12 @@ abstract interface class AuthGateway {
   Future<void> verifyRecoveryCode(String email, String code);
   Future<void> updatePassword(String password);
   Future<void> signOut();
+
+  /// Pide un token nuevo. Nunca lanza.
+  Future<RefreshOutcome> refreshSession();
+
+  /// Cierra solo la sesión de este teléfono, sin llamar al servidor.
+  Future<void> signOutLocal();
 
   /// Borra la cuenta y sus datos en el servidor (RPC delete_account) y cierra
   /// la sesión. Los datos del teléfono no se tocan.

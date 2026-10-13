@@ -455,8 +455,7 @@ semánticos se leen con `context.palette`.
 - Toda operación de cuenta tiene **timeout de 15 s** y errores en español
   (`AuthFailure`), sin texto técnico.
 - **Crear cuenta sube todo lo del teléfono** sin preguntar (la cuenta nueva está
-  vacía). **Entrar con una cuenta existente no sube nada** hasta la 3C (antes hay
-  que elegir "usar la nube" o "unir").
+  vacía). Entrar con una cuenta existente: ver D5 en la Fase 3C.
 - **Cerrar sesión o borrar la cuenta** deja los datos en el teléfono y vuelve todo a
   pendiente (`detachSync`): otra cuenta recibiría todo.
 - Borrar cuenta: escribir BORRAR → RPC `delete_account()`. Página web para pedirlo:
@@ -464,10 +463,63 @@ semánticos se leen con `context.palette`.
 - `push()` (`lib/features/sync/push.dart`), lo reutiliza la 3C: lotes de 200 por
   tabla en el orden de las FK; si un lote falla por datos, fila por fila; un error de
   datos deja esa fila pendiente y sigue; un error de red corta (lo demás queda
-  pendiente). `synced_at` = el `updated_at` que se mandó. Filas con `deleted_at: null`
-  (revive un techo quitado); lápidas por UPDATE al final. Nunca dos a la vez.
+  pendiente). `synced_at` = el `updated_at` que se mandó, **solo si el servidor la
+  aceptó** (3C: ver "descartes"). Filas con `deleted_at: null` (revive un techo
+  quitado); lápidas por UPDATE al final. Nunca dos a la vez.
 - Upsert con `defaultToNull: false` (`Prefer: missing=default`): `user_id` no se
   manda y toma `auth.uid()`; con el default de postgrest quedaría NULL.
+
+## Sincronización (Fase 3C)
+
+Código en `lib/features/sync/`: `pull.dart`, `sync_engine.dart`, `scheduler.dart`,
+`status.dart`. Sin SQL nuevo en el servidor.
+
+- **Motor** (`SyncEngine`): un solo candado para todo; `sync()` = primero pull,
+  después push (el de la 3B). Como máximo uno corriendo y uno esperando.
+- **Cursor** por tabla en `sync_cursors` (v5): el `server_updated_at` más alto
+  bajado, tal como lo da el servidor; nunca la hora del teléfono. Se pide desde
+  cursor − 10 s (solapamiento: transacciones que confirman tarde). `detachSync`
+  borra los cursores.
+- **Bajada:** páginas de 1000; se descarga en orden inverso a las FK (budgets,
+  entries, settings, sources, categories) y se aplica en el orden de las FK, todo
+  en **una transacción** junto con los cursores. Una fila que no entra (p. ej. un
+  CHECK local) se salta con un savepoint y cuenta como problema.
+- **Reglas al aplicar una fila remota R** (L local, T lápida local): R.updated_at
+  ≥ L.updated_at → gana R (empate: el servidor); menor → se ignora (la sube el
+  push). Sin L: con T, si R ≥ T se recrea (o se confirma el borrado) y T se va;
+  si no, se ignora. R borrada → borra L sin dejar lápida. Al aplicar no se usa
+  `bumped()`: queda el updated_at del servidor y `synced_at` igual.
+- **Nombre repetido** (UNIQUE solo en el teléfono): la fila LOCAL pasa a
+  "Nombre (n)" (el primer n libre) y queda pendiente; los dos teléfonos terminan
+  con ambos nombres.
+- **Descartes:** el trigger descarta en silencio una versión no más nueva (p. ej.
+  un teléfono con el reloj atrasado vuelve a poner un techo que otro quitó). El
+  servidor devuelve qué filas aceptó (`.select()`); las descartadas no se marcan,
+  se traen por clave y se aplican sin mover los cursores (`Puller.reconcile`). Sin
+  esto los teléfonos divergían para siempre (lo encontró el test aleatorio).
+- **Lápidas con el reloj atrasado:** `deleted_at = MAX(ahora, updated_at + 1)`.
+- **D5, primer contacto con una cuenta** (`neverSynced`: sin cursores ni filas
+  sincronizadas): nube vacía → sube todo; teléfono solo con semilla → usa la nube
+  sin preguntar; los dos con datos → `needsChoice` y no sube nada hasta elegir
+  "Unir" (los ajustes de la nube ganan) o "Usar solo los de la nube" (con
+  confirmación). Nada se persiste: si cierra la app sin elegir, se pregunta de nuevo.
+- **D6:** last-write-wins puro, también borrado contra edición.
+- **Errores:** red/5xx/429 → `offline` (se reintenta en el próximo disparador).
+  401/JWT → refrescar la sesión una vez y reintentar; sin red → `offline`; sesión
+  inválida → cerrar la sesión local, `needsLogin`; los datos y lo pendiente se
+  quedan. Cerrar sesión por cualquier causa → `detachSync`.
+- **Disparadores** (`SyncScheduler`): al abrir, al volver (`resumed`), 3 s después
+  de la última escritura **si quedó algo pendiente** (las escrituras del propio
+  pull no dejan pendientes: sin bucle), cada 60 s en primer plano (se pausa en
+  background), botón "Sincronizar ahora". Al ir al background: solo subir si hay
+  pendientes (nunca antes de D5). Sin sesión: ni timers ni red. Sin sync en
+  background (D3).
+- **Estado** (`SyncStatus`): off, syncing, ok(hora), offline, needsLogin,
+  needsChoice, issues(n). Hoy se ve como texto en "Sincronizar con la nube"; la
+  3D lo convierte en ícono.
+- **Tests:** `pull_test`, `engine_test`, `scheduler_test` (fake_async),
+  `two_phones_test` (dos bases contra un servidor falso, más una prueba aleatoria
+  con semilla: `--dart-define=SEED=n --dart-define=ROUNDS=n` para explorar).
 
 ## Aprendido en la 1c
 

@@ -134,6 +134,18 @@ class Tombstones extends Table {
   Set<Column> get primaryKey => {entity, recordId};
 }
 
+/// Hasta dónde se bajó cada tabla (Fase 3C): el server_updated_at más alto
+/// visto, tal como lo devuelve el servidor (ISO 8601 con microsegundos). Nunca
+/// la hora del teléfono. '' = ya se bajó una vez y no había nada. Sin filas =
+/// nunca se habló con esta cuenta. No se sincroniza.
+class SyncCursors extends Table {
+  TextColumn get entity => text()();
+  TextColumn get cursor => text()();
+
+  @override
+  Set<Column> get primaryKey => {entity};
+}
+
 class Goals extends Table {
   TextColumn get id => text()();
   TextColumn get kind => textEnum<GoalKind>().check(kind.isIn(const ['percent', 'fixed', 'cushion']))();
@@ -166,7 +178,7 @@ const defaultSources = [
   ('otro', 'Otro', 'redeem', '#525252'),
 ];
 
-@DriftDatabase(tables: [Categories, Sources, Entries, Settings, Budgets, Goals, Accounts, Tombstones])
+@DriftDatabase(tables: [Categories, Sources, Entries, Settings, Budgets, Goals, Accounts, Tombstones, SyncCursors])
 class AppDatabase extends _$AppDatabase {
   /// [clock]: epoch ms "ahora". Inyectable para tests; por defecto, la hora real.
   AppDatabase([QueryExecutor? executor, int Function()? clock])
@@ -188,7 +200,7 @@ class AppDatabase extends _$AppDatabase {
       });
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -212,7 +224,8 @@ class AppDatabase extends _$AppDatabase {
           // Una transacción: si un paso falla, la base vuelve entera a la
           // versión anterior (drift no envuelve la migración por su cuenta y
           // solo sube user_version si todo termina bien).
-          await transaction(() => stepByStep(from1To2: migrateV1ToV2, from2To3: migrateV2ToV3, from3To4: migrateV3ToV4)(m, from, to));
+          await transaction(() => stepByStep(
+              from1To2: migrateV1ToV2, from2To3: migrateV2ToV3, from3To4: migrateV3ToV4, from4To5: migrateV4ToV5)(m, from, to));
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -278,6 +291,11 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('UPDATE $t SET updated_at = ?', [now]);
     }
   }
+
+  /// v4 → v5 (Fase 3C): tabla de cursores, vacía. Nada más cambia: un
+  /// teléfono que ya subía (3B) sigue con sus marcas de sync.
+  @visibleForTesting
+  Future<void> migrateV4ToV5(Migrator m, Schema5 schema) => m.createTable(schema.syncCursors);
 
   /// Cierra el onboarding: crea (o reemplaza) la fila única de settings.
   /// Reemplazar no toca el saldo inicial.
@@ -379,11 +397,17 @@ class AppDatabase extends _$AppDatabase {
   Future<void> removeBudget(String categoryId) => transaction(() async {
         final row = await (select(budgets)..where((b) => b.categoryId.equals(categoryId))).getSingleOrNull();
         await (delete(budgets)..where((b) => b.categoryId.equals(categoryId))).go();
-        if (row?.syncedAt != null) await _tombstone('budgets', categoryId);
+        if (row?.syncedAt != null) await _tombstone('budgets', categoryId, row!.updatedAt);
       });
 
-  Future<void> _tombstone(String table, String id) => into(tombstones)
-      .insertOnConflictUpdate(TombstonesCompanion.insert(entity: table, recordId: id, deletedAt: _now()));
+  /// deleted_at = MAX(ahora, updated_at + 1), como [bumped]: más nueva que la
+  /// versión de la fila, aunque el reloj haya retrocedido. Si fuera más vieja,
+  /// el servidor la descartaría y el teléfono la daría por subida.
+  Future<void> _tombstone(String table, String id, int updatedAt) {
+    final now = _now();
+    return into(tombstones).insertOnConflictUpdate(
+        TombstonesCompanion.insert(entity: table, recordId: id, deletedAt: now > updatedAt ? now : updatedAt + 1));
+  }
 
   /// Saldo inicial: monto e instante SIEMPRE juntos. Un monto sin instante se
   /// ignora en los cálculos (ver [SettingOpening.opening]).
@@ -426,7 +450,7 @@ class AppDatabase extends _$AppDatabase {
   Future<int> deleteEntry(String id) => transaction(() async {
         final row = await (select(entries)..where((e) => e.id.equals(id))).getSingleOrNull();
         final n = await (delete(entries)..where((e) => e.id.equals(id))).go();
-        if (row?.syncedAt != null) await _tombstone('entries', id);
+        if (row?.syncedAt != null) await _tombstone('entries', id, row!.updatedAt);
         return n;
       });
 
@@ -480,14 +504,65 @@ class AppDatabase extends _$AppDatabase {
       .go();
 
   /// Al cerrar sesión o borrar la cuenta: todo vuelve a quedar pendiente y
-  /// las lápidas se descartan. Así, si después se entra con OTRA cuenta,
-  /// se sube todo (las filas no quedan "sincronizadas" con la anterior).
+  /// las lápidas y los cursores se descartan. Así, si después se entra con
+  /// OTRA cuenta, nada queda "sincronizado" con la anterior y se baja todo
+  /// desde cero.
   Future<void> detachSync() => transaction(() async {
         for (final t in syncTables.keys) {
           await customUpdate('UPDATE $t SET synced_at = NULL');
         }
         await delete(tombstones).go();
+        await delete(syncCursors).go();
       });
+
+  // ---- Sync (Fase 3C): lo que necesitan pull() y el motor.
+
+  /// Cursor de bajada por tabla. Vacío = nunca se bajó con esta cuenta.
+  Future<Map<String, String>> readSyncCursors() async =>
+      {for (final c in await select(syncCursors).get()) c.entity: c.cursor};
+
+  Future<void> writeSyncCursor(String table, String cursor) =>
+      into(syncCursors).insertOnConflictUpdate(SyncCursorsCompanion.insert(entity: table, cursor: cursor));
+
+  /// Primer contacto con la cuenta: nunca se bajó nada ni se subió nada.
+  Future<bool> neverSynced() async {
+    if ((await readSyncCursors()).isNotEmpty) return false;
+    for (final t in syncTables.keys) {
+      final n = await customSelect('SELECT 1 FROM $t WHERE synced_at IS NOT NULL LIMIT 1').get();
+      if (n.isNotEmpty) return false;
+    }
+    return true;
+  }
+
+  /// Hay algo del usuario además de la semilla y los ajustes (D5).
+  Future<bool> hasUserData() async {
+    final r = await customSelect('SELECT (SELECT COUNT(*) FROM entries) + (SELECT COUNT(*) FROM budgets) '
+            '+ (SELECT COUNT(*) FROM categories WHERE is_default = 0) + (SELECT COUNT(*) FROM sources WHERE is_default = 0) AS n')
+        .getSingle();
+    return r.read<int>('n') > 0;
+  }
+
+  /// Hay cambios locales sin subir (filas o lápidas).
+  Future<bool> hasPending() async {
+    for (final t in syncTables.keys) {
+      final n = await customSelect('SELECT 1 FROM $t WHERE synced_at IS NULL OR synced_at < updated_at LIMIT 1').get();
+      if (n.isNotEmpty) return true;
+    }
+    return (await customSelect('SELECT 1 FROM tombstones LIMIT 1').get()).isNotEmpty;
+  }
+
+  TableInfo<Table, dynamic> syncTable(String table) {
+    _syncKey(table);
+    return allTables.firstWhere((t) => t.actualTableName == table);
+  }
+
+  /// Choque de nombre al bajar: renombra la fila LOCAL y la deja pendiente
+  /// (updated_at como [bumped]) para que el nombre nuevo también se suba.
+  Future<void> renameForSync(String table, String id, String name) => customUpdate(
+        'UPDATE $table SET name = ?, updated_at = MAX(?, updated_at + 1) WHERE id = ?',
+        variables: [Variable(name), Variable(_now()), Variable(id)],
+        updates: {syncTable(table)},
+      );
 
   /// Registro manual. [pickId] es category_id o source_id según [kind].
   Future<Entry> insertManualEntry({

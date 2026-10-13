@@ -14,7 +14,8 @@ class PushError {
 
 /// Resumen de un push(). Lo que no se subió queda pendiente para el siguiente.
 class PushResult {
-  const PushResult({this.pushed = 0, this.failed = 0, this.errors = const [], this.stoppedByNetwork = false});
+  const PushResult(
+      {this.pushed = 0, this.failed = 0, this.errors = const [], this.stoppedByNetwork = false, this.discarded = const {}});
 
   /// Filas y lápidas confirmadas por el servidor.
   final int pushed;
@@ -26,11 +27,21 @@ class PushResult {
   /// Se cortó por red: lo que faltaba ni se intentó.
   final bool stoppedByNetwork;
 
-  PushResult _add({int pushed = 0, List<PushError> errors = const [], bool stopped = false}) => PushResult(
+  /// tabla → claves (del servidor) que el servidor descartó por tener una
+  /// versión más nueva (filas o lápidas). Siguen pendientes: el motor trae
+  /// la versión ganadora (Puller.reconcile).
+  final Map<String, List<String>> discarded;
+
+  PushResult _add(
+          {int pushed = 0, List<PushError> errors = const [], bool stopped = false, String? table, List<String> discarded = const []}) =>
+      PushResult(
         pushed: this.pushed + pushed,
         failed: failed + errors.length,
         errors: [...this.errors, ...errors],
         stoppedByNetwork: stoppedByNetwork || stopped,
+        discarded: discarded.isEmpty
+            ? this.discarded
+            : {...this.discarded, table!: [...?this.discarded[table], ...discarded]},
       );
 }
 
@@ -60,8 +71,10 @@ class Pusher {
       for (var i = 0; i < pending.length; i += pushBatchSize) {
         final batch = pending.sublist(i, i + pushBatchSize > pending.length ? pending.length : i + pushBatchSize);
         final out = await _sendBatch(table, key, batch);
+        // Solo lo que el servidor aceptó: lo descartado se corrige con la versión del servidor.
         await _db.markSynced(table, [for (final r in out.confirmed) (r[key]!, r['updated_at']! as int)]);
-        result = result._add(pushed: out.confirmed.length, errors: out.errors, stopped: out.network);
+        result = result._add(
+            pushed: out.confirmed.length, errors: out.errors, stopped: out.network, table: table, discarded: out.discarded);
         if (out.network) return result;
       }
     }
@@ -69,9 +82,12 @@ class Pusher {
     // 2. Lápidas: borrados de filas que ya estaban en el servidor.
     for (final t in await _db.pendingTombstones()) {
       try {
-        await _remote.markDeleted(t.entity, t.recordId, t.deletedAt);
-        await _db.dropTombstone(t);
-        result = result._add(pushed: 1);
+        if (await _remote.markDeleted(t.entity, t.recordId, t.deletedAt)) {
+          await _db.dropTombstone(t);
+          result = result._add(pushed: 1);
+        } else {
+          result = result._add(table: t.entity, discarded: [t.recordId]);
+        }
       } on NetworkFailure {
         return result._add(stopped: true);
       } on DataFailure catch (e) {
@@ -83,34 +99,52 @@ class Pusher {
 
   /// Un lote entero; si falla por datos, fila por fila para aislar las malas.
   Future<_BatchOutcome> _sendBatch(String table, String key, List<Map<String, Object?>> rows) async {
+    final remote = [for (final r in rows) toRemote(table, r)];
     try {
-      await _remote.upsert(table, [for (final r in rows) toRemote(table, r)]);
-      return _BatchOutcome(rows, const [], network: false);
+      final accepted = await _remote.upsert(table, remote);
+      return _BatchOutcome.split(table, rows, remote, accepted);
     } on NetworkFailure {
-      return const _BatchOutcome([], [], network: true);
+      return _BatchOutcome([], [], network: true);
     } on DataFailure {
-      final confirmed = <Map<String, Object?>>[];
-      final errors = <PushError>[];
-      for (final r in rows) {
+      final out = _BatchOutcome([], [], network: false);
+      for (final (i, r) in rows.indexed) {
         try {
-          await _remote.upsert(table, [toRemote(table, r)]);
-          confirmed.add(r);
+          final accepted = await _remote.upsert(table, [remote[i]]);
+          out.add(_BatchOutcome.split(table, [r], [remote[i]], accepted));
         } on NetworkFailure {
-          return _BatchOutcome(confirmed, errors, network: true);
+          return out..network = true;
         } on DataFailure catch (e) {
-          errors.add(PushError(table, '${r[key]}', e.code, e.message));
+          out.errors.add(PushError(table, '${r[key]}', e.code, e.message));
         }
       }
-      return _BatchOutcome(confirmed, errors, network: false);
+      return out;
     }
   }
 }
 
 class _BatchOutcome {
-  const _BatchOutcome(this.confirmed, this.errors, {required this.network});
+  _BatchOutcome(this.confirmed, this.errors, {required this.network});
+
+  /// Aceptadas (por clave) a confirmed; el resto, a discarded.
+  factory _BatchOutcome.split(
+      String table, List<Map<String, Object?>> rows, List<Map<String, Object?>> remote, Set<String> accepted) {
+    final out = _BatchOutcome([], [], network: false);
+    for (final (i, r) in rows.indexed) {
+      final k = remoteRowKey(table, remote[i]);
+      accepted.contains(k) ? out.confirmed.add(r) : out.discarded.add(k);
+    }
+    return out;
+  }
+
   final List<Map<String, Object?>> confirmed;
   final List<PushError> errors;
-  final bool network;
+  final discarded = <String>[];
+  bool network;
+
+  void add(_BatchOutcome o) {
+    confirmed.addAll(o.confirmed);
+    discarded.addAll(o.discarded);
+  }
 }
 
 const _boolColumns = {'archived', 'is_default', 'onboarding_done'};

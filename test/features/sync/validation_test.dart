@@ -12,6 +12,9 @@ void main() {
     test('correo', () {
       expect(emailError('ana@correo.com'), isNull);
       expect(emailError('  ana@correo.pe  '), isNull, reason: 'trim');
+      // Solo formato, sin consultar DNS: sirven los usuarios de prueba creados a mano.
+      expect(emailError('edson@saldoclaro.local'), isNull);
+      expect(emailError('qa+1@dominio-que-no-existe.test'), isNull);
       for (final bad in ['', 'ana', 'ana@', '@correo.com', 'ana@correo', 'ana correo@x.com', 'ana@correo.c']) {
         expect(emailError(bad), isNotNull, reason: bad);
       }
@@ -81,7 +84,7 @@ void main() {
     test('red: corta el push', () {
       expect(syncFailureFrom(TimeoutException('t')), isA<NetworkFailure>());
       expect(syncFailureFrom(const SocketException('x')), isA<NetworkFailure>());
-      for (final code in ['500', '502', '503', '429', '401', 'PGRST301']) {
+      for (final code in ['500', '502', '503', '429']) { // 401 y JWT: AuthExpiredFailure (remote_test)
         expect(syncFailureFrom(PostgrestException(message: 'x', code: code)), isA<NetworkFailure>(), reason: code);
       }
     });

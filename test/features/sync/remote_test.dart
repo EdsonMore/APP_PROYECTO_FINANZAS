@@ -16,12 +16,13 @@ void main() {
       _pg('500'),
       _pg('503'),
       _pg('429'),
-      _pg('401'),
-      _pg('PGRST301'),
-      _pg('PGRST303'),
       StateError('desconocido'),
     ]) {
       expect(syncFailureFrom(e), isA<NetworkFailure>(), reason: '$e');
+    }
+    // Sesión vencida: aparte, porque se arregla refrescando la sesión.
+    for (final c in ['401', 'PGRST301', 'PGRST303']) {
+      expect(syncFailureFrom(_pg(c)), isA<AuthExpiredFailure>(), reason: c);
     }
     for (final c in ['23503', '23505', '400', '403', '409', '499', 'PGRST204', null]) {
       final f = syncFailureFrom(_pg(c));

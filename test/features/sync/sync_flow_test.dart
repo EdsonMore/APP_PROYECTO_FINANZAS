@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:saldo_claro/core/theme/app_theme.dart';
+import 'package:saldo_claro/data/database.dart';
 import 'package:saldo_claro/data/providers.dart';
 import 'package:saldo_claro/domain/metrics.dart';
 import 'package:saldo_claro/features/entry/draft_store.dart';
@@ -12,8 +14,10 @@ import 'package:saldo_claro/features/home/home_screen.dart';
 import 'package:saldo_claro/features/sync/auth_gateway.dart';
 import 'package:saldo_claro/features/sync/fake_auth_gateway.dart';
 import 'package:saldo_claro/features/sync/providers.dart';
+import 'package:saldo_claro/features/sync/push.dart';
 import 'package:saldo_claro/features/sync/remote.dart';
 import 'package:saldo_claro/features/sync/screens/code_screen.dart';
+import 'package:saldo_claro/features/sync/screens/credentials_screens.dart';
 import 'package:saldo_claro/features/sync/screens/sync_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -70,6 +74,25 @@ Future<void> tapKey(WidgetTester tester, String key) async {
 Future<int> pending(h.Seed s) async =>
     (await s.db.customSelect('SELECT COUNT(*) AS n FROM entries WHERE synced_at IS NULL OR synced_at < updated_at').getSingle())
         .read<int>('n');
+
+/// Otro teléfono ya subió su semilla, sus ajustes y el movimiento [id].
+Future<void> cloudHas(String id) async {
+  final other = AppDatabase(NativeDatabase.memory());
+  await other.completeOnboarding(mode: Mode.stable);
+  await other.insertManualEntry(
+      id: id, kind: EntryKind.expense, amountCents: 900, day: day(2026, 10, 8), pickId: 'comida', now: DateTime(2026, 10, 8));
+  await Pusher(other, remote).push();
+  await other.close();
+}
+
+Future<void> signIn(WidgetTester tester) async {
+  await tapKey(tester, 'sync.signIn');
+  await type(tester, 'signIn.email', 'ana@correo.com');
+  await type(tester, 'signIn.password', 'secreto1');
+  await press(tester, 'Entrar');
+}
+
+Future<List<String>> entryIds(h.Seed s) async => [for (final e in await s.db.select(s.db.entries).get()) e.id]..sort();
 
 Future<void> signUpUntilCode(WidgetTester tester, {String email = 'ana@correo.com'}) async {
   await press(tester, 'Crear cuenta');
@@ -146,19 +169,84 @@ void main() {
     await h.unmount(tester);
   });
 
-  testWidgets('ya tengo cuenta: entra, muestra C1 y NO sube nada (D3)', (tester) async {
+  testWidgets('ya tengo cuenta, con datos en la nube y en el teléfono: pregunta (D5) sin subir nada; "Unir" junta todo',
+      (tester) async {
     auth.addAccount('ana@correo.com', 'secreto1');
-    await openSync(tester, fill: (s) => s.expense(12, h.ago(1)));
+    await cloudHas('nube1');
+    final seed = await openSync(tester, fill: (s) => s.expense(12, h.ago(1)));
+    final mine = await entryIds(seed);
     await tapKey(tester, 'sync.signIn');
     await type(tester, 'signIn.email', 'ana@correo.com');
     await type(tester, 'signIn.password', 'mala');
     await press(tester, 'Entrar');
     expect(find.text('Correo o contraseña incorrectos.'), findsOneWidget);
     await type(tester, 'signIn.password', 'secreto1');
+    remote.upsertCalls.clear();
     await press(tester, 'Entrar');
-    expect(find.byKey(const Key('sync.note')), findsOneWidget);
-    expect(find.text(connectedNote), findsOneWidget);
-    expect(remote.upsertCalls, isEmpty, reason: 'D3: nada se sube hasta la 3C');
+    expect(find.byType(ChoiceScreen), findsOneWidget);
+    expect(find.text('Tu cuenta ya tiene datos'), findsOneWidget);
+    expect(remote.upsertCalls, isEmpty, reason: 'nada sube antes de elegir');
+
+    await press(tester, 'Unir con los de este teléfono');
+    expect(find.text('Listo. Tus datos se unieron con los de tu cuenta.'), findsOneWidget);
+    expect(await entryIds(seed), ([...mine, 'nube1']..sort()));
+    expect(remote.rows['entries']!.keys.toSet(), {...mine, 'nube1'});
+    expect(find.textContaining('próxima versión'), findsNothing, reason: 'el aviso C1 ya no existe');
+    await h.unmount(tester);
+  });
+
+  testWidgets('D5 "Usar solo los de la nube": confirma y reemplaza lo del teléfono; "Volver" sin elegir deja la opción en Sincronizar',
+      (tester) async {
+    auth.addAccount('ana@correo.com', 'secreto1');
+    await cloudHas('nube1');
+    final seed = await openSync(tester, fill: (s) => s.expense(12, h.ago(1)));
+    await signIn(tester);
+    expect(find.byType(ChoiceScreen), findsOneWidget);
+    await tester.tap(find.byTooltip('Volver'));
+    await tester.pumpAndSettle();
+    expect(find.text('Tu cuenta ya tiene datos.'), findsOneWidget);
+    await press(tester, 'Elegir qué datos usar');
+
+    await tapKey(tester, 'choice.cloud');
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(await entryIds(seed), isNot(['nube1']), reason: 'cancelar no borra');
+    await tapKey(tester, 'choice.cloud');
+    await tapKey(tester, 'choice.cloud.confirm');
+    expect(find.text('Listo. Ahora ves los datos de tu cuenta.'), findsOneWidget);
+    expect(await entryIds(seed), ['nube1']);
+    await h.unmount(tester);
+  });
+
+  testWidgets('ya tengo cuenta con la nube vacía: sube todo sin preguntar; el estado y "Sincronizar ahora" se ven',
+      (tester) async {
+    auth.addAccount('ana@correo.com', 'secreto1');
+    final seed = await openSync(tester, fill: (s) => s.expense(12, h.ago(1)));
+    await signIn(tester);
+    expect(find.text('Entraste a tu cuenta.'), findsOneWidget);
+    expect(find.textContaining('Sincronizado a las '), findsOneWidget);
+    expect(await pending(seed), 0);
+    expect(remote.rows['entries'], hasLength(1));
+
+    await seed.db.insertManualEntry(
+        id: 'nuevo', kind: EntryKind.expense, amountCents: 300, day: h.today, pickId: 'comida', now: DateTime.now());
+    await press(tester, 'Sincronizar ahora');
+    await tester.pumpAndSettle();
+    expect(remote.rows['entries']!.keys, contains('nuevo'));
+    await h.unmount(tester);
+  });
+
+  testWidgets('sesión vencida sin poder renovarla: "Tu sesión venció. Vuelve a entrar." y los datos se quedan', (tester) async {
+    auth.addAccount('ana@correo.com', 'secreto1');
+    final seed = await openSync(tester, fill: (s) => s.expense(12, h.ago(1)));
+    await signIn(tester);
+    remote.sessionExpired = true;
+    auth.refreshOutcome = RefreshOutcome.invalid;
+    await press(tester, 'Sincronizar ahora');
+    await tester.pumpAndSettle();
+    expect(find.text('Tu sesión venció. Vuelve a entrar.'), findsOneWidget);
+    expect(find.byKey(const Key('sync.signIn')), findsOneWidget);
+    expect(await seed.db.select(seed.db.entries).get(), hasLength(1));
     await h.unmount(tester);
   });
 

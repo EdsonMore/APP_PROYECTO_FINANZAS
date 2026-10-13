@@ -55,14 +55,14 @@ void main() {
   test('lo que viaja: sin user_id, sin synced_at, sin server_updated_at; bools como bool; deleted_at null', () async {
     await expense('e1');
     await pusher.push();
-    final cat = remote.rows['categories']!['comida']!;
+    final cat = remote.sent['categories']!.firstWhere((r) => r['id'] == 'comida');
     expect(cat.containsKey('user_id'), isFalse);
     expect(cat.containsKey('synced_at'), isFalse);
     expect(cat.containsKey('server_updated_at'), isFalse);
     expect(cat['archived'], isFalse);
     expect(cat['is_default'], isTrue);
     expect(cat.containsKey('deleted_at') && cat['deleted_at'] == null, isTrue);
-    final settings = remote.rows['settings']!.values.single;
+    final settings = remote.sent['settings']!.single;
     expect(settings.containsKey('id'), isFalse, reason: 'en el servidor la clave es user_id');
     expect(settings.containsKey('deleted_at'), isFalse, reason: 'settings no tiene deleted_at');
     expect(settings['onboarding_done'], isTrue);
@@ -198,6 +198,33 @@ void main() {
     final r = await pusher.push();
     expect(remote.upsertCalls.where((c) => c.table == 'entries').map((c) => c.count), [200, 200, 50]);
     expect(r.failed, 0);
+  });
+
+  test('11. el servidor descarta una fila (tiene una versión más nueva): no se marca y vuelve en discarded', () async {
+    await db.setBudget('comida', 1000);
+    await pusher.push();
+    await remote.upsert('budgets', [
+      {'category_id': 'comida', 'cap_cents': 7777, 'updated_at': 5000, 'deleted_at': null}
+    ]); // otro teléfono, con el reloj más adelantado
+    now = 2000;
+    await db.setBudget('comida', 3000);
+    final r = await pusher.push();
+    expect(r.discarded, {'budgets': ['comida']});
+    expect(r.pushed, 0);
+    expect(await syncedAt('budgets', 'category_id', 'comida'), 1000, reason: 'si se marcara, nunca se corregiría');
+    expect(remote.rows['budgets']!['comida']!['cap_cents'], 7777);
+  });
+
+  test('12. el servidor descarta una lápida (tiene una edición más nueva): la lápida queda y vuelve en discarded', () async {
+    await expense('e1');
+    await pusher.push();
+    final edited = Map.of(remote.rows['entries']!['e1']!)..['updated_at'] = 5000;
+    await remote.upsert('entries', [edited]);
+    now = 2000;
+    await db.deleteEntry('e1');
+    final r = await pusher.push();
+    expect(r.discarded, {'entries': ['e1']});
+    expect((await db.pendingTombstones()).map((t) => t.recordId), ['e1']);
   });
 
   test('10. desconectar: todo vuelve a quedar pendiente y las lápidas se vacían', () async {

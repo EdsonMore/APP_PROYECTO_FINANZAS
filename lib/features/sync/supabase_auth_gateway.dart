@@ -53,6 +53,27 @@ class SupabaseAuthGateway implements AuthGateway {
   Future<void> signOut() => withAuthTimeout(_auth.signOut());
 
   @override
+  Future<RefreshOutcome> refreshSession() async {
+    try {
+      await withAuthTimeout(_auth.refreshSession());
+      return RefreshOutcome.ok;
+    } on AuthFailure catch (f) {
+      return f.kind == AuthFailureKind.offline || f.kind == AuthFailureKind.timeout
+          ? RefreshOutcome.offline
+          : RefreshOutcome.invalid;
+    }
+  }
+
+  @override
+  Future<void> signOutLocal() async {
+    try {
+      await _auth.signOut(scope: SignOutScope.local);
+    } catch (_) {
+      // Local: no depende de la red; si algo falla igual no queda sesión útil.
+    }
+  }
+
+  @override
   Future<void> deleteAccount() => withAuthTimeout(() async {
         await _client.rpc<void>('delete_account');
         // La cuenta ya no existe: cerrar solo la sesión local.

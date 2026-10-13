@@ -10,6 +10,7 @@ import 'generated/schema.dart';
 import 'generated/schema_v1.dart' as v1;
 import 'generated/schema_v2.dart' as v2;
 import 'generated/schema_v3.dart' as v3;
+import 'generated/schema_v4.dart' as v4;
 
 /// La semilla tal como la creaba la v1 ("otros" con la bolsa de compras).
 const v1Categories = [
@@ -140,14 +141,30 @@ void main() {
 
   setUpAll(() => verifier = SchemaVerifier(GeneratedHelper()));
 
-  for (final from in [1, 2, 3]) {
-    test('v$from → v4 sin datos: el esquema migrado es idéntico al de una instalación nueva', () async {
+  for (final from in [1, 2, 3, 4]) {
+    test('v$from → v5 sin datos: el esquema migrado es idéntico al de una instalación nueva', () async {
       final schema = await verifier.schemaAt(from);
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 4);
+      await verifier.migrateAndValidate(db, 5);
       await db.close();
     });
   }
+
+  test('v4 → v5: solo agrega sync_cursors (vacía); filas y marcas de sync intactas', () async {
+    final schema = await verifier.schemaAt(4);
+    final old = v4.DatabaseAtV4(schema.newConnection());
+    await old.into(old.categories).insert(v4.CategoriesCompanion.insert(
+        id: 'comida', name: 'Comida', icon: 'restaurant', colorHex: 'cat:1', sortOrder: 0, isDefault: const Value(1),
+        updatedAt: const Value(700), syncedAt: const Value(700)));
+    await old.into(old.tombstones).insert(v4.TombstonesCompanion.insert(entity: 'entries', rowId: 'g9', deletedAt: 800));
+    await old.close();
+    final db = await migrate(schema);
+    final c = await db.customSelect('SELECT updated_at, synced_at FROM categories').getSingle();
+    expect((c.read<int>('updated_at'), c.read<int>('synced_at')), (700, 700));
+    expect(await db.customSelect('SELECT * FROM tombstones').get(), hasLength(1));
+    expect(await db.customSelect('SELECT * FROM sync_cursors').get(), isEmpty);
+    await db.close();
+  });
 
   group('v3 → v4 (columnas de sync y lápidas)', () {
     test('no se pierde ningún dato: cada fila y cada columna de v3 sigue igual', () async {

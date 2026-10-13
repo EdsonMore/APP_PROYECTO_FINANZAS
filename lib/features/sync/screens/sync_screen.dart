@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/text_link.dart';
@@ -7,16 +8,27 @@ import '../../../data/providers.dart';
 import '../../settings/settings_screen.dart';
 import '../auth_gateway.dart';
 import '../providers.dart';
+import '../status.dart';
 import 'account_form.dart';
 import 'credentials_screens.dart';
 import 'delete_account_screen.dart';
 
-/// C1: con cuenta conectada, hasta que llegue la sincronización (3C).
-const connectedNote = 'Tu cuenta está conectada. Mientras tanto, puedes seguir usando la app con tus datos '
-    'locales. La sincronización completa llega en la próxima versión.';
+/// Texto del estado (Fase 3C). null = nada que decir.
+String? syncStatusText(SyncStatus s) => switch (s.state) {
+      SyncState.off => null,
+      SyncState.syncing => 'Sincronizando…',
+      SyncState.ok =>
+        s.lastSyncAt == null ? 'Sincronizado.' : 'Sincronizado a las ${DateFormat('HH:mm').format(s.lastSyncAt!)}.',
+      SyncState.offline => 'Sin conexión. Tus cambios se subirán cuando vuelva.',
+      SyncState.issues => s.issues == 1
+          ? '1 cambio no se pudo sincronizar. Se volverá a intentar.'
+          : '${s.issues} cambios no se pudieron sincronizar. Se volverá a intentar.',
+      SyncState.needsLogin => 'Tu sesión venció. Vuelve a entrar.',
+      SyncState.needsChoice => 'Tu cuenta ya tiene datos.',
+    };
 
-/// "Sincronizar con la nube" (Fase 3B). Sin cuenta: crear o entrar. Con
-/// cuenta: correo, aviso C1, cerrar sesión y borrar cuenta.
+/// "Sincronizar con la nube". Sin cuenta: crear o entrar. Con cuenta:
+/// correo, estado, sincronizar ahora, cerrar sesión y borrar cuenta.
 class SyncScreen extends ConsumerWidget {
   const SyncScreen({super.key});
 
@@ -39,10 +51,16 @@ class SyncScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final p = context.palette;
     final email = ref.watch(accountEmailProvider).value;
+    final status = ref.watch(syncStatusProvider).value ?? const SyncStatus(SyncState.off);
+    final statusText = syncStatusText(status);
     return AccountScaffold(
       title: 'Sincronizar con la nube',
       children: email == null
           ? [
+              if (status.state == SyncState.needsLogin) ...[
+                Text(statusText!, key: const Key('sync.status'), style: AppType.label.copyWith(color: p.expenseFg)),
+                const SizedBox(height: Space.md),
+              ],
               Text(
                 'Guarda una copia de tus datos en tu cuenta y úsalos en otro teléfono. '
                 'Sin cuenta, todo sigue funcionando en este teléfono.',
@@ -66,8 +84,23 @@ class SyncScreen extends ConsumerWidget {
             ]
           : [
               Text('Conectado como $email', key: const Key('sync.email'), style: AppType.label.copyWith(color: p.ink)),
-              const SizedBox(height: Space.md),
-              Text(connectedNote, key: const Key('sync.note'), style: AppType.body.copyWith(color: p.inkMuted)),
+              if (statusText != null) ...[
+                const SizedBox(height: Space.md),
+                Text(statusText, key: const Key('sync.status'), style: AppType.body.copyWith(color: p.inkMuted)),
+              ],
+              const SizedBox(height: Space.lg),
+              status.state == SyncState.needsChoice
+                  ? AccountButton(
+                      label: 'Elegir qué datos usar',
+                      busy: false,
+                      onPressed: () =>
+                          Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ChoiceScreen())),
+                    )
+                  : AccountButton(
+                      label: 'Sincronizar ahora',
+                      busy: status.state == SyncState.syncing,
+                      onPressed: () => ref.read(syncSchedulerProvider).syncNow(),
+                    ),
               Divider(color: p.border, height: Space.xxl),
               SettingsRow(
                 key: const Key('sync.signOut'),

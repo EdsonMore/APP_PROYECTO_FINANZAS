@@ -143,6 +143,19 @@ void main() {
       expect(await db.select(db.entries).get(), isEmpty, reason: 'el borrado local es real');
     });
 
+    test('lápida con el reloj atrasado: deleted_at = MAX(ahora, updated_at + 1), nunca más vieja que la fila', () async {
+      // Si la lápida fuera más vieja que la versión del servidor, el trigger
+      // la descartaría y el teléfono la daría por subida: quedarían distintos.
+      await expense('e1');
+      await db.customUpdate('UPDATE entries SET updated_at = 9000, synced_at = 9000');
+      await db.setBudget('comida', 1000);
+      await db.customUpdate('UPDATE budgets SET updated_at = 9500, synced_at = 9500');
+      now = 2000; // reloj atrás
+      await db.deleteEntry('e1');
+      await db.removeBudget('comida');
+      expect(await tombstones(), [('budgets', 'comida', 9501), ('entries', 'e1', 9001)]);
+    });
+
     test('borrar un id que no existe no deja lápida', () async {
       expect(await db.deleteEntry('nada'), 0);
       expect(await tombstones(), isEmpty);
@@ -209,7 +222,7 @@ void main() {
       await markSynced('entries', 'id = ?', ['comida']);
       await db.deleteEntry('comida');
       await db.setBudget('comida', 1000);
-      expect(await tombstones(), [('entries', 'comida', 1000)]);
+      expect(await tombstones(), [('entries', 'comida', 1001)], reason: 'reloj quieto: updated_at + 1');
     });
   });
 }

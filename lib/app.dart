@@ -5,6 +5,7 @@ import 'core/theme/app_theme.dart';
 import 'data/providers.dart';
 import 'features/home/home_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
+import 'features/sync/providers.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -16,8 +17,21 @@ class App extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      home: const _Root(),
+      home: const SyncLifecycle(child: _Root()),
     );
+  }
+}
+
+/// Monta los disparadores de sync (Fase 3C) mientras la app vive. Sin
+/// cuenta no hace nada: ni timers ni red.
+class SyncLifecycle extends ConsumerWidget {
+  const SyncLifecycle({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(syncSchedulerProvider);
+    return child;
   }
 }
 
