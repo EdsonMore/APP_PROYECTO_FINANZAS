@@ -35,6 +35,7 @@ migrate_working_dir/
 
 # Secretos locales (API keys)
 lib/core/config/secrets.dart
+lib/core/config/secrets_test.dart
 
 # Firma de release: credenciales y keystores (nunca subir)
 android/key.properties
