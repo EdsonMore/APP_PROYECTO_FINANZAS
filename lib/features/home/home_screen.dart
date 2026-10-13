@@ -12,6 +12,7 @@ import '../../domain/metrics.dart';
 import '../budget/budget_screen.dart';
 import '../entry/entry_sheet.dart';
 import '../entry/opening_balance_sheet.dart';
+import '../history/filters.dart' show HistoryFilter;
 import '../history/history_screen.dart';
 import '../insights/insights_screen.dart';
 import '../settings/modes_screen.dart';
@@ -89,6 +90,12 @@ class HomeScreen extends ConsumerWidget {
                     : const SizedBox(width: double.infinity),
               ),
               LightCard(view: s.light),
+              if (s.accounts.isNotEmpty)
+                AccountsBlock(
+                  rows: s.accounts,
+                  onTap: (id) => Navigator.of(context).push(MaterialPageRoute<void>(
+                      builder: (_) => HistoryScreen(initial: HistoryFilter(account: (id: id))))),
+                ),
               if (s.top.isNotEmpty) TopCategoriesBlock(rows: s.top),
               if (s.recents.isNotEmpty)
                 RecentMovementsBlock(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../accounts/accounts_screen.dart';
+import '../accounts/providers.dart' show accountsDataProvider, accountsStreamProvider;
 import '../history/history_screen.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/formatters.dart';
@@ -40,7 +42,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _exporting = true);
     try {
-      final csv = entriesToCsv(entries, categories: categories, sources: sources);
+      final accounts = ref.read(accountsDataProvider);
+      final csv = entriesToCsv(entries,
+          categories: categories,
+          sources: sources,
+          accounts: accounts?.accounts ?? const [],
+          transfers: accounts?.transfers ?? const []);
       await ref.read(csvExporterProvider)(csv, csvFileName(ref.read(todayProvider)));
     } catch (_) {
       messenger.showSnackBar(const SnackBar(content: Text('No se pudo exportar. Intenta de nuevo.')));
@@ -63,6 +70,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final opening = settings?.opening;
     final activeCats = cats.where((c) => !c.archived).length;
     final activeSrcs = srcs.where((s) => !s.archived).length;
+    final activeAccounts = [...?ref.watch(accountsStreamProvider).value].where((a) => !a.archived).length;
     String actives(int n) => n == 1 ? '1 activa' : '$n activas';
     final activeIds = {for (final c in cats) if (!c.archived) c.id};
     final caps = budgets.where((b) => activeIds.contains(b.categoryId)).length;
@@ -146,6 +154,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               value: actives(activeSrcs),
               link: 'Gestionar',
               onTap: () => _push(context, const CatalogScreen(kind: EntryKind.income)),
+            ),
+            SettingsRow(
+              key: const Key('settings.accounts'),
+              label: 'Cuentas',
+              value: switch (activeAccounts) {
+                0 => 'Sin cuentas',
+                final n => actives(n),
+              },
+              link: 'Gestionar',
+              onTap: () => _push(context, const AccountsScreen()),
             ),
             Divider(color: p.border, height: Space.xl),
             SettingsRow(

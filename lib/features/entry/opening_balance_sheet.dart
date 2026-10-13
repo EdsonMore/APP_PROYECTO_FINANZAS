@@ -10,8 +10,10 @@ import '../../data/providers.dart';
 import 'amount_input.dart';
 import 'amount_keypad.dart';
 
-/// Abre "¿Cuánto tienes hoy?". true si se guardó el saldo.
-Future<bool> showOpeningBalanceSheet(BuildContext context) async {
+/// Abre "¿Cuánto tienes hoy?". true si se guardó el saldo. Con [save] (4A)
+/// guarda otra cosa, p. ej. el saldo inicial de una cuenta, con su [title].
+Future<bool> showOpeningBalanceSheet(BuildContext context,
+    {String? title, Future<void> Function(int cents)? save}) async {
   final reduced = MediaQuery.disableAnimationsOf(context);
   final saved = await showModalBottomSheet<bool>(
     context: context,
@@ -22,7 +24,7 @@ Future<bool> showOpeningBalanceSheet(BuildContext context) async {
         ? const AnimationStyle(duration: Motion.reducedFade, reverseDuration: Motion.reducedFade)
         : const AnimationStyle(
             duration: Duration(milliseconds: 350), reverseDuration: Duration(milliseconds: 250), curve: Motion.emphasized),
-    builder: (_) => const OpeningBalanceSheet(),
+    builder: (_) => OpeningBalanceSheet(title: title, save: save),
   );
   return saved ?? false;
 }
@@ -30,7 +32,13 @@ Future<bool> showOpeningBalanceSheet(BuildContext context) async {
 /// Saldo inicial: foto del dinero de ahora. S/ 0 es válido (usuario de
 /// Supervivencia); solo el monto vacío deshabilita "Guardar saldo".
 class OpeningBalanceSheet extends ConsumerStatefulWidget {
-  const OpeningBalanceSheet({super.key});
+  const OpeningBalanceSheet({super.key, this.title, this.save});
+
+  /// null = "¿Cuánto tienes hoy?".
+  final String? title;
+
+  /// null = el saldo inicial global (el de "Sin asignar" desde la 4A).
+  final Future<void> Function(int cents)? save;
 
   @override
   ConsumerState<OpeningBalanceSheet> createState() => _OpeningBalanceSheetState();
@@ -57,7 +65,10 @@ class _OpeningBalanceSheetState extends ConsumerState<OpeningBalanceSheet> {
       _error = null;
     });
     try {
-      await ref.read(databaseProvider).setOpeningBalance(cents: _amount.cents, at: DateTime.now());
+      final save = widget.save;
+      save == null
+          ? await ref.read(databaseProvider).setOpeningBalance(cents: _amount.cents, at: DateTime.now())
+          : await save(_amount.cents);
       HapticFeedback.lightImpact();
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
@@ -100,7 +111,7 @@ class _OpeningBalanceSheetState extends ConsumerState<OpeningBalanceSheet> {
             const SheetGrabber(),
             Semantics(
               header: true,
-              child: Text('¿Cuánto tienes hoy?', style: AppType.title.copyWith(color: p.ink)),
+              child: Text(widget.title ?? '¿Cuánto tienes hoy?', style: AppType.title.copyWith(color: p.ink)),
             ),
             const SizedBox(height: Space.sm),
             Text('Con eso calculo cuántos días te alcanza. Puedes cambiarlo en Ajustes.',

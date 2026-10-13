@@ -38,16 +38,18 @@ void main() {
     expect(csv.endsWith('\r\n'), isTrue);
   });
 
-  test('encabezados separados por punto y coma, con updated_at y account_label al final', () {
+  test('encabezados separados por punto y coma; al final account_label y las columnas de cuenta (4A)', () {
     final header = lines(entriesToCsv(const [], categories: cats, sources: srcs)).single;
     expect(header,
-        'id;kind;amount_cents;amount;occurred_on;category_or_source;category_or_source_id;note;origin;created_at;updated_at;account_label');
+        'id;kind;amount_cents;amount;occurred_on;category_or_source;category_or_source_id;note;origin;created_at;updated_at;'
+        'account_label;account_id;account_name;to_account_id;to_account_name');
   });
 
   test('fila completa: tipo en español, montos entero y decimal, nombre, id, ISO local', () {
     final csv = entriesToCsv([entry('e1', EntryKind.expense, 1250, '2026-10-08', ms(8, 14, 32), cat: 'comida')],
         categories: cats, sources: srcs);
-    expect(lines(csv)[1], 'e1;gasto;1250;12.50;2026-10-08;Comida;comida;;manual;2026-10-08T14:32:00;2026-10-08T14:32:00;');
+    expect(lines(csv)[1], 'e1;gasto;1250;12.50;2026-10-08;Comida;comida;;manual;2026-10-08T14:32:00;2026-10-08T14:32:00;;;;;',
+        reason: 'sin cuentas, las columnas de cuenta van vacías');
   });
 
   test('montos chicos y redondos', () {
@@ -103,7 +105,51 @@ void main() {
         sources: srcs);
     final cols = lines(csv)[1].split(';');
     expect(cols[8], 'auto');
-    expect(cols.last, 'Yape');
+    expect(cols[11], 'Yape');
+  });
+
+  group('cuentas y transferencias (4A, O2)', () {
+    const accounts = [
+      Account(id: 'yape', name: 'Yape', icon: 'phone_android', colorHex: '#525252', sortOrder: 0, archived: false,
+          isDefault: false, createdAt: 1, updatedAt: 1),
+      Account(id: 'bcp', name: 'BCP viejo', icon: 'account_balance', colorHex: '#525252', sortOrder: 1, archived: true,
+          isDefault: false, createdAt: 1, updatedAt: 1),
+    ];
+    TransferRow transfer(String id, String? from, String? to, int cents, String on, int created, {String? note}) =>
+        TransferRow(id: id, fromAccountId: from, toAccountId: to, amountCents: cents, occurredOn: on, note: note,
+            createdAt: created, updatedAt: created);
+
+    test('movimiento con cuenta (también archivada) y sin cuenta ("Sin asignar")', () {
+      final csv = entriesToCsv([
+        Entry(id: 'a', kind: EntryKind.expense, amountCents: 1, occurredOn: '2026-10-08', categoryId: 'comida',
+            origin: Origin.manual, accountId: 'yape', createdAt: ms(8, 9), updatedAt: ms(8, 9)),
+        Entry(id: 'b', kind: EntryKind.expense, amountCents: 1, occurredOn: '2026-10-07', categoryId: 'comida',
+            origin: Origin.manual, accountId: 'bcp', createdAt: ms(7, 9), updatedAt: ms(7, 9)),
+        entry('c', EntryKind.expense, 1, '2026-10-06', ms(6, 9), cat: 'comida'),
+      ], categories: cats, sources: srcs, accounts: accounts);
+      final rows = [for (final l in lines(csv).skip(1)) l.split(';').sublist(12)];
+      expect(rows, [
+        ['yape', 'Yape', '', ''],
+        ['bcp', 'BCP viejo', '', ''],
+        ['', 'Sin asignar', '', ''],
+      ]);
+    });
+
+    test('transferencias como filas "transferencia", mezcladas por fecha; "Sin asignar" con id vacío', () {
+      final csv = entriesToCsv([entry('e', EntryKind.expense, 500, '2026-10-08', ms(8, 9), cat: 'comida')],
+          categories: cats,
+          sources: srcs,
+          accounts: accounts,
+          transfers: [
+            transfer('t1', 'yape', null, 1250, '2026-10-09', ms(9, 9), note: 'al bolsillo'),
+            transfer('t2', null, 'yape', 300, '2026-10-07', ms(7, 9)),
+          ]);
+      final l = lines(csv);
+      expect([for (final x in l.skip(1)) x.split(';').first], ['t1', 'e', 't2'], reason: 'más nuevo primero');
+      expect(l[1], 't1;transferencia;1250;12.50;2026-10-09;;;al bolsillo;manual;2026-10-09T09:00:00;2026-10-09T09:00:00;;'
+          'yape;Yape;;Sin asignar');
+      expect(l[3].split(';').sublist(12), ['', 'Sin asignar', 'yape', 'Yape']);
+    });
   });
 
   test('nombre del archivo con la fecha de hoy', () {

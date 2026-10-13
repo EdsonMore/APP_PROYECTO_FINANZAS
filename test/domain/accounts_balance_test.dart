@@ -62,6 +62,46 @@ void main() {
     expect(totalBalance(const [], const [], today: today, accountOpenings: ops), 7000);
   });
 
+  group('R1 (fase-4a): runway, serie, calculadora y firstDay usan el saldo global', () {
+    final opening = Opening(cents: 30000, setAt: at(1));
+    final ms = [out(1000, 2), inc(500, 3), out(2000, 5), out(700, 13)];
+
+    test('sin cuentas (libro vacío): idénticos a los de siempre', () {
+      const book = AccountBook();
+      for (final o in [null, opening]) {
+        expect(runway(ms, today: today, opening: o, book: book).days, runway(ms, today: today, opening: o).days);
+        expect(runwaySeries(ms, today: today, opening: o, book: book), runwaySeries(ms, today: today, opening: o));
+        expect(dailyAllowance(ms, today: today, days: 14, opening: o, book: book),
+            dailyAllowance(ms, today: today, days: 14, opening: o));
+        expect(firstDay(ms, today: today, opening: o, book: book), firstDay(ms, today: today, opening: o));
+      }
+    });
+
+    test('con el saldo inicial de una cuenta, el runway y la calculadora lo suman', () {
+      final book = AccountBook(openings: {'yape': Opening(cents: 60000, setAt: at(1))});
+      final plain = runway(ms, today: today, opening: opening);
+      final withYape = runway(ms, today: today, opening: opening, book: book);
+      expect(withYape.days, greaterThan(plain.days));
+      final a = dailyAllowance(ms, today: today, days: 10, opening: opening, book: book)!;
+      expect(a.limitCents, (30000 - 1000 + 500 - 2000 + 60000) ~/ 10, reason: 'el saldo con el que empezó el día');
+    });
+
+    test('solo con saldo inicial de cuenta (sin global): hay datos desde ese día', () {
+      final book = AccountBook(openings: {'yape': Opening(cents: 5000, setAt: at(4))});
+      expect(firstDay(const [], today: today, book: book), day(2026, 10, 4));
+      expect(runway(const [], today: today, book: book).status, RunwayStatus.noSpending);
+      expect(runwaySeries([out(100, 13, acc: 'yape')], today: today, book: book), hasLength(10), reason: 'del 4 al 13');
+    });
+
+    test('gastado hoy cuenta según el saldo inicial DE SU cuenta', () {
+      final yape = Opening(cents: 10000, setAt: at(13, 12));
+      final book = AccountBook(openings: {'yape': yape});
+      final today2 = [out(300, 13, acc: 'yape', h: 9), out(200, 13, acc: 'yape', h: 15), out(100, 13, h: 9)];
+      final a = dailyAllowance(today2, today: today, days: 1, opening: opening, book: book)!;
+      expect(a.spentTodayCents, 200 + 100, reason: 'el gasto de Yape antes de su saldo ya estaba incluido');
+    });
+  });
+
   test('transferencias con fecha futura se ignoran', () {
     final ts = [tr(999, 20, from: 'yape', to: 'efectivo')];
     expect(accountBalance('yape', const [], ts, today: today), 0);

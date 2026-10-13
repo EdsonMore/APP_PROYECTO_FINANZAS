@@ -121,7 +121,38 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> with SingleTick
         RunwayBlock() => _Titled(key: const Key('insights.runway'), title: 'Reserva', child: _RunwayBody(b)),
         SuggestedBlock() =>
           _Titled(key: const Key('insights.suggested'), title: 'Techos sugeridos', child: _SuggestedBody(b)),
+        ByAccountBlock() => _Titled(key: const Key('insights.byAccount'), title: 'Por cuenta', child: _ByAccountBody(b)),
       };
+}
+
+class _ByAccountBody extends StatelessWidget {
+  const _ByAccountBody(this.block);
+  final ByAccountBlock block;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    String signed(int c) => c < 0 ? '−${Formatters.soles(-c)}' : Formatters.soles(c);
+    return Column(children: [
+      for (final r in block.rows)
+        Padding(
+          key: Key('insights.account.${r.name}'),
+          padding: const EdgeInsets.only(bottom: Space.md),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(
+                child: Text(r.name,
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: AppType.label.copyWith(color: p.ink)),
+              ),
+              Text(signed(r.balance), style: AppType.amount.copyWith(color: r.balance < 0 ? p.expenseFg : p.ink)),
+            ]),
+            const SizedBox(height: Space.xs),
+            Text('Salió ${Formatters.soles(r.outCents)} · Entró ${Formatters.soles(r.inCents)}',
+                style: AppType.caption.copyWith(color: p.inkMuted)),
+          ]),
+        ),
+    ]);
+  }
 }
 
 class _Titled extends StatelessWidget {

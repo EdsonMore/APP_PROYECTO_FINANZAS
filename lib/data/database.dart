@@ -521,12 +521,14 @@ class AppDatabase extends _$AppDatabase {
   /// Edición desde el Historial (4B). El tipo no cambia: [pickId] es la
   /// categoría de un gasto o la fuente de un ingreso. Sin cambios no escribe
   /// (no deja nada pendiente de sync). null = el movimiento ya no existe.
+  /// [accountId] (4A): Value.absent() = no cambia la cuenta.
   Future<Entry?> updateEntry({
     required String id,
     required int amountCents,
     required DateTime day,
     required String pickId,
     String? note,
+    Value<String?> accountId = const Value.absent(),
   }) =>
       transaction(() async {
         final query = select(entries)..where((e) => e.id.equals(id));
@@ -536,10 +538,12 @@ class AppDatabase extends _$AppDatabase {
         if (e.amountCents == amountCents &&
             e.occurredOn == isoDay(day) &&
             (expense ? e.categoryId : e.sourceId) == pickId &&
-            e.note == note) {
+            e.note == note &&
+            (!accountId.present || accountId.value == e.accountId)) {
           return e;
         }
         await (update(entries)..where((e) => e.id.equals(id))).write(bumped(EntriesCompanion(
+          accountId: accountId,
           amountCents: Value(amountCents),
           occurredOn: Value(isoDay(day)),
           categoryId: expense ? Value(pickId) : const Value.absent(),
@@ -595,6 +599,52 @@ class AppDatabase extends _$AppDatabase {
       updatedAt: Value(now),
     ));
   }
+
+  Future<void> updateAccount(String id, {required String name, required String icon}) =>
+      (update(accounts)..where((a) => a.id.equals(id))).write(bumped(AccountsCompanion(name: Value(name), icon: Value(icon))));
+
+  /// Archivar no cambia nada del saldo: la cuenta sigue sumando en el global.
+  Future<void> setAccountArchived(String id, {required bool archived}) =>
+      (update(accounts)..where((a) => a.id.equals(id))).write(bumped(AccountsCompanion(archived: Value(archived))));
+
+  /// Cuenta del último movimiento de ese tipo (por created_at); null = "Sin
+  /// asignar" o sin movimientos.
+  Future<String?> lastUsedAccount(EntryKind kind) async => (await (select(entries)
+            ..where((e) => e.kind.equalsValue(kind))
+            ..orderBy([(e) => OrderingTerm.desc(e.createdAt)])
+            ..limit(1))
+          .getSingleOrNull())
+      ?.accountId;
+
+  /// Edición de una transferencia (Historial). Sin cambios no escribe.
+  Future<TransferRow?> updateTransfer({
+    required String id,
+    required String? fromAccountId,
+    required String? toAccountId,
+    required int amountCents,
+    required DateTime day,
+    String? note,
+  }) =>
+      transaction(() async {
+        final query = select(transfers)..where((t) => t.id.equals(id));
+        final t = await query.getSingleOrNull();
+        if (t == null) return null;
+        if (t.fromAccountId == fromAccountId &&
+            t.toAccountId == toAccountId &&
+            t.amountCents == amountCents &&
+            t.occurredOn == isoDay(day) &&
+            t.note == note) {
+          return t;
+        }
+        await (update(transfers)..where((t) => t.id.equals(id))).write(bumped(TransfersCompanion(
+          fromAccountId: Value(fromAccountId),
+          toAccountId: Value(toAccountId),
+          amountCents: Value(amountCents),
+          occurredOn: Value(isoDay(day)),
+          note: Value(note),
+        )));
+        return query.getSingle();
+      });
 
   /// DELETE real; si ya estaba sincronizada, deja lápida (como [deleteEntry]).
   Future<int> deleteTransfer(String id) => transaction(() async {

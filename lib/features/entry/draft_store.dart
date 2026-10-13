@@ -13,7 +13,7 @@ final draftStoreProvider = Provider((ref) => DraftStore(ref.watch(sharedPreferen
 
 /// Lo que el usuario dejó a medias en la hoja de registro. Invisible en la UI.
 class Draft {
-  const Draft({this.amountText = '', this.pickId, this.day, this.note = ''});
+  const Draft({this.amountText = '', this.pickId, this.day, this.note = '', this.account});
 
   final String amountText;
 
@@ -24,17 +24,22 @@ class Draft {
   final DateTime? day;
   final String note;
 
+  /// Cuenta elegida a mano (4A): null = no se tocó (vale la de siempre);
+  /// '' = "Sin asignar"; si no, el id de la cuenta.
+  final String? account;
+
   /// Sin monto, nota ni fecha elegida no hay nada que proteger.
   bool get isEmpty => amountText.isEmpty && note.trim().isEmpty && day == null;
 
   Map<String, Object?> toJson() =>
-      {'amount': amountText, 'pick': pickId, 'day': day == null ? null : isoDay(day!), 'note': note};
+      {'amount': amountText, 'pick': pickId, 'day': day == null ? null : isoDay(day!), 'note': note, 'account': account};
 
   factory Draft.fromJson(Map<String, Object?> j) => Draft(
         amountText: j['amount'] as String? ?? '',
         pickId: j['pick'] as String?,
         day: j['day'] == null ? null : parseIsoDay(j['day'] as String),
         note: j['note'] as String? ?? '',
+        account: j['account'] as String?,
       );
 }
 

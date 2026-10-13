@@ -27,31 +27,72 @@ const csvColumns = [
   'created_at',
   'updated_at',
   'account_label',
+  // 4A (O2): la cuenta de cada fila; en una transferencia, account_* es el
+  // origen y to_account_* el destino.
+  'account_id',
+  'account_name',
+  'to_account_id',
+  'to_account_name',
 ];
 
 String csvFileName(DateTime today) => 'saldoclaro-movimientos-${isoDay(today)}.csv';
 
-/// Todos los movimientos, del más nuevo al más viejo. Incluye nombres de
-/// categorías/fuentes archivadas. Fin de línea CRLF (RFC 4180, Excel).
-String entriesToCsv(List<Entry> entries, {required List<Category> categories, required List<Source> sources}) {
+/// Todos los movimientos (y las transferencias, como filas `transferencia`),
+/// del más nuevo al más viejo. Incluye nombres de categorías/fuentes/cuentas
+/// archivadas. Fin de línea CRLF (RFC 4180, Excel). Sin cuentas, las columnas
+/// de cuenta van vacías; con cuentas, "Sin asignar" es id vacío y ese nombre.
+String entriesToCsv(
+  List<Entry> entries, {
+  required List<Category> categories,
+  required List<Source> sources,
+  List<Account> accounts = const [],
+  List<TransferRow> transfers = const [],
+}) {
   final catName = {for (final c in categories) c.id: c.name};
   final srcName = {for (final s in sources) s.id: s.name};
+  final accName = {for (final a in accounts) a.id: a.name};
   final stamp = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
   String time(int ms) => stamp.format(DateTime.fromMillisecondsSinceEpoch(ms));
+  String amount(int c) => '${c ~/ 100}.${(c % 100).toString().padLeft(2, '0')}';
+  String accountName(String? id) => id == null ? (accounts.isEmpty ? '' : 'Sin asignar') : accName[id] ?? '';
 
-  final sorted = [...entries]..sort((a, b) {
-      final byDay = b.occurredOn.compareTo(a.occurredOn);
-      return byDay != 0 ? byDay : b.createdAt.compareTo(a.createdAt);
+  final sorted = <Object>[...entries, ...transfers]..sort((a, b) {
+      String day(Object x) => x is Entry ? x.occurredOn : (x as TransferRow).occurredOn;
+      int created(Object x) => x is Entry ? x.createdAt : (x as TransferRow).createdAt;
+      final byDay = day(b).compareTo(day(a));
+      return byDay != 0 ? byDay : created(b).compareTo(created(a));
     });
+
+  List<String> transferRow(TransferRow t) => [
+        t.id,
+        'transferencia',
+        '${t.amountCents}',
+        amount(t.amountCents),
+        t.occurredOn,
+        '',
+        '',
+        t.note ?? '',
+        'manual',
+        time(t.createdAt),
+        time(t.updatedAt),
+        '',
+        t.fromAccountId ?? '',
+        t.fromAccountId == null ? 'Sin asignar' : accName[t.fromAccountId] ?? '',
+        t.toAccountId ?? '',
+        t.toAccountId == null ? 'Sin asignar' : accName[t.toAccountId] ?? '',
+      ];
 
   final lines = [
     csvColumns.join(csvSeparator),
-    for (final e in sorted)
+    for (final x in sorted)
+      if (x is TransferRow)
+        transferRow(x).map(_escape).join(csvSeparator)
+      else if (x case final Entry e)
       [
         e.id,
         e.kind == EntryKind.expense ? 'gasto' : 'ingreso',
         '${e.amountCents}',
-        '${e.amountCents ~/ 100}.${(e.amountCents % 100).toString().padLeft(2, '0')}',
+        amount(e.amountCents),
         e.occurredOn,
         (e.kind == EntryKind.expense ? catName[e.categoryId] : srcName[e.sourceId]) ?? '',
         (e.kind == EntryKind.expense ? e.categoryId : e.sourceId) ?? '',
@@ -60,6 +101,10 @@ String entriesToCsv(List<Entry> entries, {required List<Category> categories, re
         time(e.createdAt),
         time(e.updatedAt),
         e.accountLabel ?? '',
+        e.accountId ?? '',
+        accountName(e.accountId),
+        '',
+        '',
       ].map(_escape).join(csvSeparator),
   ];
   return '$_bom${lines.join('\r\n')}\r\n';

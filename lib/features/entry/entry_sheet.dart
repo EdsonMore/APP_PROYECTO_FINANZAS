@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:math' as math;
 
+import 'package:drift/drift.dart' show OrderingTerm, Value;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -97,6 +98,12 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
   AmountInput _amount = const AmountInput();
   String? _pick;
   DateTime? _day; // null = hoy
+
+  /// Cuentas que ofrece el chip (4A): las activas (+ la del movimiento en
+  /// edición, aunque esté archivada). Vacía = sin chip: la hoja queda como antes.
+  List<({String id, String name})> _accounts = const [];
+  String? _account; // null = "Sin asignar"
+  bool _accountChosen = false; // elegida a mano: el borrador la recuerda
   bool _noteOpen = false; // pantalla normal: el campo queda visible si hay texto
   bool _noteEditing = false; // el campo existe y tiene (o está por tener) foco
   String? _error;
@@ -114,7 +121,20 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
       ? 'No tienes categorías activas. Actívalas en Ajustes.'
       : 'No tienes fuentes activas. Actívalas en Ajustes.';
 
-  Draft get _draft => Draft(amountText: _amount.text, pickId: _pick, day: _day, note: _note.text);
+  Draft get _draft => Draft(
+      amountText: _amount.text,
+      pickId: _pick,
+      day: _day,
+      note: _note.text,
+      account: _accountChosen ? (_account ?? '') : null);
+
+  Future<List<({String id, String name})>> _activeAccounts() async => [
+        for (final a in await (_db.select(_db.accounts)
+              ..where((a) => a.archived.equals(false))
+              ..orderBy([(a) => OrderingTerm(expression: a.sortOrder)]))
+            .get())
+          (id: a.id, name: a.name),
+      ];
 
   @override
   void initState() {
@@ -130,12 +150,24 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
     if (widget.editing case final e?) return _loadEditing(e);
     final options = await _db.activeOptions(widget.kind);
     final lastUsed = await _db.lastUsedPick(widget.kind);
+    final accounts = await _activeAccounts();
+    final lastAccount = await _db.lastUsedAccount(widget.kind);
     final draft = _store.load(widget.kind);
     if (!mounted) return;
     final today = ref.read(todayProvider);
     final ids = {for (final o in options) o.id};
+    final accountIds = {for (final a in accounts) a.id};
     setState(() {
       _options = options;
+      _accounts = accounts;
+      // Borrador (elegida a mano) → la del último movimiento de este tipo, si
+      // sigue activa → "Sin asignar".
+      if (draft?.account case final chosen?) {
+        _account = accountIds.contains(chosen) ? chosen : null;
+        _accountChosen = true;
+      } else {
+        _account = accountIds.contains(lastAccount) ? lastAccount : null;
+      }
       // Borrador → última usada → primera del orden (Comida / Chamba).
       _pick = [draft?.pickId, lastUsed, options.firstOrNull?.id].firstWhere(ids.contains, orElse: () => null);
       if (draft != null) {
@@ -158,12 +190,19 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
         options.add((id: o.id, name: found.archived ? '${o.name} (archivada)' : o.name, icon: o.icon));
       }
     }
+    final accounts = [...await _activeAccounts()];
+    if (e.accountId case final id? when !accounts.any((a) => a.id == id)) {
+      final a = await (_db.select(_db.accounts)..where((a) => a.id.equals(id))).getSingleOrNull();
+      if (a != null) accounts.add((id: a.id, name: a.archived ? '${a.name} (archivada)' : a.name));
+    }
     if (!mounted) return;
     final today = ref.read(todayProvider);
     final d = parseIsoDay(e.occurredOn);
     final cents = e.amountCents;
     setState(() {
       _options = options;
+      _accounts = accounts;
+      _account = e.accountId;
       _pick = pickId;
       _amount = _sanitize(cents % 100 == 0 ? '${cents ~/ 100}' : '${cents ~/ 100}.${(cents % 100).toString().padLeft(2, '0')}');
       _day = d == today ? null : d;
@@ -294,6 +333,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
           day: _day ?? ref.read(todayProvider),
           pickId: _pick!,
           note: note.isEmpty ? null : note,
+          accountId: Value(_account),
         );
         _done = true;
         HapticFeedback.lightImpact();
@@ -309,6 +349,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
         pickId: _pick!,
         note: note.isEmpty ? null : note,
         now: DateTime.now(),
+        accountId: _account,
       );
       _logDuration(watch.elapsedMilliseconds);
       _done = true;
@@ -442,7 +483,10 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
             child: Text(_isExpense ? 'Gasto' : 'Ingreso',
                 style: AppType.title.copyWith(color: _isExpense ? p.expenseFg : p.incomeFg)),
           ),
-          const Spacer(),
+          // R3 (4A): con el chip de cuenta, en 320 dp no entra todo; la cuenta
+          // se achica y corta su nombre ("Ya…"), el resto no se mueve.
+          Expanded(
+            child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
           PressScale(
             child: Semantics(
               button: true,
@@ -473,6 +517,12 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
               ),
             ),
           ),
+          if (_accounts.isNotEmpty) ...[
+            const SizedBox(width: Space.sm),
+            Flexible(child: _accountChip(p)),
+          ],
+            ]),
+          ),
           const SizedBox(width: Space.sm),
           Builder(
             builder: (buttonContext) => Semantics(
@@ -495,6 +545,84 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
           ),
         ]),
       );
+
+  String get _accountName =>
+      _accounts.where((a) => a.id == _account).firstOrNull?.name ?? 'Sin asignar';
+
+  Widget _accountChip(Palette p) => Semantics(
+        button: true,
+        label: 'Cuenta: $_accountName. Cambiar',
+        excludeSemantics: true,
+        child: GestureDetector(
+          key: const Key('entry.account'),
+          behavior: HitTestBehavior.opaque,
+          onTap: _pickAccount,
+          child: SizedBox(
+            height: 48,
+            child: Center(
+              widthFactor: 1,
+              child: Container(
+                height: 36,
+                padding: const EdgeInsets.only(left: Space.md, right: Space.sm),
+                decoration: BoxDecoration(
+                  color: p.surface,
+                  borderRadius: BorderRadius.circular(Radii.chip),
+                  border: Border.all(color: p.border),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Flexible(
+                    child: Text(_accountName,
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: AppType.label.copyWith(color: p.ink)),
+                  ),
+                  Icon(Icons.expand_more, size: 18, color: p.inkMuted),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      );
+
+  /// Lista de cuentas + "Sin asignar". null del sheet = cerró sin elegir.
+  Future<void> _pickAccount() async {
+    final options = [..._accounts, (id: '', name: 'Sin asignar')];
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      useSafeArea: true,
+      showDragHandle: false,
+      builder: (sheet) {
+        final p = sheet.palette;
+        return SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.lg),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              const SheetGrabber(),
+              Semantics(header: true, child: Text('Cuenta', style: AppType.title.copyWith(color: p.ink))),
+              const SizedBox(height: Space.sm),
+              for (final o in options)
+                InkWell(
+                  key: Key('entry.account.${o.id.isEmpty ? 'unassigned' : o.id}'),
+                  borderRadius: BorderRadius.circular(Radii.button),
+                  onTap: () => Navigator.of(sheet).pop(o.id),
+                  child: SizedBox(
+                    height: 52,
+                    child: Row(children: [
+                      Expanded(child: Text(o.name, style: AppType.body.copyWith(color: p.ink))),
+                      if ((o.id.isEmpty ? null : o.id) == _account) Icon(Icons.check, size: 20, color: p.ink),
+                    ]),
+                  ),
+                ),
+            ]),
+          ),
+        );
+      },
+    );
+    if (picked == null || !mounted) return;
+    _changed(() {
+      _account = picked.isEmpty ? null : picked;
+      _accountChosen = true;
+    });
+  }
 
   Widget _amountView(Palette p) {
     return GestureDetector(

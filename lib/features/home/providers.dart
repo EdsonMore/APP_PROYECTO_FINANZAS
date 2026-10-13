@@ -5,6 +5,7 @@ import '../../core/utils/formatters.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/metrics.dart';
+import '../accounts/providers.dart';
 
 // Streams reactivos: al guardar o deshacer un movimiento, el Home se recalcula solo.
 final entriesStreamProvider = StreamProvider<List<Entry>>((ref) {
@@ -39,6 +40,8 @@ final homeSummaryProvider = Provider<AsyncValue<HomeSummary>>((ref) {
     ref.watch(categoriesStreamProvider),
     ref.watch(sourcesStreamProvider),
     ref.watch(budgetsStreamProvider),
+    ref.watch(accountsStreamProvider),
+    ref.watch(transfersStreamProvider),
   ], () => buildHomeSummary(
     settings: ref.watch(settingsProvider).value,
     entries: ref.watch(entriesStreamProvider).value!,
@@ -46,6 +49,8 @@ final homeSummaryProvider = Provider<AsyncValue<HomeSummary>>((ref) {
     sources: ref.watch(sourcesStreamProvider).value!,
     budgets: ref.watch(budgetsStreamProvider).value!,
     today: ref.watch(todayProvider),
+    accounts: ref.watch(accountsStreamProvider).value!,
+    transfers: ref.watch(transfersStreamProvider).value!,
   ));
 });
 
@@ -121,6 +126,7 @@ class RecentRow {
     required this.amount,
     required this.isIncome,
     required this.isAuto,
+    this.isTransfer = false,
   });
   final String id;
   final String icon;
@@ -131,7 +137,13 @@ class RecentRow {
   final String amount;
   final bool isIncome;
   final bool isAuto;
+
+  /// Transferencia (4A): ícono ⇄ y monto en ink, sin signo.
+  final bool isTransfer;
 }
+
+/// Una fila del bloque "Cuentas" del Home (4A). id null = "Sin asignar".
+typedef AccountView = ({String? id, String icon, String name, int balance});
 
 class HomeSummary {
   const HomeSummary({
@@ -142,6 +154,7 @@ class HomeSummary {
     required this.top,
     required this.recents,
     required this.showOpeningCard,
+    this.accounts = const [],
   });
 
   final String title;
@@ -151,8 +164,12 @@ class HomeSummary {
   final List<TopRow> top;
   final List<RecentRow> recents;
 
-  /// Sin saldo inicial válido (monto + instante), sin importar el balance.
+  /// Sin ningún saldo inicial válido (monto + instante): ni el global ni el de
+  /// una cuenta activa (R2 de 4A), sin importar el balance.
   final bool showOpeningCard;
+
+  /// Bloque "Cuentas" (4A): vacío = sin cuentas, no hay bloque.
+  final List<AccountView> accounts;
 }
 
 // ---------------------------------------------------------------------------
@@ -174,10 +191,13 @@ HomeSummary buildHomeSummary({
   required List<Source> sources,
   required List<Budget> budgets,
   required DateTime today,
+  List<Account> accounts = const [],
+  List<TransferRow> transfers = const [],
 }) {
   final mode = settings?.mode ?? Mode.variable;
   final opening = settings?.opening;
   final movements = [for (final e in entries) e.toMovement()];
+  final book = accountBookOf(accounts, transfers);
   final catById = {for (final c in categories) c.id: c};
   final srcById = {for (final s in sources) s.id: s};
 
@@ -188,7 +208,7 @@ HomeSummary buildHomeSummary({
     mode: mode,
     // D2 (1c): el techo de una categoría archivada queda guardado pero no suma.
     headline: _headline(mode, settings, movements,
-        [for (final b in budgets) if (catById[b.categoryId]?.archived == false) b], today),
+        [for (final b in budgets) if (catById[b.categoryId]?.archived == false) b], today, book),
     light: LightView(
       ratio.light,
       lightTexts[ratio.light]!,
@@ -198,13 +218,28 @@ HomeSummary buildHomeSummary({
     recents: _recents(movements, entries, catById, srcById, today),
     // `opening` es null si falta el monto o el instante (datos viejos): así la
     // tarjeta deja corregirlo en vez de ignorar el saldo en silencio.
-    showOpeningCard: opening == null,
+    showOpeningCard: opening == null && !accounts.any((a) => !a.archived && a.opening != null),
+    accounts: _accountViews(entries, accounts, transfers, opening, today),
   );
 }
 
-Headline _headline(Mode mode, Setting? settings, List<Movement> movements, List<Budget> budgets, DateTime today) {
+List<AccountView> _accountViews(
+    List<Entry> entries, List<Account> accounts, List<TransferRow> transfers, Opening? opening, DateTime today) {
+  if (accounts.isEmpty) return const [];
+  final balances = balancesByAccount(
+      entries: entries, accounts: accounts, transfers: transfers, unassignedOpening: opening, today: today);
+  final unassigned = balances[null]!;
+  return [
+    for (final a in accounts)
+      if (!a.archived) (id: a.id, icon: a.icon, name: a.name, balance: balances[a.id]!),
+    if (showUnassigned(unassigned, entries, transfers)) (id: null, icon: '', name: unassignedName, balance: unassigned),
+  ];
+}
+
+Headline _headline(
+    Mode mode, Setting? settings, List<Movement> movements, List<Budget> budgets, DateTime today, AccountBook book) {
   final opening = settings?.opening;
-  if (movements.isEmpty && opening == null) {
+  if (movements.isEmpty && opening == null && book.isEmpty) {
     return const Headline(
       kind: HeadlineKind.welcome,
       value: 'Empecemos',
@@ -213,7 +248,7 @@ Headline _headline(Mode mode, Setting? settings, List<Movement> movements, List<
   }
 
   final window = settings?.runwayWindowDays ?? 14;
-  final r = runway(movements, today: today, window: window, opening: opening);
+  final r = runway(movements, today: today, window: window, opening: opening, book: book);
   final month = DateFormat('MMMM', 'es_PE').format(DateTime(today.year, today.month));
 
   if (mode == Mode.stable) {

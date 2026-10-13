@@ -4,6 +4,7 @@ import '../../core/utils/formatters.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/metrics.dart';
+import '../accounts/providers.dart';
 import '../budget/providers.dart';
 import '../home/providers.dart';
 
@@ -14,12 +15,16 @@ final insightsSummaryProvider = Provider<AsyncValue<InsightsSummary>>((ref) {
     ref.watch(entriesStreamProvider),
     ref.watch(categoriesStreamProvider),
     ref.watch(budgetsStreamProvider),
+    ref.watch(accountsStreamProvider),
+    ref.watch(transfersStreamProvider),
   ], () => buildInsightsSummary(
     settings: ref.watch(settingsProvider).value,
     entries: ref.watch(entriesStreamProvider).value!,
     categories: ref.watch(categoriesStreamProvider).value!,
     budgets: ref.watch(budgetsStreamProvider).value!,
     today: ref.watch(todayProvider),
+    accounts: ref.watch(accountsStreamProvider).value!,
+    transfers: ref.watch(transfersStreamProvider).value!,
   ));
 });
 
@@ -98,6 +103,15 @@ class SuggestedBlock extends InsightBlock {
   final List<SuggestedRow> rows;
 }
 
+/// "Por cuenta" (4A): saldo y, de los últimos 30 días, lo que salió y entró
+/// (gastos e ingresos de la cuenta; las transferencias no cuentan).
+typedef AccountFlowRow = ({String name, int balance, int outCents, int inCents});
+
+class ByAccountBlock extends InsightBlock {
+  const ByAccountBlock(this.rows);
+  final List<AccountFlowRow> rows;
+}
+
 class InsightsSummary {
   const InsightsSummary({required this.mode, required this.phrase, required this.blocks});
   final Mode mode;
@@ -119,8 +133,11 @@ InsightsSummary buildInsightsSummary({
   required List<Category> categories,
   required List<Budget> budgets,
   required DateTime today,
+  List<Account> accounts = const [],
+  List<TransferRow> transfers = const [],
 }) {
   final mode = settings?.mode ?? Mode.variable;
+  final book = accountBookOf(accounts, transfers);
   final opening = settings?.opening;
   final window = settings?.runwayWindowDays ?? 14;
   final movements = [for (final e in entries) e.toMovement()];
@@ -148,8 +165,8 @@ InsightsSummary buildInsightsSummary({
     _ when best.cents == 0 => null,
     _ => MonthsBlock(best: best, worst: worst!.cents == best.cents ? null : worst),
   };
-  final series = runwaySeries(movements, today: today, window: window, opening: opening);
-  final todayRunway = runway(movements, today: today, window: window, opening: opening);
+  final series = runwaySeries(movements, today: today, window: window, opening: opening, book: book);
+  final todayRunway = runway(movements, today: today, window: window, opening: opening, book: book);
   final runwayB = RunwayBlock(series: series, today: todayRunway, tall: mode == Mode.survival);
   final flow = FlowBlock(
     incomeCents: avgIncome30(movements, today: today, opening: opening),
@@ -203,7 +220,34 @@ InsightsSummary buildInsightsSummary({
         monthsB,
       ],
   };
-  return InsightsSummary(mode: mode, phrase: phrase, blocks: blocks.nonNulls.toList());
+  return InsightsSummary(
+    mode: mode,
+    phrase: phrase,
+    blocks: [...blocks.nonNulls, ?_byAccount(entries, accounts, transfers, opening, today)],
+  );
+}
+
+/// Al final, solo con cuentas. "Sin asignar" con la misma regla que el Home.
+ByAccountBlock? _byAccount(
+    List<Entry> entries, List<Account> accounts, List<TransferRow> transfers, Opening? opening, DateTime today) {
+  if (accounts.isEmpty) return null;
+  final balances = balancesByAccount(
+      entries: entries, accounts: accounts, transfers: transfers, unassignedOpening: opening, today: today);
+  final from = isoDay(today.subtract(const Duration(days: 29))), to = isoDay(today);
+  AccountFlowRow row(String? id, String name) {
+    var out = 0, inc = 0;
+    for (final e in entries) {
+      if (e.accountId != id || e.occurredOn.compareTo(from) < 0 || e.occurredOn.compareTo(to) > 0) continue;
+      e.kind == EntryKind.expense ? out += e.amountCents : inc += e.amountCents;
+    }
+    return (name: name, balance: balances[id]!, outCents: out, inCents: inc);
+  }
+
+  return ByAccountBlock([
+    for (final a in accounts)
+      if (!a.archived) row(a.id, a.name),
+    if (showUnassigned(balances[null]!, entries, transfers)) row(null, unassignedName),
+  ]);
 }
 
 String _first(List<String? Function()> options, {required bool hasData, required Runway today}) {

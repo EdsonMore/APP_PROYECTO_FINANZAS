@@ -54,8 +54,21 @@ Future<void> openSettings(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// Desplaza hasta la fila: la lista de Ajustes ya no entra en una pantalla
+/// (4A sumó "Cuentas") y las de abajo no se construyen hasta verse.
+Future<void> showRow(WidgetTester tester, String key) async {
+  final row = find.byKey(Key('settings.$key'));
+  if (row.evaluate().isEmpty) {
+    await tester.scrollUntilVisible(row, 200, scrollable: find.byType(Scrollable).last);
+  }
+  // ensureVisible la pega arriba y saca de pantalla el "Volver": solo si hace falta.
+  final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+  final r = tester.getRect(row);
+  if (r.top < 0 || r.bottom > screen.height) await tester.ensureVisible(row);
+}
+
 Future<void> tapRow(WidgetTester tester, String key) async {
-  await tester.ensureVisible(find.byKey(Key('settings.$key')));
+  await showRow(tester, key);
   await tester.tap(find.byKey(Key('settings.$key')));
   await tester.pumpAndSettle();
 }
@@ -84,7 +97,11 @@ void main() {
     expect(rowValue('runway', '14 días'), findsOneWidget);
     expect(rowValue('categories', '6 activas'), findsOneWidget);
     expect(rowValue('sources', '5 activas'), findsOneWidget);
+    await showRow(tester, 'accounts');
+    expect(rowValue('accounts', 'Sin cuentas'), findsOneWidget);
+    await showRow(tester, 'export');
     expect(rowValue('export', 'Todavía no hay movimientos'), findsOneWidget);
+    await showRow(tester, 'about');
     expect(rowValue('about', 'Versión 0.2.0'), findsOneWidget);
     await h.unmount(tester);
   });

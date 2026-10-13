@@ -126,6 +126,45 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
   exactamente `balance()`** (test de equivalencia). Las pantallas lo usan desde
   `fase-4a`.
 
+## Multi-cuenta: pantallas (Fase 4A, `fase-4a`)
+
+`lib/features/accounts/`: `accounts_screen.dart` (Ajustes → Cuentas),
+`account_editor.dart`, `transfer_sheet.dart`, `providers.dart`.
+
+- **Cuentas:** activas con su saldo y "Archivadas" aparte; "Nueva cuenta"
+  (nombre con las reglas de los catálogos, 6 íconos de cuenta, saldo inicial
+  opcional con la hoja de saldo inicial: "Saldo inicial de X"); archivar o
+  desarchivar (el saldo sigue en el global; se puede quedar sin activas).
+  "Transferir entre cuentas" solo con alguna cuenta.
+- **Registro (R3):** chip de cuenta en el encabezado, solo con cuentas activas.
+  Por defecto la del último movimiento de ese tipo (si sigue activa), si no "Sin
+  asignar". En edición muestra la del movimiento ("(archivada)" si lo está). El
+  borrador la recuerda (`account`: null = no se tocó, '' = "Sin asignar"). En
+  320 dp el nombre se corta; en 640 dp entra sin scroll.
+- **Transferir:** monto con el teclado propio, Desde/Hacia (cuentas activas +
+  "Sin asignar"), fecha y nota; misma cuenta en los dos lados → "Elige dos
+  cuentas distintas." y botón deshabilitado. Modo edición desde el Historial.
+- **Home:** bloque "Cuentas" después del semáforo (solo con cuentas); negativos
+  en expenseFg; "Sin asignar" solo si tiene saldo o algo propio. Tocar una
+  cuenta abre el Historial filtrado (chip "Yape ✕").
+- **Historial:** transferencias con ⇄, "Yape → Efectivo" y monto sin signo;
+  solo con "Todos" y sin chips; rango y búsqueda (nota y nombres de cuenta)
+  aplican. "N movimientos" cuenta las filas visibles; Gastos/Ingresos no suman
+  transferencias. Tocar edita; deslizar borra (lápida si estaba sincronizada).
+- **Insights:** bloque "Por cuenta" al final (saldo; salió/entró en 30 días sin
+  transferencias). El resto es global.
+- **Saldo global en todos lados (R1):** runway del Home, calculadora, runway y
+  línea de reserva de Insights reciben un `AccountBook` (transferencias +
+  saldos iniciales por cuenta); `firstDay` cuenta también esos saldos
+  iniciales. Sin cuentas, idéntico (tests de equivalencia).
+- **Tarjeta "¿Cuánto tienes hoy?" (R2):** solo si no hay ningún saldo inicial,
+  ni global ni de una cuenta activa.
+- **CSV:** columnas `account_id;account_name;to_account_id;to_account_name`;
+  transferencias como filas `transferencia`; con cuentas, "Sin asignar" = id
+  vacío y ese nombre.
+- **Política de privacidad:** menciona cuentas (nombre, ícono, saldo inicial) y
+  transferencias entre lo que se sincroniza.
+
 ## Modelo de datos (drift, `lib/data/database.dart`, schemaVersion 6)
 
 Convenciones:

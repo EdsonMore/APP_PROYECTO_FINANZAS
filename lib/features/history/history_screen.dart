@@ -17,6 +17,8 @@ import '../home/home_blocks.dart';
 import '../home/home_screen.dart' show deletedSnackDuration;
 import '../home/providers.dart';
 import '../settings/settings_screen.dart';
+import '../accounts/providers.dart';
+import '../accounts/transfer_sheet.dart';
 import 'filters.dart';
 
 /// Historial (4B): todos los movimientos, con filtros, búsqueda en vivo,
@@ -60,7 +62,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final catsAsync = ref.watch(categoriesStreamProvider);
     final srcsAsync = ref.watch(sourcesStreamProvider);
     final today = ref.watch(todayProvider);
-    final ready = entriesAsync.hasValue && catsAsync.hasValue && srcsAsync.hasValue;
+    final accounts = ref.watch(accountsDataProvider);
+    final ready = entriesAsync.hasValue && catsAsync.hasValue && srcsAsync.hasValue && accounts != null;
 
     return Scaffold(
       body: SafeArea(
@@ -72,7 +75,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               child: SubpageHeader(title: 'Historial'),
             ),
             if (ready)
-              ..._body(context, p, entriesAsync.value!, catsAsync.value!, srcsAsync.value!, today)
+              ..._body(context, p, entriesAsync.value!, catsAsync.value!, srcsAsync.value!, accounts, today)
             else
               const Expanded(child: SizedBox()),
           ],
@@ -87,12 +90,20 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     List<Entry> entries,
     List<Category> cats,
     List<Source> srcs,
+    ({List<Account> accounts, List<TransferRow> transfers}) acc,
     DateTime today,
   ) {
     final all = [
       for (final e in entries)
         if (!_removed.contains(e.id)) e,
     ];
+    final allTransfers = [
+      for (final t in acc.transfers)
+        if (!_removed.contains(t.id)) t,
+    ];
+    final accountNames = {for (final a in acc.accounts) a.id: a.name};
+    final transfers = applyTransferFilter(allTransfers, _f, today: today, accountNames: accountNames);
+    final nothingAtAll = all.isEmpty && allTransfers.isEmpty;
     final catById = {for (final c in cats) c.id: c};
     final srcById = {for (final s in srcs) s.id: s};
     final filtered = applyFilter(
@@ -121,6 +132,16 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         padding: const EdgeInsets.symmetric(horizontal: Space.gutter),
         child: Row(
           children: [
+            if (_f.account case final a?) ...[
+              SelectChip(
+                key: const Key('history.account'),
+                label: '${a.id == null ? unassignedName : accountNames[a.id] ?? unassignedName} ✕',
+                semanticsLabel: 'Cuenta: ${a.id == null ? unassignedName : accountNames[a.id]}. Quitar filtro',
+                selected: true,
+                onTap: () => _set(_f.withoutAccount()),
+              ),
+              const SizedBox(width: Space.sm),
+            ],
             for (final (k, label) in const [
               (KindFilter.all, 'Todos'),
               (KindFilter.expense, 'Gastos'),
@@ -131,7 +152,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 label: label,
                 selected: _f.kind == k,
                 // Otro tipo, otros chips: los marcados se limpian.
-                onTap: () => _set(HistoryFilter(kind: k, preset: _f.preset, custom: _f.custom, query: _f.query)),
+                onTap: () => _set(
+                  HistoryFilter(kind: k, preset: _f.preset, custom: _f.custom, query: _f.query, account: _f.account),
+                ),
               ),
               const SizedBox(width: Space.sm),
             ],
@@ -190,19 +213,20 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             ],
           ),
         ),
-      if (all.isNotEmpty && filtered.isNotEmpty)
+      if (filtered.isNotEmpty || transfers.isNotEmpty)
         Padding(
           padding: const EdgeInsets.fromLTRB(Space.gutter, Space.sm, Space.gutter, 0),
-          child: _Totals(totals: totalsOf(filtered), kind: _f.kind),
+          // Cuenta las filas que se ven; los montos, solo gastos e ingresos.
+          child: _Totals(totals: _withTransfers(totalsOf(filtered), transfers.length), kind: _f.kind),
         ),
       Expanded(
-        child: all.isEmpty
+        child: nothingAtAll
             ? _Empty(
                 key: const Key('history.empty'),
                 title: 'Todavía no hay movimientos.',
                 body: 'Registra tu primer gasto o ingreso desde el Inicio.',
               )
-            : filtered.isEmpty
+            : filtered.isEmpty && transfers.isEmpty
             ? _Empty(
                 key: const Key('history.noResults'),
                 title: 'Nada con estos filtros.',
@@ -213,7 +237,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   onTap: _reset,
                 ),
               )
-            : _list(context, p, filtered, catById, srcById, today),
+            : _list(context, p, filtered, transfers, catById, srcById, accountNames, today),
       ),
     ];
   }
@@ -222,12 +246,19 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     BuildContext context,
     Palette p,
     List<Entry> filtered,
+    List<TransferRow> transfers,
     Map<String, Category> catById,
     Map<String, Source> srcById,
+    Map<String, String> accountNames,
     DateTime today,
   ) {
+    final groups = groupByDayOf<Object>(
+      [...filtered, ...transfers],
+      day: (x) => x is Entry ? x.occurredOn : (x as TransferRow).occurredOn,
+      created: (x) => x is Entry ? x.createdAt : (x as TransferRow).createdAt,
+    );
     final items = <Object>[
-      for (final g in groupByDay(filtered)) ...[g.day, ...g.entries],
+      for (final g in groups) ...[g.day, ...g.items],
     ];
     return ListView.builder(
       key: const Key('history.list'),
@@ -248,15 +279,38 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             ),
           );
         }
-        final e = item as Entry;
-        final row = movementRow(e, catById, srcById, today, withDay: false);
+        // Movimiento o transferencia (4A): misma fila, mismo borrado.
+        final (id, row, edit) = switch (item) {
+          Entry e => (e.id, movementRow(e, catById, srcById, today, withDay: false), () => editEntry(context, e)),
+          TransferRow t => (
+            t.id,
+            RecentRow(
+              id: t.id,
+              icon: '',
+              name: transferTitle(t, accountNames),
+              subtitle: t.note ?? '',
+              amount: Formatters.soles(t.amountCents),
+              isIncome: false,
+              isAuto: false,
+              isTransfer: true,
+            ),
+            () => showTransferSheet(context, editing: t),
+          ),
+          _ => throw StateError('fila desconocida'),
+        };
+        final (cents, occurredOn) = switch (item) {
+          Entry e => (e.amountCents, e.occurredOn),
+          TransferRow t => (t.amountCents, t.occurredOn),
+          _ => throw StateError('fila desconocida'),
+        };
+        Future<bool> confirm() => _confirmDelete(context, row.name, cents, occurredOn);
         return Dismissible(
-          key: ValueKey('history.dismiss.${e.id}'),
+          key: ValueKey('history.dismiss.$id'),
           direction: DismissDirection.endToStart,
           // C2: Dismissible espera este Future antes de descartar; false (o
           // cerrar el diálogo sin elegir) devuelve la fila a su lugar.
-          confirmDismiss: (_) => _confirmDelete(context, e, row.name),
-          onDismissed: (_) => _delete(e),
+          confirmDismiss: (_) => confirm(),
+          onDismissed: (_) => _delete(item),
           background: Container(
             color: p.expenseBg,
             alignment: Alignment.centerRight,
@@ -273,13 +327,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           child: ColoredBox(
             color: p.canvas, // tapa el fondo rojo mientras la fila está quieta
             child: MovementTile(
-              key: Key('history.row.${e.id}'),
+              key: Key('history.row.$id'),
               row: row,
               fadeIn: false,
-              onTap: () => editEntry(context, e),
+              onTap: edit,
               actions: {
                 const CustomSemanticsAction(label: 'Borrar'): () async {
-                  if (await _confirmDelete(context, e, row.name)) _delete(e);
+                  if (await confirm()) _delete(item);
                 },
               },
             ),
@@ -289,15 +343,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
-  Future<bool> _confirmDelete(BuildContext context, Entry e, String name) async {
+  Future<bool> _confirmDelete(BuildContext context, String name, int cents, String occurredOn) async {
     final p = context.palette;
-    final d = parseIsoDay(e.occurredOn);
+    final d = parseIsoDay(occurredOn);
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('¿Borrar este movimiento?'),
         content: Text(
-          '$name, ${Formatters.soles(e.amountCents)}, '
+          '$name, ${Formatters.soles(cents)}, '
           '${DateFormat('d MMM', 'es_PE').format(DateTime(d.year, d.month, d.day))}. No se puede deshacer.',
         ),
         actions: [
@@ -318,10 +372,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     return ok ?? false;
   }
 
-  Future<void> _delete(Entry e) async {
+  /// Movimiento o transferencia; los dos dejan lápida si ya estaban sincronizados.
+  Future<void> _delete(Object row) async {
     final messenger = ScaffoldMessenger.of(context);
-    setState(() => _removed.add(e.id));
-    await ref.read(databaseProvider).deleteEntry(e.id); // deja lápida si ya estaba sincronizado
+    final db = ref.read(databaseProvider);
+    switch (row) {
+      case Entry e:
+        setState(() => _removed.add(e.id));
+        await db.deleteEntry(e.id);
+      case TransferRow t:
+        setState(() => _removed.add(t.id));
+        await db.deleteTransfer(t.id);
+    }
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -456,6 +518,9 @@ class _SearchField extends StatelessWidget {
     );
   }
 }
+
+Totals _withTransfers(Totals t, int transfers) =>
+    (count: t.count + transfers, expenseCents: t.expenseCents, incomeCents: t.incomeCents);
 
 /// H7 y C3: "N movimientos · Gastos S/ X · Ingresos S/ Y" en una línea si
 /// cabe; si no, el conteo arriba y los montos abajo. Montos completos, nunca

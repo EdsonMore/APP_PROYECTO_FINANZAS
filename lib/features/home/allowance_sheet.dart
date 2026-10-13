@@ -9,6 +9,7 @@ import '../../core/widgets/sheet_grabber.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/metrics.dart';
+import '../accounts/providers.dart';
 import 'providers.dart';
 
 /// "¿Cuánto puedo gastar hoy?" (4E): hoja desde el link bajo el número
@@ -70,7 +71,10 @@ class _AllowanceSheetState extends ConsumerState<AllowanceSheet> {
     final opening = ref.watch(settingsProvider).value?.opening;
     final custom = _days == null && _until != null;
     final days = custom ? daysUntil(_until!, today: today) : (_days ?? 14);
-    final a = dailyAllowance([for (final e in entries) e.toMovement()], today: today, days: days, opening: opening);
+    final data = ref.watch(accountsDataProvider);
+    final book = data == null ? const AccountBook() : accountBookOf(data.accounts, data.transfers);
+    final a = dailyAllowance([for (final e in entries) e.toMovement()],
+        today: today, days: days, opening: opening, book: book);
     final span = custom ? 'hasta el ${_short(_until!)}' : '$days días';
     final reduced = MediaQuery.disableAnimationsOf(context);
     final number = a == null ? 'Sin reserva' : Formatters.soles(a.leftTodayCents);

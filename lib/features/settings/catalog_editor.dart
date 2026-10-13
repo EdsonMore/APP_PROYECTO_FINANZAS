@@ -158,7 +158,7 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
             const SizedBox(height: Space.lg),
             Wrap(spacing: Space.sm, runSpacing: Space.sm, children: [
               for (final e in IconCatalog.items.entries)
-                _IconTile(
+                IconTile(
                   key: Key('editor.icon.${e.key}'),
                   icon: e.value,
                   name: e.key,
@@ -188,8 +188,8 @@ class _CatalogEditorState extends ConsumerState<CatalogEditor> {
   }
 }
 
-class _IconTile extends StatelessWidget {
-  const _IconTile({super.key, required this.icon, required this.name, required this.selected, required this.onTap});
+class IconTile extends StatelessWidget {
+  const IconTile({super.key, required this.icon, required this.name, required this.selected, required this.onTap});
   final IconData icon;
   final String name;
   final bool selected;

@@ -130,6 +130,21 @@ int totalBalance(List<Movement> movements, List<Transfer> transfers,
   return total;
 }
 
+/// Lo que el saldo global necesita además de los movimientos (R1 de fase-4a):
+/// las transferencias y el saldo inicial de cada cuenta. Vacío (sin cuentas)
+/// = exactamente el saldo de siempre.
+class AccountBook {
+  const AccountBook({this.transfers = const [], this.openings = const {}});
+  final List<Transfer> transfers;
+  final Map<String, Opening> openings;
+
+  bool get isEmpty => transfers.isEmpty && openings.isEmpty;
+}
+
+int _globalBalance(List<Movement> movements, DateTime today, Opening? opening, AccountBook book) => book.isEmpty
+    ? balance(movements, today: today, opening: opening)
+    : totalBalance(movements, book.transfers, today: today, unassignedOpening: opening, accountOpenings: book.openings);
+
 /// "¿Cuánto puedo gastar hoy?" (4E). [spentTodayCents] son solo los gastos de
 /// hoy que [balance] ya restó: con el saldo inicial fijado hoy, los anteriores
 /// a ese momento ya estaban en él.
@@ -138,12 +153,15 @@ typedef Allowance = ({int limitCents, int spentTodayCents, int leftTodayCents, i
 /// límite = floor((saldo + gastado hoy) / días), o sea el saldo con el que
 /// empezó el día; puedes gastar hoy = max(0, límite − gastado hoy). [days]
 /// incluye hoy. null = sin reserva (saldo ≤ 0).
-Allowance? dailyAllowance(List<Movement> movements, {required DateTime today, required int days, Opening? opening}) {
-  final b = balance(movements, today: today, opening: opening);
+Allowance? dailyAllowance(List<Movement> movements,
+    {required DateTime today, required int days, Opening? opening, AccountBook book = const AccountBook()}) {
+  final b = _globalBalance(movements, today, opening, book);
   if (b <= 0) return null;
   var spent = 0;
   for (final m in movements) {
-    if (m.day == today && !m.isIncome && !(opening != null && _coveredByOpening(m, opening))) spent += m.cents;
+    // Cada gasto, contra el saldo inicial de SU cuenta (sin cuenta: el global).
+    final o = m.accountId == null ? opening : book.openings[m.accountId];
+    if (m.day == today && !m.isIncome && !(o != null && _coveredByOpening(m, o))) spent += m.cents;
   }
   final limit = (b + spent) ~/ days;
   return (
@@ -157,8 +175,15 @@ Allowance? dailyAllowance(List<Movement> movements, {required DateTime today, re
 /// Días de hoy a [until], ambos incluidos ("hasta mañana" = 2).
 int daysUntil(DateTime until, {required DateTime today}) => until.difference(today).inDays + 1;
 
-DateTime? firstDay(List<Movement> movements, {required DateTime today, Opening? opening}) {
+/// Primer día con datos: el del primer movimiento o el de un saldo inicial
+/// (el global o, con [book], el de cualquier cuenta). Las transferencias no
+/// cuentan: no crean plata.
+DateTime? firstDay(List<Movement> movements,
+    {required DateTime today, Opening? opening, AccountBook book = const AccountBook()}) {
   DateTime? first = opening?.day;
+  for (final o in book.openings.values) {
+    if (first == null || o.day.isBefore(first)) first = o.day;
+  }
   for (final m in movements) {
     if (m.day.isAfter(today)) continue;
     if (first == null || m.day.isBefore(first)) first = m.day;
@@ -207,11 +232,12 @@ const minReliableDays = 7;
 const maxRunwayDays = 999;
 
 /// R = floor(B / g) = floor(B · D / G), en enteros para no perder centavos.
-Runway runway(List<Movement> movements, {required DateTime today, int window = 14, Opening? opening}) {
-  final first = firstDay(movements, today: today, opening: opening);
+Runway runway(List<Movement> movements,
+    {required DateTime today, int window = 14, Opening? opening, AccountBook book = const AccountBook()}) {
+  final first = firstDay(movements, today: today, opening: opening, book: book);
   if (first == null) return const Runway(RunwayStatus.empty);
 
-  final b = balance(movements, today: today, opening: opening);
+  final b = _globalBalance(movements, today, opening, book);
   if (b <= 0) return const Runway(RunwayStatus.noCushion);
 
   final d = effectiveDays(first: first, today: today, window: window);
@@ -402,14 +428,22 @@ List<Movement> recentMovements(List<Movement> movements, {required DateTime toda
 /// el del saldo inicial si existe (antes no se sabe cuánto había), si no el
 /// del primer movimiento. Sin datos → lista vacía.
 List<int?> runwaySeries(List<Movement> movements,
-    {required DateTime today, int window = 14, Opening? opening, int days = 60}) {
-  final start = opening?.day ?? firstDay(movements, today: today);
+    {required DateTime today,
+    int window = 14,
+    Opening? opening,
+    int days = 60,
+    AccountBook book = const AccountBook()}) {
+  // Con algún saldo inicial (global o de cuenta), desde el primero de ellos.
+  final openingDays = [?opening?.day, for (final o in book.openings.values) o.day];
+  final start = openingDays.isEmpty
+      ? firstDay(movements, today: today)
+      : openingDays.reduce((a, b) => a.isBefore(b) ? a : b);
   if (start == null || start.isAfter(today)) return const [];
   final earliest = today.subtract(Duration(days: days - 1));
   final from = start.isAfter(earliest) ? start : earliest;
   return [
     for (var d = from; !d.isAfter(today); d = d.add(const Duration(days: 1)))
-      switch (runway(movements, today: d, window: window, opening: opening)) {
+      switch (runway(movements, today: d, window: window, opening: opening, book: book)) {
         Runway(status: RunwayStatus.days, :final days) => days,
         _ => null,
       },

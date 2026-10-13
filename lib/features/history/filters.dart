@@ -53,6 +53,7 @@ class HistoryFilter {
     this.preset = RangePreset.all,
     this.custom,
     this.query = '',
+    this.account,
   });
 
   final KindFilter kind;
@@ -63,21 +64,25 @@ class HistoryFilter {
   final DayRange? custom;
   final String query;
 
-  bool get isDefault => kind == KindFilter.all && picks.isEmpty && preset == RangePreset.all && query.trim().isEmpty;
+  /// Filtro por cuenta (4A, desde el Home). null = todas; (id: null) = "Sin asignar".
+  final ({String? id})? account;
 
-  HistoryFilter copyWith({
-    KindFilter? kind,
-    Set<String>? picks,
-    RangePreset? preset,
-    DayRange? custom,
-    String? query,
-  }) => HistoryFilter(
-    kind: kind ?? this.kind,
-    picks: picks ?? this.picks,
-    preset: preset ?? this.preset,
-    custom: custom ?? this.custom,
-    query: query ?? this.query,
-  );
+  bool get isDefault =>
+      kind == KindFilter.all && picks.isEmpty && preset == RangePreset.all && query.trim().isEmpty && account == null;
+
+  HistoryFilter copyWith({KindFilter? kind, Set<String>? picks, RangePreset? preset, DayRange? custom, String? query}) =>
+      HistoryFilter(
+        kind: kind ?? this.kind,
+        picks: picks ?? this.picks,
+        preset: preset ?? this.preset,
+        custom: custom ?? this.custom,
+        query: query ?? this.query,
+        account: account,
+      );
+
+  /// Sin el filtro de cuenta (la ✕ de su chip).
+  HistoryFilter withoutAccount() =>
+      HistoryFilter(kind: kind, picks: picks, preset: preset, custom: custom, query: query);
 }
 
 List<Entry> applyFilter(
@@ -98,12 +103,37 @@ List<Entry> applyFilter(
             KindFilter.income => e.kind == EntryKind.income,
           } &&
           (f.picks.isEmpty || f.picks.contains(e.categoryId ?? e.sourceId)) &&
+          (f.account == null || e.accountId == f.account!.id) &&
           // 'YYYY-MM-DD' se ordena igual que la fecha.
           (from == null || (e.occurredOn.compareTo(from) >= 0 && e.occurredOn.compareTo(to!) <= 0)) &&
           (q.isEmpty ||
               normalizeForSearch(e.note ?? '').contains(q) ||
               normalizeForSearch(catNames[e.categoryId] ?? srcNames[e.sourceId] ?? '').contains(q)))
         e,
+  ];
+}
+
+/// "Yape → Efectivo"; un lado nulo es "Sin asignar".
+String transferTitle(TransferRow t, Map<String, String> accountNames) =>
+    '${accountNames[t.fromAccountId] ?? 'Sin asignar'} → ${accountNames[t.toAccountId] ?? 'Sin asignar'}';
+
+/// Transferencias del Historial (4A): solo con "Todos" y sin chips de
+/// categoría/fuente (no son gasto ni ingreso). Rango, búsqueda (nota y nombres
+/// de las cuentas) y filtro de cuenta (la que sale o la que entra) aplican.
+List<TransferRow> applyTransferFilter(List<TransferRow> transfers, HistoryFilter f,
+    {required DateTime today, required Map<String, String> accountNames}) {
+  if (f.kind != KindFilter.all || f.picks.isNotEmpty) return const [];
+  final range = rangeFor(f.preset, today, custom: f.custom);
+  final from = range == null ? null : isoDay(range.from), to = range == null ? null : isoDay(range.to);
+  final q = normalizeForSearch(f.query.trim());
+  return [
+    for (final t in transfers)
+      if ((from == null || (t.occurredOn.compareTo(from) >= 0 && t.occurredOn.compareTo(to!) <= 0)) &&
+          (f.account == null || t.fromAccountId == f.account!.id || t.toAccountId == f.account!.id) &&
+          (q.isEmpty ||
+              normalizeForSearch(t.note ?? '').contains(q) ||
+              normalizeForSearch(transferTitle(t, accountNames)).contains(q)))
+        t,
   ];
 }
 
@@ -128,18 +158,24 @@ List<PickChoice> pickChoices(KindFilter kind, List<Category> cats, List<Source> 
 typedef DayGroup = ({DateTime day, List<Entry> entries});
 
 /// Del día más nuevo al más viejo; dentro del día, el último registrado primero.
-List<DayGroup> groupByDay(List<Entry> entries) {
-  final sorted = [...entries]
-    ..sort((a, b) {
-      final byDay = b.occurredOn.compareTo(a.occurredOn);
-      return byDay != 0 ? byDay : b.createdAt.compareTo(a.createdAt);
+List<DayGroup> groupByDay(List<Entry> entries) => [
+      for (final g in groupByDayOf(entries, day: (e) => e.occurredOn, created: (e) => e.createdAt))
+        (day: g.day, entries: g.items),
+    ];
+
+/// Lo mismo para cualquier fila (movimientos y transferencias mezclados, 4A).
+List<({DateTime day, List<T> items})> groupByDayOf<T>(List<T> rows,
+    {required String Function(T) day, required int Function(T) created}) {
+  final sorted = [...rows]..sort((a, b) {
+      final byDay = day(b).compareTo(day(a));
+      return byDay != 0 ? byDay : created(b).compareTo(created(a));
     });
-  final groups = <DayGroup>[];
-  for (final e in sorted) {
-    if (groups.isEmpty || isoDay(groups.last.day) != e.occurredOn) {
-      groups.add((day: parseIsoDay(e.occurredOn), entries: <Entry>[]));
+  final groups = <({DateTime day, List<T> items})>[];
+  for (final r in sorted) {
+    if (groups.isEmpty || isoDay(groups.last.day) != day(r)) {
+      groups.add((day: parseIsoDay(day(r)), items: <T>[]));
     }
-    groups.last.entries.add(e);
+    groups.last.items.add(r);
   }
   return groups;
 }

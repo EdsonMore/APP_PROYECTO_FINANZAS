@@ -5,6 +5,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/widgets/budget_bar.dart';
 import '../../core/widgets/icon_catalog.dart';
 import '../../core/widgets/text_link.dart';
+import '../accounts/accounts_screen.dart' show AccountRow;
 import '../../domain/metrics.dart';
 import 'providers.dart';
 
@@ -338,7 +339,7 @@ class MovementTile extends StatelessWidget {
         container: true,
         button: onTap != null,
         label: '${r.name}${r.subtitle.isEmpty ? '' : ', ${r.subtitle}'}, '
-            '${r.isIncome ? 'ingreso' : 'gasto'} de ${r.amount.substring(2)}'
+            '${r.isTransfer ? 'transferencia de ${r.amount}' : '${r.isIncome ? 'ingreso' : 'gasto'} de ${r.amount.substring(2)}'}'
             '${r.isAuto ? ', capturado automáticamente' : ''}',
         onTap: onTap,
         customSemanticsActions: actions,
@@ -349,7 +350,7 @@ class MovementTile extends StatelessWidget {
          child: SizedBox(
           height: 56,
           child: Row(children: [
-            Icon(IconCatalog.iconFor(r.icon), size: 20, color: p.inkMuted),
+            Icon(r.isTransfer ? Icons.swap_horiz : IconCatalog.iconFor(r.icon), size: 20, color: p.inkMuted),
             const SizedBox(width: Space.md),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -374,7 +375,8 @@ class MovementTile extends StatelessWidget {
               ]),
             ),
             const SizedBox(width: Space.md),
-            Text(r.amount, style: AppType.amount.copyWith(color: r.isIncome ? p.incomeFg : p.expenseFg)),
+            Text(r.amount,
+                style: AppType.amount.copyWith(color: r.isTransfer ? p.ink : (r.isIncome ? p.incomeFg : p.expenseFg))),
           ]),
          ),
         ),
@@ -389,6 +391,31 @@ class MovementTile extends StatelessWidget {
       child: tile,
     );
   }
+}
+
+/// Bloque "Cuentas" (4A): después del semáforo, solo si hay cuentas. Tocar
+/// una fila abre el Historial filtrado por esa cuenta.
+class AccountsBlock extends StatelessWidget {
+  const AccountsBlock({super.key, required this.rows, required this.onTap});
+  final List<AccountView> rows;
+  final void Function(String? id) onTap;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        key: const Key('home.accounts'),
+        padding: const EdgeInsets.only(top: Space.xl),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const _SectionTitle('Cuentas'),
+          for (final r in rows)
+            AccountRow(
+              key: Key('home.account.${r.id ?? 'unassigned'}'),
+              icon: r.icon,
+              name: r.name,
+              balance: r.balance,
+              onTap: () => onTap(r.id),
+            ),
+        ]),
+      );
 }
 
 class OpeningCard extends StatelessWidget {
