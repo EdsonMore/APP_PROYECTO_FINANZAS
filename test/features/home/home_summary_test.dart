@@ -6,11 +6,11 @@ import 'package:saldo_claro/features/home/providers.dart';
 
 final today = day(2026, 10, 8);
 const cats = [
-  Category(id: 'comida', name: 'Comida', icon: 'restaurant', colorHex: '#000', sortOrder: 0, archived: false, isDefault: true),
-  Category(id: 'ocio', name: 'Ocio', icon: 'movie', colorHex: '#000', sortOrder: 1, archived: false, isDefault: true),
+  Category(updatedAt: 1, id: 'comida', name: 'Comida', icon: 'restaurant', colorHex: '#000', sortOrder: 0, archived: false, isDefault: true),
+  Category(updatedAt: 1, id: 'ocio', name: 'Ocio', icon: 'movie', colorHex: '#000', sortOrder: 1, archived: false, isDefault: true),
 ];
 const srcs = [
-  Source(id: 'chamba', name: 'Chamba', icon: 'payments', colorHex: '#000', sortOrder: 0, archived: false, isDefault: true),
+  Source(updatedAt: 1, id: 'chamba', name: 'Chamba', icon: 'payments', colorHex: '#000', sortOrder: 0, archived: false, isDefault: true),
 ];
 var _n = 0;
 
@@ -31,7 +31,7 @@ Entry e(EntryKind kind, int soles, DateTime d, {String? cat, String? src, String
 }
 
 Setting settings(Mode mode, {String? name}) =>
-    Setting(id: 1, mode: mode, spaceName: name, runwayWindowDays: 14, incomeWindowDays: 30, onboardingDone: true);
+    Setting(updatedAt: 1, id: 1, mode: mode, spaceName: name, runwayWindowDays: 14, incomeWindowDays: 30, onboardingDone: true);
 
 DateTime ago(int n) => today.subtract(Duration(days: n));
 
@@ -55,7 +55,7 @@ void main() {
   test('nombre del espacio', () => expect(build(Mode.stable, const [], name: 'Casa').title, 'Casa'));
 
   group('Estable', () {
-    const budgets = [Budget(categoryId: 'comida', capCents: 50000), Budget(categoryId: 'ocio', capCents: 30000)];
+    const budgets = [Budget(updatedAt: 1, categoryId: 'comida', capCents: 50000), Budget(updatedAt: 1, categoryId: 'ocio', capCents: 30000)];
 
     test('con techos e ingreso en el mes → "Te queda" + porcentaje', () {
       final s = build(Mode.stable, [e(EntryKind.income, 1000, day(2026, 10, 1)), e(EntryKind.expense, 160, ago(1))],
@@ -80,14 +80,14 @@ void main() {
     test('el techo de una categoría archivada no suma al total (D2)', () {
       final withArchived = [
         ...cats,
-        const Category(id: 'viejo', name: 'Viejo', icon: 'category', colorHex: 'cat:7', sortOrder: 2, archived: true, isDefault: false),
+        const Category(updatedAt: 1, id: 'viejo', name: 'Viejo', icon: 'category', colorHex: 'cat:7', sortOrder: 2, archived: true, isDefault: false),
       ];
       final s = buildHomeSummary(
           settings: settings(Mode.stable),
           entries: [e(EntryKind.income, 1000, day(2026, 10, 1)), e(EntryKind.expense, 160, ago(1))],
           categories: withArchived,
           sources: srcs,
-          budgets: [...budgets, const Budget(categoryId: 'viejo', capCents: 99900)],
+          budgets: [...budgets, const Budget(updatedAt: 1, categoryId: 'viejo', capCents: 99900)],
           today: today);
       expect(s.headline.value, 'S/ 640.00', reason: '800 de techos activos − 160, sin los 999 de la archivada');
       expect(s.headline.budgetPercent, 20);

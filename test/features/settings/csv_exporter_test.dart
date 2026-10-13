@@ -4,11 +4,11 @@ import 'package:saldo_claro/domain/metrics.dart';
 import 'package:saldo_claro/features/settings/csv_exporter.dart';
 
 const cats = [
-  Category(id: 'comida', name: 'Comida', icon: 'restaurant', colorHex: '#000', sortOrder: 0, archived: false, isDefault: true),
-  Category(id: 'viajes', name: 'Viajes', icon: 'flight', colorHex: '#000', sortOrder: 1, archived: true, isDefault: false),
+  Category(updatedAt: 1, id: 'comida', name: 'Comida', icon: 'restaurant', colorHex: '#000', sortOrder: 0, archived: false, isDefault: true),
+  Category(updatedAt: 1, id: 'viajes', name: 'Viajes', icon: 'flight', colorHex: '#000', sortOrder: 1, archived: true, isDefault: false),
 ];
 const srcs = [
-  Source(id: 'prestamo', name: 'Préstamo', icon: 'account_balance', colorHex: '#000', sortOrder: 0, archived: false, isDefault: true),
+  Source(updatedAt: 1, id: 'prestamo', name: 'Préstamo', icon: 'account_balance', colorHex: '#000', sortOrder: 0, archived: false, isDefault: true),
 ];
 
 int ms(int day, int hour, [int minute = 0]) => DateTime(2026, 10, day, hour, minute).millisecondsSinceEpoch;

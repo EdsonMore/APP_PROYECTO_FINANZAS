@@ -94,7 +94,7 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
   `id;kind;amount_cents;amount;occurred_on;category_or_source;category_or_source_id;note;origin;created_at;updated_at;account_label`.
   `kind` va en español (gasto/ingreso); las fechas, en ISO local.
 
-## Modelo de datos (drift, `lib/data/database.dart`, schemaVersion 3)
+## Modelo de datos (drift, `lib/data/database.dart`, schemaVersion 4)
 
 Convenciones:
 
@@ -152,6 +152,26 @@ Convenciones:
   2. Categorías del usuario (`is_default = 0`, archivadas incluidas), por
      `sort_order, id`: `customCategorySlot(k)` = `cat:${(k + 6) % 9 + 1}`.
   3. Fuentes: no se tocan.
+- **v3 → v4** (`migrateV3ToV4`, Fase 3E), solo ADD COLUMN:
+  1. `updated_at INTEGER NOT NULL DEFAULT 0` en categories, sources, budgets y
+     settings (entries ya lo tenía). Las filas existentes reciben la hora de
+     la migración. El 0 es solo el default técnico de SQLite: un test exige
+     que ninguna fila quede en 0.
+  2. `synced_at INTEGER NULL` en las 5: NULL = nunca sincronizado. Todo lo
+     que había queda pendiente y se sube al crear la cuenta (3B).
+  3. Tabla `tombstones (entity, row_id, deleted_at)`, PK (entity, row_id),
+     `entity` ∈ {entries, budgets}. Se llama `entity` y no `table_name`:
+     choca con `Table.tableName` en el código que genera drift.
+- **Sync en local (Fase 3E):**
+  - Pendiente de subir = `synced_at IS NULL OR synced_at < updated_at`.
+  - Toda escritura pone `updated_at = MAX(ahora, updated_at + 1)` (siempre
+    crece, aunque el reloj quede quieto o retroceda); las inserciones, la
+    hora. Reloj inyectable: `AppDatabase(executor, clock)`.
+  - Borrar un movimiento o quitar un techo es un DELETE real y, solo si la
+    fila ya se había sincronizado, deja lápida en la misma transacción.
+    `setBudget` borra la lápida de ese techo (el techo nuevo gana). Ninguna
+    consulta de la app filtra borrados.
+  - `accounts` y `goals` no se sincronizan en la Fase 3.
 - Tests en `test/drift/saldoclaro/migration_test.dart`: base v1 real con datos,
   esquema migrado idéntico al de una instalación nueva, casos del ícono, FK y
   rollback de una migración que falla a mitad.

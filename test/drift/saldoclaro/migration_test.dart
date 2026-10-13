@@ -45,9 +45,54 @@ Future<InitializedSchema> v1Database([Future<void> Function(v1.DatabaseAtV1 db)?
 /// valida que el esquema resultante sea idéntico al de una instalación nueva.
 Future<AppDatabase> migrate(InitializedSchema schema) async {
   final db = AppDatabase(schema.newConnection());
-  await verifier.migrateAndValidate(db, 3);
+  await verifier.migrateAndValidate(db, db.schemaVersion);
   return db;
 }
+
+/// Base v3 como la de un teléfono real: semilla con slots, una categoría
+/// propia archivada, una fuente propia, gastos e ingresos (con nota y
+/// cuenta en texto), techos y ajustes con saldo inicial y emoji en el nombre.
+Future<InitializedSchema> v3Database() async {
+  final schema = await verifier.schemaAt(3);
+  final old = v3.DatabaseAtV3(schema.newConnection());
+  for (final (i, (id, name, icon)) in v1Categories.indexed) {
+    await old.into(old.categories).insert(v3.CategoriesCompanion.insert(
+        id: id, name: name, icon: icon == 'local_mall' ? 'category' : icon, colorHex: 'cat:${i + 1}', sortOrder: i,
+        isDefault: const Value(1)));
+  }
+  await old.into(old.categories).insert(v3.CategoriesCompanion.insert(
+      id: 'ropa', name: 'Ropa', icon: 'category', colorHex: 'cat:7', sortOrder: 6, archived: const Value(1)));
+  for (final (i, (id, name)) in v1Sources.indexed) {
+    await old.into(old.sources).insert(v3.SourcesCompanion.insert(
+        id: id, name: name, icon: 'payments', colorHex: '#047857', sortOrder: i, isDefault: const Value(1)));
+  }
+  await old.into(old.sources).insert(
+      v3.SourcesCompanion.insert(id: 'bono', name: 'Bono', icon: 'redeem', colorHex: '#525252', sortOrder: 5));
+  await old.into(old.entries).insert(v3.EntriesCompanion.insert(
+      id: 'g1', kind: 'expense', amountCents: 1250, occurredOn: '2026-10-08', categoryId: const Value('comida'),
+      note: const Value('Menú'), accountLabel: const Value('Yape'), createdAt: 1111, updatedAt: 2222));
+  await old.into(old.entries).insert(v3.EntriesCompanion.insert(
+      id: 'g2', kind: 'expense', amountCents: 4000, occurredOn: '2026-09-30', categoryId: const Value('ropa'),
+      createdAt: 3333, updatedAt: 3333));
+  await old.into(old.entries).insert(v3.EntriesCompanion.insert(
+      id: 'i1', kind: 'income', amountCents: 150000, occurredOn: '2026-10-01', sourceId: const Value('bono'),
+      origin: const Value('auto'), createdAt: 4444, updatedAt: 5555));
+  await old.into(old.budgets).insert(v3.BudgetsCompanion.insert(categoryId: 'comida', capCents: 60000));
+  await old.into(old.budgets).insert(v3.BudgetsCompanion.insert(categoryId: 'ropa', capCents: 9000));
+  await old.into(old.settings).insert(v3.SettingsCompanion.insert(
+      id: const Value(1), mode: 'stable', spaceName: const Value('Casa 🏠'), runwayWindowDays: const Value(21),
+      openingBalanceCents: const Value(110000), openingBalanceAt: const Value(900), onboardingDone: const Value(1)));
+  await old.close();
+  return schema;
+}
+
+const syncTables = [
+  ('categories', 'id'),
+  ('sources', 'id'),
+  ('entries', 'id'),
+  ('budgets', 'category_id'),
+  ('settings', 'id'),
+];
 
 /// Base v2 real con la semilla tal como la creaba la v2 (hex provisionales),
 /// fuentes, y lo que agregue [fill].
@@ -95,14 +140,74 @@ void main() {
 
   setUpAll(() => verifier = SchemaVerifier(GeneratedHelper()));
 
-  for (final from in [1, 2]) {
-    test('v$from → v3 sin datos: el esquema migrado es idéntico al de una instalación nueva', () async {
+  for (final from in [1, 2, 3]) {
+    test('v$from → v4 sin datos: el esquema migrado es idéntico al de una instalación nueva', () async {
       final schema = await verifier.schemaAt(from);
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 3);
+      await verifier.migrateAndValidate(db, 4);
       await db.close();
     });
   }
+
+  group('v3 → v4 (columnas de sync y lápidas)', () {
+    test('no se pierde ningún dato: cada fila y cada columna de v3 sigue igual', () async {
+      final schema = await v3Database();
+      // Foto de v3 con la conexión cruda, antes de migrar.
+      final before = {
+        for (final (t, o) in syncTables) t: [for (final r in schema.rawDatabase.select('SELECT * FROM $t ORDER BY $o')) Map.of(r)],
+      };
+      expect(before['entries'], hasLength(3));
+      expect(before['categories'], hasLength(7));
+
+      final db = await migrate(schema);
+      for (final (t, o) in syncTables) {
+        final after = [
+          for (final r in await db.customSelect('SELECT * FROM $t ORDER BY $o').get())
+            {for (final e in r.data.entries) if (before[t]!.first.containsKey(e.key)) e.key: e.value},
+        ];
+        expect(after, before[t], reason: '$t: mismas filas y mismos valores');
+      }
+      expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
+      await db.close();
+    });
+
+    test('V3: justo después de migrar ninguna fila tiene updated_at = 0; synced_at NULL en todas; sin lápidas', () async {
+      final db = await migrate(await v3Database());
+      for (final (t, _) in syncTables) {
+        final r = await db
+            .customSelect('SELECT COUNT(*) AS n, SUM(updated_at = 0) AS ceros, SUM(synced_at IS NOT NULL) AS sync FROM $t')
+            .getSingle();
+        expect(r.read<int>('n'), greaterThan(0), reason: '$t tiene filas');
+        expect(r.read<int>('ceros'), 0, reason: '$t: ninguna fila con updated_at = 0');
+        expect(r.read<int>('sync'), 0, reason: '$t: todo pendiente de subir');
+      }
+      expect(await db.customSelect('SELECT * FROM tombstones').get(), isEmpty);
+      await db.close();
+    });
+
+    test('entries conserva su updated_at; las otras 4 tablas reciben la hora de la migración', () async {
+      final start = DateTime.now().millisecondsSinceEpoch;
+      final db = await migrate(await v3Database());
+      final entries = {
+        for (final r in await db.customSelect('SELECT id, updated_at FROM entries').get())
+          r.read<String>('id'): r.read<int>('updated_at'),
+      };
+      expect(entries, {'g1': 2222, 'g2': 3333, 'i1': 5555});
+      for (final t in ['categories', 'sources', 'budgets', 'settings']) {
+        final min = (await db.customSelect('SELECT MIN(updated_at) AS m FROM $t').getSingle()).read<int>('m');
+        expect(min, greaterThanOrEqualTo(start), reason: t);
+      }
+      await db.close();
+    });
+
+    test('después de migrar, borrar y quitar techos no deja lápidas (nada estaba sincronizado)', () async {
+      final db = await migrate(await v3Database());
+      expect(await db.deleteEntry('g1'), 1);
+      await db.removeBudget('ropa');
+      expect(await db.customSelect('SELECT * FROM tombstones').get(), isEmpty);
+      await db.close();
+    });
+  });
 
   group('v2 → v3 (solo datos: slots de la paleta)', () {
     test('semilla → cat:1…6 sin condición; personalizadas → 7, 8, 9, 1 por sort_order; fuentes intactas', () async {

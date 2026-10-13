@@ -9,7 +9,7 @@ import 'package:saldo_claro/features/insights/runway_line.dart';
 final today = day(2026, 10, 8);
 DateTime ago(int n) => today.subtract(Duration(days: n));
 
-Category cat(String id, int slot, {bool archived = false}) => Category(
+Category cat(String id, int slot, {bool archived = false}) => Category(updatedAt: 1, 
     id: id, name: '${id[0].toUpperCase()}${id.substring(1)}', icon: 'category', colorHex: 'cat:$slot',
     sortOrder: slot, archived: archived, isDefault: slot <= 6);
 
@@ -35,7 +35,7 @@ Entry e(EntryKind kind, int soles, DateTime d, {String cat = 'comida'}) {
 }
 
 InsightsSummary build(Mode mode, List<Entry> entries, {List<Budget> budgets = const []}) => buildInsightsSummary(
-    settings: Setting(id: 1, mode: mode, runwayWindowDays: 14, incomeWindowDays: 30, onboardingDone: true),
+    settings: Setting(updatedAt: 1, id: 1, mode: mode, runwayWindowDays: 14, incomeWindowDays: 30, onboardingDone: true),
     entries: entries,
     categories: cats,
     budgets: budgets,
@@ -60,9 +60,9 @@ void main() {
     test('Estable E1: techos activos vs todo el gasto del mes', () {
       final s = build(Mode.stable, [e(EntryKind.income, 1000, day(2026, 10, 1)), e(EntryKind.expense, 160, ago(1))],
           budgets: const [
-            Budget(categoryId: 'comida', capCents: 50000),
-            Budget(categoryId: 'ocio', capCents: 30000),
-            Budget(categoryId: 'ropa', capCents: 99900), // archivada: no suma (D2)
+            Budget(updatedAt: 1, categoryId: 'comida', capCents: 50000),
+            Budget(updatedAt: 1, categoryId: 'ocio', capCents: 30000),
+            Budget(updatedAt: 1, categoryId: 'ropa', capCents: 99900), // archivada: no suma (D2)
           ]);
       expect(s.phrase, 'Llevas S/ 160.00 de S/ 800.00 de tus techos este mes.');
     });
@@ -184,7 +184,7 @@ void main() {
       e(EntryKind.expense, 50, ago(5), cat: 'salud'),
       e(EntryKind.expense, 20, ago(5), cat: 'vivienda'), // cuarta candidata: queda fuera
       e(EntryKind.expense, 400, ago(5), cat: 'ropa'), // archivada: no se sugiere
-    ], budgets: const [Budget(categoryId: 'comida', capCents: 10000)]);
+    ], budgets: const [Budget(updatedAt: 1, categoryId: 'comida', capCents: 10000)]);
     final rows = s.blocks.whereType<SuggestedBlock>().single.rows;
     expect(rows.map((r) => r.categoryId), ['transporte', 'ocio', 'salud']);
   });

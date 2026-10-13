@@ -33,9 +33,19 @@ mixin _Catalog on Table {
   Set<Column> get primaryKey => {id};
 }
 
-class Categories extends Table with _Catalog {}
+/// Columnas de sync (Fase 3, SPEC §Sync). updated_at: epoch ms del último
+/// cambio local, siempre creciente (ver [AppDatabase.bumped]); 0 solo como
+/// default técnico de SQLite al agregar la columna, ninguna fila queda así.
+/// synced_at: updated_at de la última versión subida o bajada; NULL = nunca.
+/// Pendiente de subir = synced_at IS NULL OR synced_at < updated_at.
+mixin _Synced on Table {
+  IntColumn get updatedAt => integer().withDefault(const Constant(0))();
+  IntColumn get syncedAt => integer().nullable()();
+}
 
-class Sources extends Table with _Catalog {}
+class Categories extends Table with _Catalog, _Synced {}
+
+class Sources extends Table with _Catalog, _Synced {}
 
 /// Cuentas (Yape, BCP, crédito, efectivo). Vacía hasta la Fase 3: sin UI ni
 /// semilla. Existe desde la v2 para no reconstruir `entries` cuando llegue la
@@ -65,6 +75,9 @@ class Entries extends Table {
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 
+  /// Ver [_Synced] (entries ya tenía updated_at desde la v1).
+  IntColumn get syncedAt => integer().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 
@@ -76,7 +89,7 @@ class Entries extends Table {
 }
 
 /// Una sola fila (id = 1), creada al terminar el onboarding.
-class Settings extends Table {
+class Settings extends Table with _Synced {
   IntColumn get id => integer().check(id.equals(1))();
   TextColumn get mode => textEnum<Mode>().check(mode.isIn(const ['stable', 'variable', 'survival']))();
   TextColumn get spaceName => text().nullable()();
@@ -95,12 +108,30 @@ class Settings extends Table {
 }
 
 /// Techo mensual recurrente por categoría.
-class Budgets extends Table {
+class Budgets extends Table with _Synced {
   TextColumn get categoryId => text().references(Categories, #id)();
   IntColumn get capCents => integer().check(capCents.isBiggerThanValue(0))();
 
   @override
   Set<Column> get primaryKey => {categoryId};
+}
+
+/// Borrados que faltan subir (Fase 3). Solo se anota lo que llegó a
+/// sincronizarse: lo que nunca salió del teléfono no existe en el servidor.
+/// Al subirse, la lápida se elimina. Las filas se borran de verdad en local,
+/// así que ninguna consulta de la app tiene que filtrar borrados.
+class Tombstones extends Table {
+  /// Tabla de la fila borrada: 'entries' o 'budgets' (lo único que la app
+  /// borra; lo demás se archiva). No se llama table_name: choca con
+  /// Table.tableName en el código que genera drift.
+  TextColumn get entity => text().check(entity.isIn(const ['entries', 'budgets']))();
+
+  /// id del movimiento, o category_id del techo.
+  TextColumn get recordId => text().named('row_id')();
+  IntColumn get deletedAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {entity, recordId};
 }
 
 class Goals extends Table {
@@ -135,25 +166,45 @@ const defaultSources = [
   ('otro', 'Otro', 'redeem', '#525252'),
 ];
 
-@DriftDatabase(tables: [Categories, Sources, Entries, Settings, Budgets, Goals, Accounts])
+@DriftDatabase(tables: [Categories, Sources, Entries, Settings, Budgets, Goals, Accounts, Tombstones])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase([QueryExecutor? executor]) : super(executor ?? driftDatabase(name: 'saldoclaro'));
+  /// [clock]: epoch ms "ahora". Inyectable para tests; por defecto, la hora real.
+  AppDatabase([QueryExecutor? executor, int Function()? clock])
+      : _now = clock ?? _systemNow,
+        super(executor ?? driftDatabase(name: 'saldoclaro'));
+
+  final int Function() _now;
+  static int _systemNow() => DateTime.now().millisecondsSinceEpoch;
+
+  /// [values] más updated_at = MAX(ahora, updated_at + 1): siempre crece,
+  /// aunque el reloj quede quieto (dos cambios en el mismo ms) o retroceda.
+  /// Si no creciera, un cambio hecho justo después de sincronizar quedaría
+  /// marcado como ya subido. Para UPDATE y para el DO UPDATE de un upsert
+  /// (ahí updated_at es el valor de la fila existente).
+  @visibleForTesting
+  Insertable<D> bumped<D>(Insertable<D> values) => RawValuesInsertable<D>({
+        ...values.toColumns(false),
+        'updated_at': CustomExpression<int>('MAX(${_now()}, updated_at + 1)'),
+      });
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await m.createAll();
+          final now = _now();
           await batch((b) {
             for (final (i, (id, name, icon, color)) in defaultCategories.indexed) {
               b.insert(categories, CategoriesCompanion.insert(
-                  id: id, name: name, icon: icon, colorHex: color, sortOrder: i, isDefault: const Value(true)));
+                  id: id, name: name, icon: icon, colorHex: color, sortOrder: i, isDefault: const Value(true),
+                  updatedAt: Value(now)));
             }
             for (final (i, (id, name, icon, color)) in defaultSources.indexed) {
               b.insert(sources, SourcesCompanion.insert(
-                  id: id, name: name, icon: icon, colorHex: color, sortOrder: i, isDefault: const Value(true)));
+                  id: id, name: name, icon: icon, colorHex: color, sortOrder: i, isDefault: const Value(true),
+                  updatedAt: Value(now)));
             }
           });
         },
@@ -161,7 +212,7 @@ class AppDatabase extends _$AppDatabase {
           // Una transacción: si un paso falla, la base vuelve entera a la
           // versión anterior (drift no envuelve la migración por su cuenta y
           // solo sube user_version si todo termina bien).
-          await transaction(() => stepByStep(from1To2: migrateV1ToV2, from2To3: migrateV2ToV3)(m, from, to));
+          await transaction(() => stepByStep(from1To2: migrateV1ToV2, from2To3: migrateV2ToV3, from3To4: migrateV3ToV4)(m, from, to));
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -205,18 +256,46 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
-  /// Cierra el onboarding: crea (o reemplaza) la fila única de settings.
-  Future<void> completeOnboarding({required Mode mode, String? spaceName}) =>
-      into(settings).insertOnConflictUpdate(SettingsCompanion.insert(
-        id: const Value(1),
-        mode: mode,
-        spaceName: Value(spaceName),
-        runwayWindowDays: const Value(14),
-        incomeWindowDays: const Value(30),
-        onboardingDone: const Value(true),
-      ));
+  /// v3 → v4 (Fase 3E): columnas de sync y tabla de lápidas, con ADD COLUMN
+  /// (sin reconstruir tablas). Las filas que ya estaban en el teléfono:
+  /// updated_at = la hora de la migración (entries conserva el suyo) y
+  /// synced_at = NULL, o sea, todo pendiente: al crear la cuenta (3B) se sube.
+  /// Sin lápidas: lo borrado antes de la v4 nunca existió en el servidor.
+  @visibleForTesting
+  Future<void> migrateV3ToV4(Migrator m, Schema4 schema) async {
+    await m.addColumn(schema.categories, schema.categories.updatedAt);
+    await m.addColumn(schema.categories, schema.categories.syncedAt);
+    await m.addColumn(schema.sources, schema.sources.updatedAt);
+    await m.addColumn(schema.sources, schema.sources.syncedAt);
+    await m.addColumn(schema.entries, schema.entries.syncedAt);
+    await m.addColumn(schema.budgets, schema.budgets.updatedAt);
+    await m.addColumn(schema.budgets, schema.budgets.syncedAt);
+    await m.addColumn(schema.settings, schema.settings.updatedAt);
+    await m.addColumn(schema.settings, schema.settings.syncedAt);
+    await m.createTable(schema.tombstones);
+    final now = _now();
+    for (final t in ['categories', 'sources', 'budgets', 'settings']) {
+      await customStatement('UPDATE $t SET updated_at = ?', [now]);
+    }
+  }
 
-  Future<void> _updateSettings(SettingsCompanion c) => (update(settings)..where((s) => s.id.equals(1))).write(c);
+  /// Cierra el onboarding: crea (o reemplaza) la fila única de settings.
+  /// Reemplazar no toca el saldo inicial.
+  Future<void> completeOnboarding({required Mode mode, String? spaceName}) => transaction(() async {
+        final values = SettingsCompanion(
+          mode: Value(mode),
+          spaceName: Value(spaceName),
+          runwayWindowDays: const Value(14),
+          incomeWindowDays: const Value(30),
+          onboardingDone: const Value(true),
+        );
+        if (await _updateSettings(values) == 0) {
+          await into(settings).insert(values.copyWith(id: const Value(1), updatedAt: Value(_now())));
+        }
+      });
+
+  Future<int> _updateSettings(SettingsCompanion c) =>
+      (update(settings)..where((s) => s.id.equals(1))).write(bumped(c));
 
   Future<void> setMode(Mode mode) => _updateSettings(SettingsCompanion(mode: Value(mode)));
 
@@ -255,45 +334,60 @@ class AppDatabase extends _$AppDatabase {
             ..where(categories.isDefault.equals(false)))
           .map((r) => r.read(categories.id.count())!)
           .getSingle();
-      await into(categories).insert(
-          CategoriesCompanion.insert(id: id, name: name, icon: icon, colorHex: customCategorySlot(k), sortOrder: order));
+      await into(categories).insert(CategoriesCompanion.insert(
+          id: id, name: name, icon: icon, colorHex: customCategorySlot(k), sortOrder: order, updatedAt: Value(_now())));
     } else {
-      await into(sources)
-          .insert(SourcesCompanion.insert(id: id, name: name, icon: icon, colorHex: newItemColor, sortOrder: order));
+      await into(sources).insert(SourcesCompanion.insert(
+          id: id, name: name, icon: icon, colorHex: newItemColor, sortOrder: order, updatedAt: Value(_now())));
     }
   }
 
   Future<void> updateCatalogItem(EntryKind kind, String id, {required String name, required String icon}) =>
       kind == EntryKind.expense
           ? (update(categories)..where((c) => c.id.equals(id)))
-              .write(CategoriesCompanion(name: Value(name), icon: Value(icon)))
-          : (update(sources)..where((c) => c.id.equals(id))).write(SourcesCompanion(name: Value(name), icon: Value(icon)));
+              .write(bumped(CategoriesCompanion(name: Value(name), icon: Value(icon))))
+          : (update(sources)..where((c) => c.id.equals(id)))
+              .write(bumped(SourcesCompanion(name: Value(name), icon: Value(icon))));
 
   /// Archivar no borra: los movimientos viejos siguen apuntando al ítem.
   /// Reactivar lo manda al final de los activos.
   Future<void> setArchived(EntryKind kind, String id, {required bool archived}) async {
     final order = archived ? null : await _nextSortOrder(kind);
     if (kind == EntryKind.expense) {
-      await (update(categories)..where((c) => c.id.equals(id))).write(CategoriesCompanion(
-          archived: Value(archived), sortOrder: order == null ? const Value.absent() : Value(order)));
+      await (update(categories)..where((c) => c.id.equals(id))).write(bumped(CategoriesCompanion(
+          archived: Value(archived), sortOrder: order == null ? const Value.absent() : Value(order))));
     } else {
-      await (update(sources)..where((c) => c.id.equals(id))).write(
-          SourcesCompanion(archived: Value(archived), sortOrder: order == null ? const Value.absent() : Value(order)));
+      await (update(sources)..where((c) => c.id.equals(id))).write(bumped(
+          SourcesCompanion(archived: Value(archived), sortOrder: order == null ? const Value.absent() : Value(order))));
     }
   }
 
   /// Techo mensual de una categoría (crea o reemplaza). [cents] > 0: lo exige
-  /// el CHECK de la tabla.
-  Future<void> setBudget(String categoryId, int cents) =>
-      into(budgets).insertOnConflictUpdate(BudgetsCompanion.insert(categoryId: categoryId, capCents: cents));
+  /// el CHECK de la tabla. En la misma transacción borra la lápida de ese
+  /// techo si la hay: el techo nuevo le gana a un "Quitar techo" anterior.
+  Future<void> setBudget(String categoryId, int cents) => transaction(() async {
+        await into(budgets).insert(
+          BudgetsCompanion.insert(categoryId: categoryId, capCents: cents, updatedAt: Value(_now())),
+          onConflict: DoUpdate((_) => bumped(BudgetsCompanion(capCents: Value(cents)))),
+        );
+        await (delete(tombstones)
+              ..where((t) => t.entity.equals('budgets') & t.recordId.equals(categoryId)))
+            .go();
+      });
 
-  Future<void> removeBudget(String categoryId) =>
-      (delete(budgets)..where((b) => b.categoryId.equals(categoryId))).go();
+  /// Quitar techo. Si ya se había sincronizado, deja lápida (misma transacción).
+  Future<void> removeBudget(String categoryId) => transaction(() async {
+        final row = await (select(budgets)..where((b) => b.categoryId.equals(categoryId))).getSingleOrNull();
+        await (delete(budgets)..where((b) => b.categoryId.equals(categoryId))).go();
+        if (row?.syncedAt != null) await _tombstone('budgets', categoryId);
+      });
+
+  Future<void> _tombstone(String table, String id) => into(tombstones)
+      .insertOnConflictUpdate(TombstonesCompanion.insert(entity: table, recordId: id, deletedAt: _now()));
 
   /// Saldo inicial: monto e instante SIEMPRE juntos. Un monto sin instante se
   /// ignora en los cálculos (ver [SettingOpening.opening]).
-  Future<void> setOpeningBalance({required int cents, required DateTime at}) =>
-      (update(settings)..where((s) => s.id.equals(1))).write(SettingsCompanion(
+  Future<void> setOpeningBalance({required int cents, required DateTime at}) => _updateSettings(SettingsCompanion(
         openingBalanceCents: Value(cents),
         openingBalanceAt: Value(at.millisecondsSinceEpoch),
       ));
@@ -326,8 +420,15 @@ class AppDatabase extends _$AppDatabase {
     return kind == EntryKind.expense ? e?.categoryId : e?.sourceId;
   }
 
-  /// DELETE real (Deshacer del Home): sin borrado lógico.
-  Future<int> deleteEntry(String id) => (delete(entries)..where((e) => e.id.equals(id))).go();
+  /// DELETE real (Deshacer del Home): sin borrado lógico. Si el movimiento ya
+  /// se había sincronizado, deja lápida para borrarlo también en el servidor
+  /// (misma transacción).
+  Future<int> deleteEntry(String id) => transaction(() async {
+        final row = await (select(entries)..where((e) => e.id.equals(id))).getSingleOrNull();
+        final n = await (delete(entries)..where((e) => e.id.equals(id))).go();
+        if (row?.syncedAt != null) await _tombstone('entries', id);
+        return n;
+      });
 
   /// Registro manual. [pickId] es category_id o source_id según [kind].
   Future<Entry> insertManualEntry({
