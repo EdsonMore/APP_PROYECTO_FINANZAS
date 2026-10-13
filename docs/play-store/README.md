@@ -27,7 +27,7 @@ sube nada.
 
 ## Antes de empezar
 
-- [ ] Reemplazar `[CONTACTO]` por el correo del proyecto en
+- [ ] Confirmar que `saldoclaro.oficial@gmail.com` (provisional) es el correo del proyecto; si no, cambiarlo en
       `assets/legal/privacidad.md`, `assets/legal/terminos.md` y las copias de
       esta carpeta (un test exige que sean idénticas).
 - [ ] Publicar `politica-privacidad.md` en una URL pública (por ejemplo GitHub

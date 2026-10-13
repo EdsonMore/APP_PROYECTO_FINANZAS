@@ -18,7 +18,7 @@ esta carpeta, así que funciona offline.
 1. Edita `assets/legal/privacidad.md` y `assets/legal/terminos.md` (son los que
    muestra la app) y copia los mismos archivos a `docs/play-store/`.
 2. Desde la raíz del repo: `python docs/landing/generar_legal.py`.
-3. Reemplaza `[CONTACTO]` también en `index.html`.
+3. Si cambia el correo de contacto (hoy `saldoclaro.oficial@gmail.com`, por confirmar), cámbialo también en `index.html` y `borrar-cuenta.html`.
 4. `flutter test test/features/settings/legal_test.dart`: falla si la app, la
    carpeta de Play y la web no dicen lo mismo.
 

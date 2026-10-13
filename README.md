@@ -67,6 +67,18 @@ dart run build_runner build   # genera lib/data/database.g.dart (drift)
 flutter run
 ```
 
+La sincronización (opcional) necesita `lib/core/config/secrets.dart`, que no está en
+el repo (`.gitignore`). Créalo con la URL y la anon key de tu proyecto de Supabase:
+
+```dart
+abstract final class Secrets {
+  static const supabaseUrl = 'https://<proyecto>.supabase.co';
+  static const supabaseAnonKey = '<anon key>';
+}
+```
+
+Nunca la `service_role`. El esquema del servidor está en `supabase/migrations/`.
+
 ```bash
 flutter test      # suite completa
 flutter analyze

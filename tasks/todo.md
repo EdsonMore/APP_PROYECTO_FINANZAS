@@ -200,8 +200,12 @@ Decisiones finales después de revisar con el usuario:
 - IA real: Fase 5.
 
 ## Pendientes de legal (Fase 2)
-- [ ] Reemplazar [CONTACTO] en politica-privacidad.md, terminos.md y
-      en las pantallas legales de la app con el email real.
+- [x] Reemplazar [CONTACTO] por un correo (Fase 3B): `saldoclaro.oficial@gmail.com`, provisional.
+- [ ] **Verificar que `saldoclaro.oficial@gmail.com` es el correo real del proyecto.** Si el
+      Gmail que se cree es otro, cambiarlo en: `contactEmail` (lib/features/settings/legal_screen.dart),
+      assets/legal/*.md y sus copias en docs/play-store/, docs/landing/index.html y
+      borrar-cuenta.html, y correr `python docs/landing/generar_legal.py`. Ojo: no publicar la
+      landing ni la ficha de Play con un correo que no sea nuestro.
 
 ## Antes de la Fase 2C (publicación beta)
 
@@ -214,7 +218,7 @@ Requisitos:
 - [ ] Feature graphic final (1024×500 PNG).
 
 Antes de publicar:
-- [ ] Reemplazar [CONTACTO] con el email real en:
+- [ ] Confirmar el correo de contacto (hoy `saldoclaro.oficial@gmail.com`, provisional) en:
   - assets/legal/privacidad.md
   - assets/legal/terminos.md
   - docs/play-store/politica-privacidad.md
@@ -225,3 +229,14 @@ Antes de publicar:
 - [ ] Verificar que todo el HTML de la landing tenga el email actualizado.
 - [ ] Firmar el AAB con el keystore real.
 - [ ] Subir a Play Console en canal de prueba cerrada.
+
+## Fase 3B: pendientes del usuario
+- [ ] **SMTP propio** en saldoclaro-test y saldoclaro-prod (Authentication → Emails → SMTP
+      Settings; con Gmail: smtp.gmail.com, puerto 587, contraseña de aplicación). Sin esto
+      Supabase solo manda correos al equipo del proyecto (2 por hora) y nadie recibe el código.
+- [ ] Plantillas "Confirm signup" y "Reset Password" con el código: `supabase/plantillas/`.
+- [ ] "Confirm email" activado, código de 6 dígitos y contraseña mínima de 6 en ambos proyectos.
+- [ ] Correr el test de punta a punta (`test/features/sync/e2e_supabase_test.dart`, hoy en skip):
+      quitar el skip y seguir los pasos de su encabezado, contra saldoclaro-test.
+- [ ] Probar en el celular: crear cuenta → código → datos en la nube → cerrar sesión → borrar cuenta.
+

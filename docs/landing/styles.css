@@ -190,10 +190,12 @@ footer p {
   margin: 32px 0 8px;
 }
 .legal p,
-.legal ul {
+.legal ul,
+.legal ol {
   margin: 0 0 12px;
 }
-.legal ul {
+.legal ul,
+.legal ol {
   padding-left: 22px;
 }
 

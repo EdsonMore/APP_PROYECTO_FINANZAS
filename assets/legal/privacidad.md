@@ -4,7 +4,7 @@
 
 ## Quiénes somos
 
-SaldoClaro es una app para anotar tus gastos e ingresos. La desarrolla una sola persona, no una empresa. Puedes escribirnos a [CONTACTO].
+SaldoClaro es una app para anotar tus gastos e ingresos. La desarrolla una sola persona, no una empresa. Puedes escribirnos a saldoclaro.oficial@gmail.com.
 
 ## Qué datos recolectamos
 
@@ -48,4 +48,4 @@ Si cambiamos esta política, te avisaremos dentro de la app antes de que el camb
 
 ## Contacto
 
-[CONTACTO]
+saldoclaro.oficial@gmail.com

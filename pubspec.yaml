@@ -26,6 +26,8 @@ dependencies:
   share_plus: ^13.3.0
   path_provider: ^2.1.6
   shared_preferences: ^2.5.5
+  # Fase 3B: cuenta opcional y sync. 2.18.3 = última estable (la 3.x es prerelease).
+  supabase_flutter: ^2.18.3
 
 dev_dependencies:
   flutter_test:

@@ -9,6 +9,8 @@ import '../../domain/metrics.dart';
 import '../budget/budget_screen.dart';
 import '../entry/opening_balance_sheet.dart';
 import '../home/providers.dart';
+import '../sync/providers.dart';
+import '../sync/screens/sync_screen.dart';
 import 'about_screen.dart';
 import 'catalog_screen.dart';
 import 'csv_exporter.dart';
@@ -54,6 +56,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final srcs = ref.watch(sourcesStreamProvider).value ?? const <Source>[];
     final budgets = ref.watch(budgetsStreamProvider).value ?? const <Budget>[];
     final today = ref.watch(todayProvider);
+    final account = ref.watch(accountEmailProvider).value;
 
     final opening = settings?.opening;
     final activeCats = cats.where((c) => !c.archived).length;
@@ -149,6 +152,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: entries.isEmpty || _exporting ? null : () => _export(entries),
             ),
             Divider(color: p.border, height: Space.xl),
+            SettingsRow(
+              key: const Key('settings.sync'),
+              label: 'Sincronizar con la nube',
+              value: account == null ? 'Sin cuenta' : 'Conectado como $account',
+              link: account == null ? 'Activar' : 'Gestionar',
+              onTap: () => Navigator.of(context).push(SyncScreen.route()),
+            ),
             SettingsRow(
               key: const Key('settings.about'),
               label: 'Acerca de y privacidad',

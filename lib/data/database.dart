@@ -430,6 +430,65 @@ class AppDatabase extends _$AppDatabase {
         return n;
       });
 
+  // ---- Sync (Fase 3B): lo que necesita push(). La bajada llega en la 3C.
+
+  /// Tablas que se sincronizan, en el orden de subida (FK del servidor:
+  /// catálogos antes que movimientos y techos), con su clave local.
+  static const syncTables = {
+    'categories': 'id',
+    'sources': 'id',
+    'settings': 'id',
+    'entries': 'id',
+    'budgets': 'category_id',
+  };
+
+  static String _syncKey(String table) =>
+      syncTables[table] ?? (throw ArgumentError.value(table, 'table', 'no se sincroniza'));
+
+  /// Filas pendientes de subir (synced_at NULL o menor que updated_at), tal
+  /// como están en SQLite.
+  Future<List<Map<String, Object?>>> pendingRows(String table) async {
+    final key = _syncKey(table);
+    final rows = await customSelect(
+            'SELECT * FROM $table WHERE synced_at IS NULL OR synced_at < updated_at ORDER BY $key')
+        .get();
+    return [for (final r in rows) r.data];
+  }
+
+  /// Marca como subidas las filas confirmadas, con el updated_at QUE SE MANDÓ.
+  /// Si la fila cambió mientras se subía, su updated_at ya es mayor y sigue
+  /// pendiente. Nunca baja un synced_at.
+  Future<void> markSynced(String table, List<(Object, int)> sent) async {
+    final key = _syncKey(table);
+    await transaction(() async {
+      for (final (id, updatedAt) in sent) {
+        await customUpdate(
+          'UPDATE $table SET synced_at = ? WHERE $key = ? AND (synced_at IS NULL OR synced_at < ?)',
+          variables: [Variable(updatedAt), Variable(id), Variable(updatedAt)],
+        );
+      }
+    });
+  }
+
+  Future<List<Tombstone>> pendingTombstones() =>
+      (select(tombstones)..orderBy([(t) => OrderingTerm(expression: t.entity), (t) => OrderingTerm(expression: t.recordId)]))
+          .get();
+
+  /// Borra la lápida ya subida, solo si no cambió mientras tanto.
+  Future<void> dropTombstone(Tombstone t) => (delete(tombstones)
+        ..where((x) => x.entity.equals(t.entity) & x.recordId.equals(t.recordId) & x.deletedAt.equals(t.deletedAt)))
+      .go();
+
+  /// Al cerrar sesión o borrar la cuenta: todo vuelve a quedar pendiente y
+  /// las lápidas se descartan. Así, si después se entra con OTRA cuenta,
+  /// se sube todo (las filas no quedan "sincronizadas" con la anterior).
+  Future<void> detachSync() => transaction(() async {
+        for (final t in syncTables.keys) {
+          await customUpdate('UPDATE $t SET synced_at = NULL');
+        }
+        await delete(tombstones).go();
+      });
+
   /// Registro manual. [pickId] es category_id o source_id según [kind].
   Future<Entry> insertManualEntry({
     required String id,

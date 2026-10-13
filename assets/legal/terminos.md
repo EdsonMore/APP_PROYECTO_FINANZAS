@@ -32,4 +32,4 @@ Estos términos se rigen por las leyes de la República del Perú.
 
 ## Contacto
 
-[CONTACTO]
+saldoclaro.oficial@gmail.com

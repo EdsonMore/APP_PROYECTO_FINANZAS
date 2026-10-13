@@ -4,6 +4,10 @@ import 'package:flutter/services.dart';
 import '../../core/theme/tokens.dart';
 import 'settings_screen.dart';
 
+/// Correo de contacto del proyecto (legal, landing, borrado de cuenta).
+/// TODO(usuario): confirmar que es el correo real (ver tasks/todo.md).
+const contactEmail = 'saldoclaro.oficial@gmail.com';
+
 const privacyAsset = 'assets/legal/privacidad.md';
 const termsAsset = 'assets/legal/terminos.md';
 

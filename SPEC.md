@@ -437,12 +437,37 @@ semánticos se leen con `context.palette`.
 
 - Política de privacidad y Términos viven en `assets/legal/*.md` (la app los
   muestra con `LegalScreen`) y en `docs/play-store/` para publicarlos; un test
-  exige que sean idénticos. `[CONTACTO]` pendiente (ver `tasks/todo.md`).
+  exige que sean idénticos. Correo de contacto provisional `saldoclaro.oficial@gmail.com`
+  (por confirmar, ver `tasks/todo.md`).
 - La release no declara permisos visibles (verificado con `aapt` sobre el APK).
   Se mantiene la copia de seguridad de Android y la política lo dice.
 - Firma: con `android/key.properties`, keystore de subida; sin él, firma de
   debug (el build de release no se rompe). Guía en `docs/play-store/firma.md`.
 - Package `com.saldoclar.app`, definitivo. Versión `0.2.0+1`.
+
+## Cuenta opcional (Fase 3B)
+
+- Ajustes → "Sincronizar con la nube". Sin cuenta todo funciona igual y la app no
+  abre conexiones (Supabase sin sesión guardada no hace llamadas; `debug: false`).
+- Correo + contraseña (≥ 6). Confirmación al crear la cuenta y recuperación de la
+  contraseña con **código de 6 dígitos** (`verifyOTP` signup / recovery; plantillas
+  con `{{ .Token }}` en `supabase/plantillas/`). Requiere SMTP propio en Supabase.
+- Toda operación de cuenta tiene **timeout de 15 s** y errores en español
+  (`AuthFailure`), sin texto técnico.
+- **Crear cuenta sube todo lo del teléfono** sin preguntar (la cuenta nueva está
+  vacía). **Entrar con una cuenta existente no sube nada** hasta la 3C (antes hay
+  que elegir "usar la nube" o "unir").
+- **Cerrar sesión o borrar la cuenta** deja los datos en el teléfono y vuelve todo a
+  pendiente (`detachSync`): otra cuenta recibiría todo.
+- Borrar cuenta: escribir BORRAR → RPC `delete_account()`. Página web para pedirlo:
+  `docs/landing/borrar-cuenta.html` (mailto, plazo 30 días).
+- `push()` (`lib/features/sync/push.dart`), lo reutiliza la 3C: lotes de 200 por
+  tabla en el orden de las FK; si un lote falla por datos, fila por fila; un error de
+  datos deja esa fila pendiente y sigue; un error de red corta (lo demás queda
+  pendiente). `synced_at` = el `updated_at` que se mandó. Filas con `deleted_at: null`
+  (revive un techo quitado); lápidas por UPDATE al final. Nunca dos a la vez.
+- Upsert con `defaultToNull: false` (`Prefer: missing=default`): `user_id` no se
+  manda y toma `auth.uid()`; con el default de postgrest quedaría NULL.
 
 ## Aprendido en la 1c
 

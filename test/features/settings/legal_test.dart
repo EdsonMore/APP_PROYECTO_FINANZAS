@@ -77,6 +77,14 @@ void main() {
     });
   }
 
+  test('página web de borrado de cuenta (Play): existe, sin JavaScript, con mailto y enlazada desde la landing', () {
+    final page = File('docs/landing/borrar-cuenta.html').readAsStringSync();
+    expect(page, isNot(contains('<script')));
+    expect(page, contains('href="mailto:saldoclaro.oficial@gmail.com?subject=Borrar%20mi%20cuenta'));
+    expect(page, contains('30 días'));
+    expect(File('docs/landing/index.html').readAsStringSync(), contains('href="borrar-cuenta.html"'));
+  });
+
   test('release firma con debug si no hay android/key.properties (el build no se rompe)', () {
     final gradle = File('android/app/build.gradle.kts').readAsStringSync();
     expect(gradle, contains('if (keystoreProperties.isNotEmpty())'));
@@ -99,7 +107,7 @@ void main() {
       await tester.scrollUntilVisible(find.text(heading), 200, scrollable: find.byType(Scrollable).last);
       expect(find.text(heading), findsOneWidget);
       await tester.scrollUntilVisible(find.text('Contacto'), 300, scrollable: find.byType(Scrollable).last);
-      expect(find.text('[CONTACTO]'), findsWidgets);
+      expect(find.text('saldoclaro.oficial@gmail.com'), findsWidgets);
       await h.unmount(tester);
     });
   }
