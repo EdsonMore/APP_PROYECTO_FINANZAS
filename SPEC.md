@@ -434,6 +434,28 @@ semánticos se leen con `context.palette`.
 - **Fuera de alcance hasta su fase:** sync (3), multi-cuenta (3), gasto
   recurrente y captura de notificaciones (4), IA (5).
 
+## Tema manual y calculadora (Fase 4E)
+
+- **Apariencia** (Ajustes): Sistema / Claro / Oscuro. Se aplica al instante;
+  `shared_preferences`, clave `ui.themeMode` (sin sync: es del teléfono).
+  Ausente o desconocido = Sistema. `lib/features/settings/appearance.dart`.
+- **"¿Cuánto puedo gastar hoy?"**: link bajo el número principal del Home, en
+  los 3 modos (no en la bienvenida, sin datos). Hoja con 7 / 14 / 30 días u
+  "Otra fecha" (hasta esa fecha, inclusive); por defecto 14; nada se guarda.
+  `dailyAllowance` en `metrics.dart`:
+
+  ```
+  límite diario = floor((B + gastadoHoy) / días)   // el saldo con el que empezó el día
+  puedes gastar hoy = max(0, límite − gastadoHoy)
+  ```
+
+  `B` es el `balance()` de siempre, que **ya resta** lo gastado hoy (por eso se
+  suma de vuelta: restarlo otra vez lo contaría dos veces). `gastadoHoy` = solo
+  los gastos de hoy que `B` restó (con el saldo inicial fijado hoy, los
+  anteriores a ese momento ya estaban en él). `días` incluye hoy. `B ≤ 0` →
+  "Sin reserva". Si hoy ya se pasó: S/ 0.00 y "Hoy pasaste el límite por S/ X."
+  (inkMuted, sin rojo). Sin saldo inicial, una nota lo aclara.
+
 ## Historial (Fase 4B)
 
 `lib/features/history/`: `filters.dart` (lógica pura, TDD) y `history_screen.dart`.
@@ -644,8 +666,9 @@ header del Home, en el grupo derecho antes de Insights; en los 3 modos.
   widgets, línea de runway con `CustomPainter`): sin librería de gráficos.
 - `intl`, `uuid`, `share_plus` + `path_provider` (CSV).
 - `shared_preferences`: para `core/legal/legal_acceptance_store.dart` (Fase 2) y
-  los borradores del registro. **Excepción documentada (3D):** `sync.lastOkAt`,
-  la hora del último sync bueno. Es solo un timestamp, ningún dato del usuario.
+  los borradores del registro. **Excepciones documentadas:** `sync.lastOkAt`
+  (3D), la hora del último sync bueno, y `ui.themeMode` (4E), el tema elegido.
+  Ninguna guarda datos del usuario; ninguna se sincroniza.
 - `supabase_flutter` (Fase 3B) solo para el sync opcional: sin sesión no abre
   conexiones. En la Fase 1 habían salido `supabase_flutter`, `http`, `pdf`,
   `google_fonts` (descarga fuentes en runtime; en 1b la fuente va como asset), `local_auth`,

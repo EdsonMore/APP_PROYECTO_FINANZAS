@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/icon_catalog.dart';
+import '../../core/widgets/select_chip.dart';
 import '../../core/widgets/sheet_grabber.dart';
 import '../../core/widgets/text_link.dart';
 import '../../data/database.dart';
@@ -125,7 +126,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               (KindFilter.expense, 'Gastos'),
               (KindFilter.income, 'Ingresos'),
             ]) ...[
-              _Chip(
+              SelectChip(
                 key: Key('history.kind.${k.name}'),
                 label: label,
                 selected: _f.kind == k,
@@ -135,7 +136,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               const SizedBox(width: Space.sm),
             ],
             const SizedBox(width: Space.sm),
-            _Chip(
+            SelectChip(
               key: const Key('history.date'),
               label: rangeLabel(_f.preset, custom: _f.custom),
               semanticsLabel: 'Fecha: ${rangeLabel(_f.preset, custom: _f.custom)}. Cambiar',
@@ -159,7 +160,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           child: Row(
             children: [
               for (final c in choices) ...[
-                _Chip(
+                SelectChip(
                   key: Key('history.pick.${c.id}'),
                   label: c.name,
                   selected: _f.picks.contains(c.id),
@@ -180,7 +181,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 const SizedBox(width: Space.sm),
               ],
               if (_f.picks.isNotEmpty)
-                _Chip(
+                SelectChip(
                   key: const Key('history.clearPicks'),
                   label: 'Limpiar',
                   selected: false,
@@ -450,68 +451,6 @@ class _SearchField extends StatelessWidget {
           border: border(p.border),
           enabledBorder: border(p.border),
           focusedBorder: border(p.ink),
-        ),
-      ),
-    );
-  }
-}
-
-/// Chip de filtro: visible 32, área táctil 48, radio 8. Elegido: fondo ink.
-class _Chip extends StatelessWidget {
-  const _Chip({
-    super.key,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.leading,
-    this.semanticsLabel,
-  });
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final Widget? leading;
-  final String? semanticsLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.palette;
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: semanticsLabel ?? label,
-      excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          height: 48, // área táctil; el chip visible mide 32
-          alignment: Alignment.center,
-          child: AnimatedContainer(
-            duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : Motion.lightChange,
-            curve: Motion.easeOut,
-            height: 32,
-            padding: const EdgeInsets.symmetric(horizontal: Space.md),
-            decoration: BoxDecoration(
-              color: selected ? p.ink : Colors.transparent,
-              borderRadius: BorderRadius.circular(Radii.chip),
-              border: Border.all(color: selected ? p.ink : p.border),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (leading != null) ...[leading!, const SizedBox(width: 6)],
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 160),
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppType.label.copyWith(color: selected ? p.surface : p.ink),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );

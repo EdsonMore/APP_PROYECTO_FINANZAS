@@ -74,6 +74,33 @@ int balance(List<Movement> movements, {required DateTime today, Opening? opening
   return b;
 }
 
+/// "¿Cuánto puedo gastar hoy?" (4E). [spentTodayCents] son solo los gastos de
+/// hoy que [balance] ya restó: con el saldo inicial fijado hoy, los anteriores
+/// a ese momento ya estaban en él.
+typedef Allowance = ({int limitCents, int spentTodayCents, int leftTodayCents, int overCents});
+
+/// límite = floor((saldo + gastado hoy) / días), o sea el saldo con el que
+/// empezó el día; puedes gastar hoy = max(0, límite − gastado hoy). [days]
+/// incluye hoy. null = sin reserva (saldo ≤ 0).
+Allowance? dailyAllowance(List<Movement> movements, {required DateTime today, required int days, Opening? opening}) {
+  final b = balance(movements, today: today, opening: opening);
+  if (b <= 0) return null;
+  var spent = 0;
+  for (final m in movements) {
+    if (m.day == today && !m.isIncome && !(opening != null && _coveredByOpening(m, opening))) spent += m.cents;
+  }
+  final limit = (b + spent) ~/ days;
+  return (
+    limitCents: limit,
+    spentTodayCents: spent,
+    leftTodayCents: spent >= limit ? 0 : limit - spent,
+    overCents: spent > limit ? spent - limit : 0,
+  );
+}
+
+/// Días de hoy a [until], ambos incluidos ("hasta mañana" = 2).
+int daysUntil(DateTime until, {required DateTime today}) => until.difference(today).inDays + 1;
+
 DateTime? firstDay(List<Movement> movements, {required DateTime today, Opening? opening}) {
   DateTime? first = opening?.day;
   for (final m in movements) {

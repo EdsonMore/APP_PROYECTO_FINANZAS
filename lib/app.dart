@@ -5,18 +5,23 @@ import 'core/theme/app_theme.dart';
 import 'data/providers.dart';
 import 'features/home/home_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
+import 'features/settings/appearance.dart';
 import 'features/sync/providers.dart';
 
-class App extends StatelessWidget {
+class App extends ConsumerWidget {
   const App({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
       title: 'SaldoClaro',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
+      themeMode: ref.watch(themeModeProvider), // 4E: Sistema / Claro / Oscuro
+      // Con "reducir movimiento", el cambio de tema es instantáneo.
+      themeAnimationDuration:
+          MediaQuery.maybeDisableAnimationsOf(context) ?? false ? Duration.zero : const Duration(milliseconds: 200),
       home: const SyncLifecycle(child: _Root()),
     );
   }

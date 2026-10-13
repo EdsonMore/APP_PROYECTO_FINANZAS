@@ -17,6 +17,8 @@ import '../insights/insights_screen.dart';
 import '../settings/modes_screen.dart';
 import '../settings/settings_screen.dart';
 import '../sync/sync_indicator.dart';
+import '../../core/widgets/text_link.dart';
+import 'allowance_sheet.dart';
 import 'home_blocks.dart';
 import 'providers.dart';
 
@@ -61,6 +63,20 @@ class HomeScreen extends ConsumerWidget {
                     ? () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const BudgetScreen()))
                     : null,
               ),
+              // 4E: en los 3 modos; sin datos todavía no hay nada que calcular.
+              if (s.headline.kind != HeadlineKind.welcome)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Transform.translate(
+                    offset: const Offset(-Space.lg, -Space.sm), // TextLink trae 16 de padding
+                    child: TextLink(
+                      key: const Key('home.allowance'),
+                      label: '¿Cuánto puedo gastar hoy?',
+                      semanticsLabel: '¿Cuánto puedo gastar hoy?',
+                      onTap: () => showAllowanceSheet(context),
+                    ),
+                  ),
+                ),
               AnimatedSize(
                 duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : Motion.lightChange,
                 curve: Motion.easeOut,

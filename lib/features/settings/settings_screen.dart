@@ -12,6 +12,7 @@ import '../entry/opening_balance_sheet.dart';
 import '../home/providers.dart';
 import '../sync/providers.dart';
 import '../sync/screens/sync_screen.dart';
+import 'appearance.dart';
 import 'about_screen.dart';
 import 'catalog_screen.dart';
 import 'csv_exporter.dart';
@@ -110,6 +111,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               value: '${settings?.runwayWindowDays ?? 14} días',
               link: 'Cambiar',
               onTap: () => showRunwayPicker(context, settings?.runwayWindowDays ?? 14),
+            ),
+            SettingsRow(
+              key: const Key('settings.appearance'),
+              label: 'Apariencia',
+              value: themeLabels[ref.watch(themeModeProvider)]!,
+              link: 'Cambiar',
+              onTap: () => showAppearancePicker(context),
             ),
             // Presupuesto existe solo en Estable (los techos quedan guardados en otros modos).
             if (settings?.mode == Mode.stable)
