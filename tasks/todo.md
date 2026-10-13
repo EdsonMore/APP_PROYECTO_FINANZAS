@@ -278,7 +278,15 @@ Antes de publicar:
       checkbox de "Crear cuenta" bloquea el registro, pero no deja registro.
 - [ ] Que un abogado revise la política y los términos antes de publicar.
 
-## Fase 4A (multi-cuenta): anotado al aprobar el plan
+## Fase 4A (multi-cuenta): pendientes
+- [ ] Usuario: aplicar `supabase/migrations/20261013000100_accounts_transfers.sql` en
+      saldoclaro-prod (en test ya está: "accounts OK"). ANTES de usar la app con cuentas.
+- [ ] Usuario (R7): actualizar los dos teléfonos juntos antes de crear la primera cuenta
+      (un teléfono con `fase-4e` no puede bajar movimientos con cuenta).
+- [ ] fase-4a (R6): la política de privacidad debe mencionar cuentas (nombre y saldo
+      inicial) y transferencias entre lo que se sincroniza.
+- [ ] fase-4a: el Home, la calculadora y el runway pasan de `balance()` a
+      `totalBalance()` (idéntico sin cuentas).
 - [ ] El CSV debe incluir `account_id` (o el nombre resuelto) además de
       `account_label`. Sin esto, la importación futura no sabrá a qué cuenta va
       cada movimiento.

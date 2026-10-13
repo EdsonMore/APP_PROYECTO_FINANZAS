@@ -32,16 +32,16 @@ class Phone {
 
   Future<SyncStatus> sync() => engine.sync();
 
-  Future<void> expense(String id, {String cat = 'comida'}) => db.insertManualEntry(
+  Future<void> expense(String id, {String cat = 'comida', String? account}) => db.insertManualEntry(
       id: id, kind: EntryKind.expense, amountCents: 100, day: day(2026, 10, 8), pickId: cat,
-      now: DateTime.fromMillisecondsSinceEpoch(now));
+      now: DateTime.fromMillisecondsSinceEpoch(now), accountId: account);
 
   /// Edición de un movimiento (la app todavía no la tiene: SQL directo, como lo haría con bumped()).
   Future<void> editEntry(String id, int cents) => db.customUpdate(
       'UPDATE entries SET amount_cents = ?, updated_at = MAX(?, updated_at + 1) WHERE id = ?',
       variables: [Variable(cents), Variable(now), Variable(id)]);
 
-  /// Las 5 tablas sincronizadas, sin synced_at (lo único que puede diferir).
+  /// Las tablas sincronizadas, sin synced_at (lo único que puede diferir).
   Future<Map<String, List<Map<String, Object?>>>> dump() async => {
         for (final MapEntry(key: t, value: k) in AppDatabase.syncTables.entries)
           t: [
@@ -229,19 +229,71 @@ void main() {
     expect(await amount(b, 'a1'), 100);
   });
 
+  group('cuentas y transferencias (Fase 4A)', () {
+    Future<List<String>> accountNames(Phone p) async =>
+        [for (final x in await p.db.select(p.db.accounts).get()) x.name]..sort();
+
+    test('A crea cuenta, movimiento en ella y transferencia; B lo baja todo (cuenta antes que sus hijos)', () async {
+      await a.db.insertAccount(id: 'yape', name: 'Yape', icon: 'phone');
+      await a.db.setAccountOpening('yape', cents: 5000, at: DateTime(2026, 10, 1));
+      await a.expense('a1', account: 'yape');
+      await a.db.insertTransfer(id: 't1', fromAccountId: 'yape', toAccountId: null, amountCents: 700, day: day(2026, 10, 9));
+      await converge();
+      final e = await (b.db.select(b.db.entries)..where((x) => x.id.equals('a1'))).getSingle();
+      expect(e.accountId, 'yape');
+      final yape = await (b.db.select(b.db.accounts)..where((x) => x.id.equals('yape'))).getSingle();
+      expect((yape.openingBalanceCents, yape.archived), (5000, false));
+      expect(await b.db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
+    });
+
+    test('la misma cuenta "Yape" creada en los dos (ids distintos): quedan "Yape" y "Yape (2)"', () async {
+      await a.db.insertAccount(id: 'ya', name: 'Yape', icon: 'phone');
+      await b.db.insertAccount(id: 'yb', name: 'Yape', icon: 'phone');
+      await converge();
+      expect(await accountNames(a), ['Yape', 'Yape (2)']);
+    });
+
+    test('borrar una transferencia sincronizada la borra en el otro teléfono (lápida)', () async {
+      await a.db.insertAccount(id: 'yape', name: 'Yape', icon: 'phone');
+      await a.db.insertTransfer(id: 't1', fromAccountId: null, toAccountId: 'yape', amountCents: 300, day: day(2026, 10, 9));
+      await converge();
+      expect(await b.db.select(b.db.transfers).get(), hasLength(1));
+      a.now = 5000;
+      await a.db.deleteTransfer('t1');
+      await converge();
+      expect(await b.db.select(b.db.transfers).get(), isEmpty);
+    });
+
+    test('archivar una cuenta viaja; una cuenta "borrada" en el servidor no borra la local (se archivan)', () async {
+      await a.db.insertAccount(id: 'yape', name: 'Yape', icon: 'phone');
+      await converge();
+      remote.rows['accounts']!['yape']!
+        ..['deleted_at'] = 9000
+        ..['updated_at'] = 9000
+        ..['server_updated_at'] = DateTime.utc(2027).toIso8601String();
+      await b.sync();
+      expect(await accountNames(b), ['Yape'], reason: 'una cuenta nunca se borra al bajar');
+    });
+  });
+
   test('convergencia aleatoria: 200 rondas de cambios en los dos, syncs intercalados y caídas de red', () async {
     final rnd = Random(const int.fromEnvironment('SEED', defaultValue: 20261013)); // --dart-define=SEED=n para explorar
     const names = ['Comida', 'Ropa', 'Casa', 'Viaje', 'Extra', 'Ropa (2)'];
+    const accountNames = ['Yape', 'BCP', 'Efectivo', 'Yape (2)'];
+    var transfersMade = 0;
     var n = 0;
     Future<void> op(Phone p) async {
       p.now += rnd.nextInt(4); // 0: mismo ms (empates con el otro teléfono)
       final cats = [for (final c in await p.db.select(p.db.categories).get()) c.id];
       final entries = [for (final e in await p.db.select(p.db.entries).get()) e.id];
+      final accounts = [for (final x in await p.db.select(p.db.accounts).get()) x.id];
+      final transfers = [for (final t in await p.db.select(p.db.transfers).get()) t.id];
       final pick = cats[rnd.nextInt(cats.length)];
+      String? anyAccount() => accounts.isEmpty || rnd.nextInt(3) == 0 ? null : accounts[rnd.nextInt(accounts.length)];
       try {
-        switch (rnd.nextInt(10)) {
+        switch (rnd.nextInt(14)) {
           case 0 || 1:
-            await p.expense('${p.name}${n++}', cat: pick);
+            await p.expense('${p.name}${n++}', cat: pick, account: anyAccount());
           case 2 when entries.isNotEmpty:
             await p.db.deleteEntry(entries[rnd.nextInt(entries.length)]);
           case 3 when entries.isNotEmpty:
@@ -257,11 +309,24 @@ void main() {
                 id: '${p.name}cat${n++}', name: names[rnd.nextInt(names.length)], icon: 'category');
           case 8:
             await p.db.setArchived(EntryKind.expense, pick, archived: rnd.nextBool());
+          case 10:
+            await p.db.insertAccount(id: '${p.name}acc${n++}', name: accountNames[rnd.nextInt(accountNames.length)], icon: 'phone');
+          case 11 when accounts.isNotEmpty:
+            await p.db.insertTransfer(
+                id: '${p.name}t${n++}', fromAccountId: anyAccount(), toAccountId: anyAccount(),
+                amountCents: 1 + rnd.nextInt(9999), day: day(2026, 10, 1 + rnd.nextInt(12)));
+            transfersMade++;
+          case 12 when transfers.isNotEmpty:
+            await p.db.deleteTransfer(transfers[rnd.nextInt(transfers.length)]);
+          case 13 when accounts.isNotEmpty:
+            await p.db.setAccountOpening(accounts[rnd.nextInt(accounts.length)],
+                cents: rnd.nextBool() ? null : rnd.nextInt(99999), at: DateTime(2026, 10, 1 + rnd.nextInt(12)));
           default:
             await p.db.setSpaceName(rnd.nextBool() ? null : 'Espacio ${rnd.nextInt(5)}');
         }
       } on Exception {
-        // Nombre repetido en el teléfono (UNIQUE): la app también lo rechaza.
+        // Nombre repetido (UNIQUE) o transferencia a la misma cuenta / sin
+        // ningún lado (CHECK): la app también lo rechaza.
       }
     }
 
@@ -284,5 +349,7 @@ void main() {
     expect((await a.db.hasPending(), await b.db.hasPending()), (false, false));
     expect((a.engine.status.state, b.engine.status.state), (SyncState.ok, SyncState.ok));
     expect(await a.db.select(a.db.entries).get(), isNotEmpty, reason: 'la prueba ejercitó algo');
+    expect(await a.db.select(a.db.accounts).get(), isNotEmpty, reason: 'también cuentas');
+    expect(transfersMade, greaterThan(0), reason: 'y transferencias (pueden haberse borrado todas)');
   });
 }

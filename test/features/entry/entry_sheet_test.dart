@@ -33,11 +33,12 @@ class SlowDb extends AppDatabase {
     required String pickId,
     String? note,
     required DateTime now,
+    String? accountId,
   }) async {
     inserts++;
     await gate.future;
     return super.insertManualEntry(
-        id: id, kind: kind, amountCents: amountCents, day: day, pickId: pickId, note: note, now: now);
+        id: id, kind: kind, amountCents: amountCents, day: day, pickId: pickId, note: note, now: now, accountId: accountId);
   }
 }
 
@@ -55,10 +56,11 @@ class DelayDb extends AppDatabase {
     required String pickId,
     String? note,
     required DateTime now,
+    String? accountId,
   }) async {
     await Future<void>.delayed(delay);
     return super.insertManualEntry(
-        id: id, kind: kind, amountCents: amountCents, day: day, pickId: pickId, note: note, now: now);
+        id: id, kind: kind, amountCents: amountCents, day: day, pickId: pickId, note: note, now: now, accountId: accountId);
   }
 }
 

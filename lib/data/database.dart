@@ -47,12 +47,45 @@ class Categories extends Table with _Catalog, _Synced {}
 
 class Sources extends Table with _Catalog, _Synced {}
 
-/// Cuentas (Yape, BCP, crédito, efectivo). Vacía hasta la Fase 3: sin UI ni
-/// semilla. Existe desde la v2 para no reconstruir `entries` cuando llegue la
-/// FK con datos reales. A diferencia de categorías y fuentes, las crea el
-/// usuario: `created_at` sirve para ordenarlas.
-class Accounts extends Table with _Catalog {
+/// Cuentas (Yape, BCP, crédito, efectivo). Existe desde la v2 para no
+/// reconstruir `entries` cuando llegara la FK; desde la v6 (Fase 4A) se
+/// sincroniza y tiene su saldo inicial. A diferencia de categorías y fuentes,
+/// las crea el usuario: `created_at` sirve para ordenarlas. Se archivan, no se
+/// borran (sin lápidas).
+class Accounts extends Table with _Catalog, _Synced {
   IntColumn get createdAt => integer()();
+
+  /// Saldo inicial de la cuenta: monto + instante, siempre los dos o ninguno
+  /// (lo garantiza [AppDatabase.setAccountOpening]; el servidor lo exige con un
+  /// CHECK). Sin CHECK local: agregarlo obliga a reconstruir `accounts`, que es
+  /// padre de `entries`. Los movimientos de la cuenta registrados antes del
+  /// instante ya están en el monto (misma regla que el saldo inicial global).
+  IntColumn get openingBalanceCents => integer().nullable()();
+  IntColumn get openingBalanceAt => integer().nullable()();
+}
+
+/// Transferencias entre cuentas (Fase 4A, D1): tabla aparte, NO un tipo de
+/// movimiento, para que ninguna fórmula de gasto/ingreso/runway las cuente.
+/// Un lado nulo = "Sin asignar" (D3); nunca los dos, nunca la misma cuenta.
+@TableIndex(name: 'idx_transfers_on', columns: {#occurredOn})
+@DataClassName('TransferRow') // `Transfer` es el tipo del dominio (metrics.dart)
+class Transfers extends Table with _Synced {
+  TextColumn get id => text()();
+  TextColumn get fromAccountId => text().nullable().references(Accounts, #id)();
+  TextColumn get toAccountId => text().nullable().references(Accounts, #id)();
+  IntColumn get amountCents => integer().check(amountCents.isBiggerThanValue(0))();
+  TextColumn get occurredOn => text().withLength(min: 10, max: 10)();
+  TextColumn get note => text().nullable()();
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => [
+        'CHECK (from_account_id IS NOT NULL OR to_account_id IS NOT NULL)',
+        'CHECK (from_account_id IS NOT to_account_id)',
+      ];
 }
 
 @TableIndex(name: 'idx_entries_on', columns: {#occurredOn})
@@ -121,10 +154,10 @@ class Budgets extends Table with _Synced {
 /// Al subirse, la lápida se elimina. Las filas se borran de verdad en local,
 /// así que ninguna consulta de la app tiene que filtrar borrados.
 class Tombstones extends Table {
-  /// Tabla de la fila borrada: 'entries' o 'budgets' (lo único que la app
-  /// borra; lo demás se archiva). No se llama table_name: choca con
-  /// Table.tableName en el código que genera drift.
-  TextColumn get entity => text().check(entity.isIn(const ['entries', 'budgets']))();
+  /// Tabla de la fila borrada: 'entries', 'budgets' o 'transfers' (v6; lo
+  /// único que la app borra; lo demás se archiva). No se llama table_name:
+  /// choca con Table.tableName en el código que genera drift.
+  TextColumn get entity => text().check(entity.isIn(const ['entries', 'budgets', 'transfers']))();
 
   /// id del movimiento, o category_id del techo.
   TextColumn get recordId => text().named('row_id')();
@@ -178,7 +211,8 @@ const defaultSources = [
   ('otro', 'Otro', 'redeem', '#525252'),
 ];
 
-@DriftDatabase(tables: [Categories, Sources, Entries, Settings, Budgets, Goals, Accounts, Tombstones, SyncCursors])
+@DriftDatabase(
+    tables: [Categories, Sources, Entries, Settings, Budgets, Goals, Accounts, Tombstones, SyncCursors, Transfers])
 class AppDatabase extends _$AppDatabase {
   /// [clock]: epoch ms "ahora". Inyectable para tests; por defecto, la hora real.
   AppDatabase([QueryExecutor? executor, int Function()? clock])
@@ -200,7 +234,7 @@ class AppDatabase extends _$AppDatabase {
       });
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -225,7 +259,11 @@ class AppDatabase extends _$AppDatabase {
           // versión anterior (drift no envuelve la migración por su cuenta y
           // solo sube user_version si todo termina bien).
           await transaction(() => stepByStep(
-              from1To2: migrateV1ToV2, from2To3: migrateV2ToV3, from3To4: migrateV3ToV4, from4To5: migrateV4ToV5)(m, from, to));
+              from1To2: migrateV1ToV2,
+              from2To3: migrateV2ToV3,
+              from3To4: migrateV3ToV4,
+              from4To5: migrateV4ToV5,
+              from5To6: migrateV5ToV6)(m, from, to));
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -296,6 +334,22 @@ class AppDatabase extends _$AppDatabase {
   /// teléfono que ya subía (3B) sigue con sus marcas de sync.
   @visibleForTesting
   Future<void> migrateV4ToV5(Migrator m, Schema5 schema) => m.createTable(schema.syncCursors);
+
+  /// v5 → v6 (Fase 4A): `accounts` se sincroniza y tiene saldo inicial (ADD
+  /// COLUMN; la tabla está vacía en todos los teléfonos), tabla `transfers` y
+  /// lápidas que aceptan 'transfers'. Ese CHECK obliga a reconstruir
+  /// `tombstones` (chica y sin FK hacia ni desde ella); `entries` NO se toca.
+  @visibleForTesting
+  Future<void> migrateV5ToV6(Migrator m, Schema6 schema) async {
+    await m.addColumn(schema.accounts, schema.accounts.updatedAt);
+    await m.addColumn(schema.accounts, schema.accounts.syncedAt);
+    await m.addColumn(schema.accounts, schema.accounts.openingBalanceCents);
+    await m.addColumn(schema.accounts, schema.accounts.openingBalanceAt);
+    await customStatement('UPDATE accounts SET updated_at = ?', [_now()]); // ninguna fila queda en 0
+    await m.createTable(schema.transfers);
+    await m.createIndex(schema.idxTransfersOn);
+    await m.alterTable(TableMigration(schema.tombstones));
+  }
 
   /// Cierra el onboarding: crea (o reemplaza) la fila única de settings.
   /// Reemplazar no toca el saldo inicial.
@@ -495,16 +549,74 @@ class AppDatabase extends _$AppDatabase {
         return query.getSingle();
       });
 
+  // ---- Cuentas y transferencias (Fase 4A). Las pantallas llegan en fase-4a.
+
+  /// Nueva cuenta, al final del orden. name es UNIQUE (como los catálogos).
+  Future<void> insertAccount({required String id, required String name, required String icon}) async {
+    final next = await customSelect('SELECT COALESCE(MAX(sort_order) + 1, 0) AS n FROM accounts').getSingle();
+    final now = _now();
+    await into(accounts).insert(AccountsCompanion.insert(
+      id: id,
+      name: name,
+      icon: icon,
+      colorHex: newItemColor,
+      sortOrder: next.read<int>('n'),
+      createdAt: now,
+      updatedAt: Value(now),
+    ));
+  }
+
+  /// Saldo inicial de la cuenta: monto e instante juntos, o ninguno (null).
+  Future<void> setAccountOpening(String id, {required int? cents, DateTime? at}) =>
+      (update(accounts)..where((a) => a.id.equals(id))).write(bumped(AccountsCompanion(
+        openingBalanceCents: Value(cents),
+        openingBalanceAt: Value(cents == null ? null : (at ?? DateTime.fromMillisecondsSinceEpoch(_now())).millisecondsSinceEpoch),
+      )));
+
+  /// Transferencia. Un lado nulo = "Sin asignar"; los CHECK rechazan ambos
+  /// nulos y la misma cuenta en los dos lados.
+  Future<void> insertTransfer({
+    required String id,
+    required String? fromAccountId,
+    required String? toAccountId,
+    required int amountCents,
+    required DateTime day,
+    String? note,
+  }) {
+    final now = _now();
+    return into(transfers).insert(TransfersCompanion.insert(
+      id: id,
+      fromAccountId: Value(fromAccountId),
+      toAccountId: Value(toAccountId),
+      amountCents: amountCents,
+      occurredOn: isoDay(day),
+      note: Value(note),
+      createdAt: now,
+      updatedAt: Value(now),
+    ));
+  }
+
+  /// DELETE real; si ya estaba sincronizada, deja lápida (como [deleteEntry]).
+  Future<int> deleteTransfer(String id) => transaction(() async {
+        final row = await (select(transfers)..where((t) => t.id.equals(id))).getSingleOrNull();
+        final n = await (delete(transfers)..where((t) => t.id.equals(id))).go();
+        if (row?.syncedAt != null) await _tombstone('transfers', id, row!.updatedAt);
+        return n;
+      });
+
   // ---- Sync (Fase 3B): lo que necesita push(). La bajada llega en la 3C.
 
   /// Tablas que se sincronizan, en el orden de subida (FK del servidor:
-  /// catálogos antes que movimientos y techos), con su clave local.
+  /// catálogos y cuentas antes que movimientos, techos y transferencias),
+  /// con su clave local.
   static const syncTables = {
     'categories': 'id',
     'sources': 'id',
+    'accounts': 'id',
     'settings': 'id',
     'entries': 'id',
     'budgets': 'category_id',
+    'transfers': 'id',
   };
 
   static String _syncKey(String table) =>
@@ -578,7 +690,8 @@ class AppDatabase extends _$AppDatabase {
   /// Hay algo del usuario además de la semilla y los ajustes (D5).
   Future<bool> hasUserData() async {
     final r = await customSelect('SELECT (SELECT COUNT(*) FROM entries) + (SELECT COUNT(*) FROM budgets) '
-            '+ (SELECT COUNT(*) FROM categories WHERE is_default = 0) + (SELECT COUNT(*) FROM sources WHERE is_default = 0) AS n')
+            '+ (SELECT COUNT(*) FROM categories WHERE is_default = 0) + (SELECT COUNT(*) FROM sources WHERE is_default = 0) '
+            '+ (SELECT COUNT(*) FROM accounts) + (SELECT COUNT(*) FROM transfers) AS n')
         .getSingle();
     return r.read<int>('n') > 0;
   }
@@ -623,6 +736,7 @@ class AppDatabase extends _$AppDatabase {
     required String pickId,
     String? note,
     required DateTime now,
+    String? accountId,
   }) {
     final ms = now.millisecondsSinceEpoch;
     return into(entries).insertReturning(EntriesCompanion.insert(
@@ -634,6 +748,7 @@ class AppDatabase extends _$AppDatabase {
       sourceId: Value(kind == EntryKind.income ? pickId : null),
       note: Value(note),
       origin: const Value(Origin.manual),
+      accountId: Value(accountId),
       createdAt: ms,
       updatedAt: ms,
     ));
@@ -664,7 +779,24 @@ extension EntryToMovement on Entry {
         day: parseIsoDay(occurredOn),
         categoryId: categoryId,
         createdAt: DateTime.fromMillisecondsSinceEpoch(createdAt),
+        accountId: accountId,
       );
+}
+
+extension TransferRowToTransfer on TransferRow {
+  Transfer toTransfer() => Transfer(
+        fromAccountId: fromAccountId,
+        toAccountId: toAccountId,
+        cents: amountCents,
+        day: parseIsoDay(occurredOn),
+        createdAt: DateTime.fromMillisecondsSinceEpoch(createdAt),
+      );
+}
+
+extension AccountOpening on Account {
+  Opening? get opening => openingBalanceCents == null || openingBalanceAt == null
+      ? null
+      : Opening(cents: openingBalanceCents!, setAt: DateTime.fromMillisecondsSinceEpoch(openingBalanceAt!));
 }
 
 extension SettingOpening on Setting {

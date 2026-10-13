@@ -33,6 +33,7 @@ class Movement {
     required this.day,
     this.categoryId,
     this.createdAt,
+    this.accountId,
   });
 
   /// entries.id: permite volver de una métrica a la fila (p. ej. recientes).
@@ -45,7 +46,22 @@ class Movement {
   /// Solo importa el día del saldo inicial (ver [Opening]).
   final DateTime? createdAt;
 
+  /// Cuenta (Fase 4A). null = "Sin asignar".
+  final String? accountId;
+
   bool get isIncome => kind == EntryKind.income;
+}
+
+/// Plata que pasa de una cuenta a otra (Fase 4A). No es gasto ni ingreso: NO
+/// es un [Movement], así que ninguna fórmula de gasto, ingreso o runway la
+/// ve. Solo mueve saldo entre cuentas. Un lado null = "Sin asignar".
+class Transfer {
+  const Transfer({this.fromAccountId, this.toAccountId, required this.cents, required this.day, this.createdAt});
+  final String? fromAccountId;
+  final String? toAccountId;
+  final int cents;
+  final DateTime day;
+  final DateTime? createdAt;
 }
 
 /// "¿Cuánto tienes hoy?": foto del saldo en el instante [setAt] (hora local).
@@ -58,9 +74,11 @@ class Opening {
 
 /// Un movimiento ya está reflejado en el saldo inicial si es de un día previo,
 /// o del mismo día y registrado antes de fijar el saldo.
-bool _coveredByOpening(Movement m, Opening o) {
-  if (m.day.isBefore(o.day)) return true;
-  if (m.day == o.day && m.createdAt != null) return m.createdAt!.isBefore(o.setAt);
+bool _coveredByOpening(Movement m, Opening o) => _covered(m.day, m.createdAt, o);
+
+bool _covered(DateTime day, DateTime? createdAt, Opening o) {
+  if (day.isBefore(o.day)) return true;
+  if (day == o.day && createdAt != null) return createdAt.isBefore(o.setAt);
   return false;
 }
 
@@ -72,6 +90,44 @@ int balance(List<Movement> movements, {required DateTime today, Opening? opening
     b += m.isIncome ? m.cents : -m.cents;
   }
   return b;
+}
+
+/// Saldo de una cuenta (Fase 4A); [accountId] null = "Sin asignar" (con el
+/// saldo inicial de settings). Lo que ya estaba en el saldo inicial DE ESA
+/// cuenta (antes de su instante) no se suma otra vez, también en
+/// transferencias: una puede contar de un lado y no del otro.
+int accountBalance(String? accountId, List<Movement> movements, List<Transfer> transfers,
+    {required DateTime today, Opening? opening}) {
+  bool counts(DateTime day, DateTime? createdAt) =>
+      !day.isAfter(today) && !(opening != null && _covered(day, createdAt, opening));
+  var b = opening?.cents ?? 0;
+  for (final m in movements) {
+    if (m.accountId == accountId && counts(m.day, m.createdAt)) b += m.isIncome ? m.cents : -m.cents;
+  }
+  for (final t in transfers) {
+    if (!counts(t.day, t.createdAt)) continue;
+    if (t.toAccountId == accountId) b += t.cents;
+    if (t.fromAccountId == accountId) b -= t.cents;
+  }
+  return b;
+}
+
+/// Saldo global (Fase 4A): la suma de todas las cuentas (archivadas incluidas)
+/// más "Sin asignar". Sin cuentas ni transferencias es exactamente [balance].
+int totalBalance(List<Movement> movements, List<Transfer> transfers,
+    {required DateTime today, Opening? unassignedOpening, Map<String, Opening> accountOpenings = const {}}) {
+  final ids = <String?>{
+    null,
+    ...accountOpenings.keys,
+    for (final m in movements) m.accountId,
+    for (final t in transfers) ...[t.fromAccountId, t.toAccountId],
+  };
+  var total = 0;
+  for (final id in ids) {
+    total += accountBalance(id, movements, transfers,
+        today: today, opening: id == null ? unassignedOpening : accountOpenings[id]);
+  }
+  return total;
 }
 
 /// "¿Cuánto puedo gastar hoy?" (4E). [spentTodayCents] son solo los gastos de

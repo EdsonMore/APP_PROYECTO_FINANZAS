@@ -37,9 +37,13 @@ class PullResult {
 }
 
 /// Bajada: hijos antes que padres. En el servidor un padre existe antes que
-/// sus hijos y categorías/fuentes nunca se borran, así que todo hijo bajado
-/// tiene su padre en el teléfono o en una lectura posterior de esta bajada.
-const _downloadOrder = ['budgets', 'entries', 'settings', 'sources', 'categories'];
+/// sus hijos y categorías/fuentes/cuentas nunca se borran, así que todo hijo
+/// bajado tiene su padre en el teléfono o en una lectura posterior de esta
+/// bajada. (Se APLICA en el orden de [AppDatabase.syncTables]: padres primero.)
+const _downloadOrder = ['transfers', 'budgets', 'entries', 'settings', 'accounts', 'sources', 'categories'];
+
+/// Se archivan, nunca se borran; su nombre es UNIQUE en el teléfono.
+const _catalogs = {'categories', 'sources', 'accounts'};
 
 /// Baja lo nuevo del servidor (SPEC §Sync, tabla de reglas) y lo aplica en
 /// UNA transacción local, junto con los cursores: si algo falla a mitad, no
@@ -151,7 +155,7 @@ class Puller {
     final id = values[key]!;
     final ru = (r['updated_at']! as num).toInt();
     final dead = r['deleted_at'] != null;
-    if (dead && (table == 'categories' || table == 'sources')) return false; // se archivan, nunca se borran
+    if (dead && _catalogs.contains(table)) return false; // se archivan, nunca se borran
 
     final local = await _db
         .customSelect('SELECT updated_at FROM $table WHERE $key = ?', variables: [Variable(id)])
@@ -180,7 +184,7 @@ class Puller {
   /// Inserta o reemplaza con los valores del servidor: updated_at el remoto
   /// (no [AppDatabase.bumped]) y synced_at = ese mismo, o sea, no pendiente.
   Future<void> _upsert(String table, String key, Map<String, Object?> values, int ru) async {
-    if ((table == 'categories' || table == 'sources') && values['name'] is String) {
+    if (_catalogs.contains(table) && values['name'] is String) {
       await _freeName(table, values['name']! as String, values[key]! as String);
     }
     final all = {...values, 'synced_at': ru};
@@ -216,7 +220,7 @@ class Puller {
 
   /// "Usar solo lo de la nube": hijos antes que padres por las FK.
   Future<void> _wipe() async {
-    for (final t in ['budgets', 'entries', 'settings', 'categories', 'sources']) {
+    for (final t in ['transfers', 'budgets', 'entries', 'settings', 'accounts', 'categories', 'sources']) {
       await _db.customUpdate('DELETE FROM $t', updates: {_db.syncTable(t)}, updateKind: UpdateKind.delete);
     }
     await _db.customUpdate('DELETE FROM tombstones', updates: {_db.tombstones}, updateKind: UpdateKind.delete);

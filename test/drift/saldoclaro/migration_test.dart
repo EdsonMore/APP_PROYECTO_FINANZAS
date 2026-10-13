@@ -4,13 +4,14 @@ import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saldo_claro/data/database.dart';
 import 'package:saldo_claro/data/database.steps.dart';
-import 'package:saldo_claro/domain/metrics.dart' show EntryKind;
+import 'package:saldo_claro/domain/metrics.dart' show EntryKind, day;
 
 import 'generated/schema.dart';
 import 'generated/schema_v1.dart' as v1;
 import 'generated/schema_v2.dart' as v2;
 import 'generated/schema_v3.dart' as v3;
 import 'generated/schema_v4.dart' as v4;
+import 'generated/schema_v5.dart' as v5;
 
 /// La semilla tal como la creaba la v1 ("otros" con la bolsa de compras).
 const v1Categories = [
@@ -141,14 +142,53 @@ void main() {
 
   setUpAll(() => verifier = SchemaVerifier(GeneratedHelper()));
 
-  for (final from in [1, 2, 3, 4]) {
-    test('v$from → v5 sin datos: el esquema migrado es idéntico al de una instalación nueva', () async {
+  for (final from in [1, 2, 3, 4, 5]) {
+    test('v$from → v6 sin datos: el esquema migrado es idéntico al de una instalación nueva', () async {
       final schema = await verifier.schemaAt(from);
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 5);
+      await verifier.migrateAndValidate(db, 6);
       await db.close();
     });
   }
+
+  test('v5 → v6: accounts con columnas de sync, transfers vacía, lápidas y cursores intactos; entries sin tocar',
+      () async {
+    final schema = await verifier.schemaAt(5);
+    final old = v5.DatabaseAtV5(schema.newConnection());
+    await old.into(old.categories).insert(v5.CategoriesCompanion.insert(
+        id: 'comida', name: 'Comida', icon: 'restaurant', colorHex: 'cat:1', sortOrder: 0, isDefault: const Value(1),
+        updatedAt: const Value(700), syncedAt: const Value(700)));
+    await old.into(old.entries).insert(v5.EntriesCompanion.insert(
+        id: 'e1', kind: 'expense', amountCents: 1250, occurredOn: '2026-10-08', categoryId: const Value('comida'),
+        createdAt: 600, updatedAt: 700, syncedAt: const Value(700)));
+    await old.into(old.tombstones).insert(v5.TombstonesCompanion.insert(entity: 'entries', rowId: 'g9', deletedAt: 800));
+    await old.into(old.tombstones).insert(v5.TombstonesCompanion.insert(entity: 'budgets', rowId: 'ocio', deletedAt: 900));
+    await old.into(old.syncCursors).insert(v5.SyncCursorsCompanion.insert(entity: 'entries', cursor: '2026-10-13T00:00:01Z'));
+    await old.close();
+
+    final db = await migrate(schema);
+    final e = await db.customSelect('SELECT * FROM entries').getSingle();
+    expect((e.read<int>('amount_cents'), e.read<int>('updated_at'), e.read<int>('synced_at')), (1250, 700, 700),
+        reason: 'entries no se reconstruye: misma fila, mismas marcas de sync');
+    expect([for (final t in await db.customSelect('SELECT entity, row_id, deleted_at FROM tombstones ORDER BY entity').get()) t.data],
+        [
+          {'entity': 'budgets', 'row_id': 'ocio', 'deleted_at': 900},
+          {'entity': 'entries', 'row_id': 'g9', 'deleted_at': 800},
+        ],
+        reason: 'la reconstrucción de tombstones conserva todo');
+    expect(await db.readSyncCursors(), {'entries': '2026-10-13T00:00:01Z'}, reason: 'sigue sincronizando donde iba');
+    expect(await db.customSelect('SELECT * FROM transfers').get(), isEmpty);
+
+    // Lo nuevo funciona: una cuenta con saldo inicial, una transferencia y su lápida.
+    await db.insertAccount(id: 'yape', name: 'Yape', icon: 'phone');
+    await db.setAccountOpening('yape', cents: 5000, at: DateTime(2026, 10, 1));
+    await db.insertTransfer(id: 't1', fromAccountId: null, toAccountId: 'yape', amountCents: 300, day: day(2026, 10, 9));
+    await db.customUpdate("UPDATE transfers SET synced_at = updated_at WHERE id = 't1'");
+    await db.deleteTransfer('t1');
+    expect([for (final t in await db.pendingTombstones()) '${t.entity}/${t.recordId}'], contains('transfers/t1'));
+    expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
+    await db.close();
+  });
 
   test('v4 → v5: solo agrega sync_cursors (vacía); filas y marcas de sync intactas', () async {
     final schema = await verifier.schemaAt(4);

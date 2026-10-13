@@ -94,7 +94,39 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
   `id;kind;amount_cents;amount;occurred_on;category_or_source;category_or_source_id;note;origin;created_at;updated_at;account_label`.
   `kind` va en español (gasto/ingreso); las fechas, en ISO local.
 
-## Modelo de datos (drift, `lib/data/database.dart`, schemaVersion 5)
+## Multi-cuenta: datos (Fase 4A, `fase-4a-datos`)
+
+- **Local v6** (`migrateV5ToV6`, en una transacción): `accounts` gana
+  `updated_at`, `synced_at`, `opening_balance_cents` y `opening_balance_at` (ADD
+  COLUMN; estaba vacía); tabla nueva **`transfers`** (`from_account_id` y
+  `to_account_id` nulables → accounts, `amount_cents > 0`, `occurred_on`, `note`;
+  CHECK: algún lado no nulo y nunca la misma cuenta en los dos); `tombstones`
+  acepta `'transfers'` (se reconstruye: es chica y sin FK). `entries` no se toca.
+  Sin CHECK local del par de saldo inicial (reconstruiría `accounts`, padre de
+  `entries`): lo garantiza `setAccountOpening`; el servidor sí lo exige.
+- **Transferencias en tabla aparte, no un tipo de movimiento** (D1): ninguna
+  fórmula de gasto, ingreso, runway, semáforo o insights las ve (no son
+  `Movement`). Un lado nulo = **"Sin asignar"** (D3). La clase de drift es
+  `TransferRow`; `Transfer` es el tipo del dominio.
+- **Servidor** (`20261013000100_accounts_transfers.sql`): `accounts` y
+  `transfers` con RLS, trigger y cascade desde `auth.users`;
+  `entries.account_id` con **FK compuesta** hacia accounts (D2, reemplaza la A5).
+  Verificación: `supabase/tests/verificar_accounts.sql` ("accounts OK" en
+  saldoclaro-test, 2026-10-13).
+- **Sync:** orden de subida categories, sources, **accounts**, settings,
+  entries, budgets, **transfers**; bajada al revés. Las cuentas son como los
+  catálogos: se archivan (un `deleted_at` remoto se ignora) y un nombre repetido
+  se renombra a "Nombre (n)". Las transferencias se borran con lápida.
+- **Saldo** (`metrics.dart`): `accountBalance(cuenta)` = su saldo inicial +
+  ingresos − gastos + transferencias que entran − las que salen, sin lo que ya
+  estaba en SU saldo inicial (antes de su instante; también transferencias: una
+  puede contar de un lado y no del otro). "Sin asignar" (cuenta null) usa el
+  saldo inicial de `settings`. `totalBalance` = la suma de todas las cuentas
+  (archivadas incluidas) + "Sin asignar"; **sin cuentas ni transferencias es
+  exactamente `balance()`** (test de equivalencia). Las pantallas lo usan desde
+  `fase-4a`.
+
+## Modelo de datos (drift, `lib/data/database.dart`, schemaVersion 6)
 
 Convenciones:
 

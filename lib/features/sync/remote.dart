@@ -76,11 +76,13 @@ abstract interface class SyncRemote {
 const _remoteConflict = {
   'categories': 'user_id,id',
   'sources': 'user_id,id',
+  'accounts': 'user_id,id',
   'settings': 'user_id',
   'entries': 'user_id,id',
   'budgets': 'user_id,category_id',
+  'transfers': 'user_id,id',
 };
-const _remoteKey = {'entries': 'id', 'budgets': 'category_id'};
+const _remoteKey = {'entries': 'id', 'budgets': 'category_id', 'transfers': 'id'};
 
 /// Clave de una fila en el formato del servidor, como texto. settings tiene
 /// una sola fila por usuario: su clave es 'settings'.
@@ -141,7 +143,8 @@ class SupabaseSyncRemote implements SyncRemote {
 }
 
 /// Servidor en memoria para tests: aplica last-write-wins como el trigger,
-/// pone server_updated_at (1 s por escritura), simula la FK de categorías,
+/// pone server_updated_at (1 s por escritura), simula las FK de categorías y
+/// cuentas,
 /// separa los datos por [user] (como RLS) y permite inyectar fallas.
 class FakeSyncRemote implements SyncRemote {
   final _byUser = <String, Map<String, Map<String, Map<String, Object?>>>>{};
@@ -207,6 +210,13 @@ class FakeSyncRemote implements SyncRemote {
       final cat = r['category_id'];
       if (table == 'entries' && cat != null && !(rows['categories']?.containsKey(cat) ?? false)) {
         throw const DataFailure('23503', 'categoría inexistente');
+      }
+      // Fase 4A: account_id (entries) y los dos lados de transfers → accounts.
+      for (final col in const ['account_id', 'from_account_id', 'to_account_id']) {
+        final acc = r[col];
+        if (acc != null && !(rows['accounts']?.containsKey(acc) ?? false)) {
+          throw const DataFailure('23503', 'cuenta inexistente');
+        }
       }
     }
     final t = rows.putIfAbsent(table, () => {});

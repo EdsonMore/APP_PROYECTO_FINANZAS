@@ -187,7 +187,7 @@ void main() {
     await serverEntry('b1', 2100, cat: 'mascotas');
     remote.pullLog.clear();
     await puller.pull();
-    expect({for (final p in remote.pullLog) p.table}.toList(), ['budgets', 'entries', 'settings', 'sources', 'categories']);
+    expect({for (final p in remote.pullLog) p.table}.toList(), ['transfers', 'budgets', 'entries', 'settings', 'accounts', 'sources', 'categories']);
     expect((await row('entries', 'id', 'b1'))!['category_id'], 'mascotas');
   });
 
