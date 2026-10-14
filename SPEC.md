@@ -183,7 +183,11 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
   vencidas sin crear nada, cancela todo y reprograma (N2, N8).
 - **Crear (N5):** "Repetir: Nunca" en gastos nuevos (enlace bajo la nota; en la
   hoja compacta, ícono en el encabezado junto a la fecha: como chip quedaba
-  fuera de la vista con letra grande, `fase-4d-fix`). Elegir frecuencia → "Guardar y recordar"; el primer vencimiento
+  fuera de la vista con letra grande, `fase-4d-fix`). En la hoja compacta
+  el encabezado es: fecha, Repetir, Nota, ✕; "Agregar nota" también es un
+  ícono (oscuro si hay nota; el texto va en la etiqueta y el tooltip), y las
+  etiquetas del encabezado escalan hasta ×1.1 para entrar en 320 dp
+  (`fase-4d-fix2`). Elegir frecuencia → "Guardar y recordar"; el primer vencimiento
   es un período después del día del gasto. La primera vez pide el permiso
   (N6); si se niega, se guarda igual y avisa "Activa las notificaciones para
   que te avisemos." + "Abrir ajustes".

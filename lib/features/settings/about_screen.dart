@@ -5,8 +5,8 @@ import 'legal_screen.dart';
 import 'settings_screen.dart';
 
 /// Debe coincidir con `version:` de pubspec.yaml (lo verifica un test).
-const appVersion = '0.2.0';
-const appBuild = 1;
+const appVersion = '0.3.0';
+const appBuild = 2;
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});

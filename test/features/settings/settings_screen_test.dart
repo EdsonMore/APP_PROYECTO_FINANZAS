@@ -102,7 +102,7 @@ void main() {
     await showRow(tester, 'export');
     expect(rowValue('export', 'Todavía no hay movimientos'), findsOneWidget);
     await showRow(tester, 'about');
-    expect(rowValue('about', 'Versión 0.2.0'), findsOneWidget);
+    expect(rowValue('about', 'Versión 0.3.0'), findsOneWidget);
     await h.unmount(tester);
   });
 
@@ -272,7 +272,7 @@ void main() {
       await pumpApp(tester, await h.seeded(Mode.variable));
       await openSettings(tester);
       await tapRow(tester, 'about');
-      expect(find.text('Versión 0.2.0 (1)'), findsOneWidget);
+      expect(find.text('Versión 0.3.0 (2)'), findsOneWidget);
       expect(find.byKey(const Key('about.privacy')), findsOneWidget);
       expect(find.byKey(const Key('about.terms')), findsOneWidget);
       expect(find.byKey(const Key('about.licenses')), findsOneWidget);

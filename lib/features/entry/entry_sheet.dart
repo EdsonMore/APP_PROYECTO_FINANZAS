@@ -533,7 +533,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
                     _amountView(p),
                     _errorLine(p),
                     const SizedBox(height: Space.md),
-                    _chips(p, compact),
+                    _chips(p),
                     if (!compact || _noteEditing) ...[
                       const SizedBox(height: Space.sm),
                       _noteView(p, compact),
@@ -558,7 +558,11 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
     );
   }
 
-  Widget _header(Palette p, DateTime today, bool compact) => SizedBox(
+  // fix2: con Repetir y Nota arriba, a 320 dp con letra grande no entra todo;
+  // las etiquetas del encabezado ("Gasto", "Hoy") escalan hasta ×1.1.
+  Widget _header(Palette p, DateTime today, bool compact) => MediaQuery.withClampedTextScaling(
+        maxScaleFactor: 1.1,
+        child: SizedBox(
         height: 48,
         child: Row(children: [
           Semantics(
@@ -608,8 +612,10 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
           ),
           // 4D-fix: en compacta, "Repetir" va arriba. Como chip quedaba bajo las
           // categorías y, con letra grande, fuera de la vista (scroll sin aviso).
-          if (compact && _showRepeat) _repeatIcon(p), // su área de 48 ya separa
-          const SizedBox(width: Space.sm),
+          // fix2: en compacta, Repetir y Nota van arriba (como chips quedaban
+          // fuera de la vista con letra grande). Su área de 48 ya los separa.
+          if (compact && _showRepeat) _repeatIcon(p),
+          if (compact) _noteIcon(p) else const SizedBox(width: Space.sm),
           Builder(
             builder: (buttonContext) => Semantics(
               button: true,
@@ -630,6 +636,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
             ),
           ),
         ]),
+      ),
       );
 
   String get _accountName =>
@@ -744,26 +751,10 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
         ),
       );
 
-  /// En pantalla compacta, "Agregar nota" es el último chip del Wrap.
-  Widget _chips(Palette p, bool compact) {
+  Widget _chips(Palette p) {
     final options = _options;
     if (options == null) return const SizedBox(height: 88);
-    final note = _note.text.trim();
-    final noteChip = _PickChip(
-      key: const Key('entry.addNote'),
-      label: note.isEmpty ? 'Agregar nota' : note,
-      semanticsLabel: note.isEmpty ? 'Agregar nota' : 'Nota: $note. Editar',
-      icon: Icons.notes,
-      selected: false,
-      outlined: _noteEditing || note.isNotEmpty,
-      onTap: _openNote,
-    );
-    if (options.isEmpty) {
-      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(_noOptionsText, style: AppType.caption.copyWith(color: p.inkMuted)),
-        if (compact) noteChip,
-      ]);
-    }
+    if (options.isEmpty) return Text(_noOptionsText, style: AppType.caption.copyWith(color: p.inkMuted));
     return Wrap(spacing: Space.sm, children: [
       for (final o in options)
         _PickChip(
@@ -776,8 +767,26 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
             if (_error == _noOptionsText) _error = null;
           }),
         ),
-      if (compact) noteChip,
     ]);
+  }
+
+  /// Compacta: "Agregar nota" en el encabezado. Con texto, el ícono se oscurece
+  /// y el texto va en la etiqueta (TalkBack) y en el tooltip.
+  Widget _noteIcon(Palette p) {
+    final note = _note.text.trim();
+    final label = note.isEmpty ? 'Agregar nota' : 'Nota: $note. Editar';
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: IconButton(
+        key: const Key('entry.addNote'),
+        onPressed: _openNote,
+        tooltip: label,
+        icon: Icon(Icons.edit_note, color: note.isEmpty && !_noteEditing ? p.inkMuted : p.ink),
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      ),
+    );
   }
 
   // ---- Repetir (4D)
@@ -955,7 +964,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
       );
 }
 
-/// Chip de categoría/fuente (o de nota en pantalla compacta): visible 36, área táctil 44.
+/// Chip de categoría/fuente: visible 36, área táctil 44.
 class _PickChip extends StatelessWidget {
   const _PickChip({
     super.key,
@@ -963,16 +972,10 @@ class _PickChip extends StatelessWidget {
     required this.icon,
     required this.selected,
     required this.onTap,
-    this.outlined = false,
-    this.semanticsLabel,
   });
   final String label;
   final IconData icon;
   final bool selected;
-
-  /// Borde ink sin relleno: chip de nota activo o con texto.
-  final bool outlined;
-  final String? semanticsLabel;
   final VoidCallback onTap;
 
   @override
@@ -982,7 +985,7 @@ class _PickChip extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: semanticsLabel ?? label,
+      label: label,
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -999,7 +1002,7 @@ class _PickChip extends StatelessWidget {
               decoration: BoxDecoration(
                 color: selected ? p.ink : p.surface,
                 borderRadius: BorderRadius.circular(Radii.chip),
-                border: Border.all(color: selected || outlined ? p.ink : p.border),
+                border: Border.all(color: selected ? p.ink : p.border),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(icon, size: 16, color: fg),

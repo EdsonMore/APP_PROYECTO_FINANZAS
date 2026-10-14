@@ -462,7 +462,7 @@ void main() {
   });
 
   group('alto en 720p (360×640 dp, con barras del sistema)', () {
-    testWidgets('compacta: cabe sin scroll, con íconos de categoría y "Agregar nota" como chip', (tester) async {
+    testWidgets('compacta: cabe sin scroll, con íconos de categoría y "Agregar nota" arriba', (tester) async {
       await pumpHost(tester, logicalSize: const Size(360, 640), topPadding: 24, bottomPadding: 24);
       await open(tester);
       expect(tester.takeException(), isNull, reason: 'overflow');
@@ -477,13 +477,40 @@ void main() {
         expect(find.descendant(of: find.byKey(Key('pick.$id')), matching: find.byIcon(icon)), findsOneWidget,
             reason: '$id sin ícono');
       }
-      expect(find.ancestor(of: find.byKey(const Key('entry.addNote')), matching: find.byType(Wrap)), findsOneWidget,
-          reason: 'en compacta la nota es un chip del Wrap');
+      // fix2: como chip del Wrap quedaba fuera de la vista con letra grande.
+      expect(find.ancestor(of: find.byKey(const Key('entry.addNote')), matching: find.byType(Wrap)), findsNothing);
+      expect(tester.getRect(find.byKey(const Key('entry.addNote'))).top,
+          lessThan(tester.getRect(find.byKey(const Key('entry.amount'))).top),
+          reason: 'en el encabezado');
       final scrollable = tester.state<ScrollableState>(
           find.descendant(of: find.byKey(const Key('entry.scroll')), matching: find.byType(Scrollable)));
       expect(scrollable.position.maxScrollExtent, 0, reason: 'no debe necesitar scroll');
       expect(tester.getRect(find.byKey(const Key('entry.save'))).bottom, lessThanOrEqualTo(640 - 24));
       expect(find.byKey(const Key('key.0')), findsOneWidget);
+      await unmount(tester);
+    });
+
+    testWidgets('fix2: 320×568 dp, letra ×1.3: "Agregar nota" arriba, visible; la nota se guarda', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final host = await pumpHost(tester, logicalSize: const Size(320, 568));
+      await open(tester);
+      expect(tester.takeException(), isNull, reason: 'overflow');
+      final note = find.byKey(const Key('entry.addNote'));
+      expect(note.hitTestable(), findsOneWidget, reason: 'tapado o fuera de la vista');
+      expect(tester.getRect(note).top, lessThan(tester.getRect(find.byKey(const Key('entry.amount'))).top));
+      // orden del encabezado: Repetir, Nota, ✕
+      expect(tester.getRect(find.byKey(const Key('entry.repeat'))).left, lessThan(tester.getRect(note).left));
+      expect(tester.getRect(note).left, lessThan(tester.getRect(find.byKey(const Key('entry.close'))).left));
+      await tester.tap(note);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('entry.note')), 'menú');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('entry.amount')));
+      await tester.pumpAndSettle();
+      await keys(tester, '5');
+      await save(tester);
+      expect(host.result?.note, 'menú');
       await unmount(tester);
     });
 
@@ -499,7 +526,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('compacta: chip de nota abre el campo con borde ink y al salir muestra el texto', (tester) async {
+    testWidgets('compacta: el ícono de nota abre el campo; al salir, el ícono lleva el texto', (tester) async {
       await pumpHost(tester, logicalSize: const Size(360, 640), topPadding: 24, bottomPadding: 24);
       await open(tester);
       await tester.tap(find.byKey(const Key('entry.addNote')));
@@ -510,8 +537,8 @@ void main() {
       await tester.pump();
       await tester.tap(find.byKey(const Key('entry.amount')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('entry.note')), findsNothing, reason: 'sin foco, el campo vuelve a ser chip');
-      expect(find.descendant(of: find.byKey(const Key('entry.addNote')), matching: find.text('menú')), findsOneWidget);
+      expect(find.byKey(const Key('entry.note')), findsNothing, reason: 'sin foco, vuelve a ser el ícono');
+      expect(tester.getSemantics(find.byKey(const Key('entry.addNote'))).label, 'Nota: menú. Editar');
       expect(find.byKey(const Key('key.0')), findsOneWidget);
       final scrollable = tester.state<ScrollableState>(
           find.descendant(of: find.byKey(const Key('entry.scroll')), matching: find.byType(Scrollable)));
