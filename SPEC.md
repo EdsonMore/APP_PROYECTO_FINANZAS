@@ -169,7 +169,8 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
 
 `lib/domain/recurrence.dart` (fechas puras), `lib/features/reminders/`:
 `notifier.dart` (plugin `flutter_local_notifications` + falso para tests),
-`service.dart`, `lifecycle.dart`, `reminders_screen.dart`.
+`service.dart`, `lifecycle.dart`, `reminders_screen.dart`, `due_block.dart` y
+`actions_sheet.dart` (`fase-4d-fix5`).
 
 - **Tabla `recurrences` (schema v7):** monto, categoría (sin FK, N1), cuenta,
   nota, frecuencia (semana/mes/año), día ancla, próximo vencimiento,
@@ -177,10 +178,13 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
   de la nube" no la borra.
 - **Fechas (N3):** ancla 31 → último día de los meses cortos y vuelve al 31; 29
   feb → 28 en años no bisiestos. Semanal suma 7 días.
-- **Solo recuerda (R1):** nunca crea gastos. El aviso sale 3 días antes del
-  vencimiento a las 9:00 locales (alarma inexacta, R3); si ese momento ya pasó,
-  espera al período siguiente. Al abrir y al volver a la app: corre las fechas
-  vencidas sin crear nada, cancela todo y reprograma (N2, N8).
+- **Solo recuerda (R1):** nunca crea gastos solo. **La fecha no avanza sola**
+  (`fase-4d-fix5`, reemplaza N2): un pago sin pagar sigue pendiente; avanza un
+  período solo con "Pagado" o "Saltar". Avisos a las 9:00 locales (alarma
+  inexacta, R3): 3 días antes, el día del vencimiento y cada día del +1 al +7
+  (hasta 9; ids `notification_id × 10 + k`; los que ya pasaron no se
+  programan). Al abrir y al volver a la app: cancela todo y reprograma (N8).
+  Límite conocido: Android admite ~500 alarmas por app → ~50 recordatorios (E6).
 - **Crear (N5):** "Repetir: Nunca" en gastos nuevos (enlace bajo la nota; en la
   hoja compacta, ícono en el encabezado junto a la fecha: como chip quedaba
   fuera de la vista con letra grande, `fase-4d-fix`). En la hoja compacta
@@ -191,16 +195,34 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
   es un período después del día del gasto. La primera vez pide el permiso
   (N6); si se niega, se guarda igual y avisa "Activa las notificaciones para
   que te avisemos." + "Abrir ajustes".
-- **Notificación:** "Se viene un pago: S/ 45.00" / "Internet (Vivienda) vence
-  el viernes 17 oct. Toca para registrarlo." Tocarla (app abierta o cerrada,
-  N7) abre el Home con la hoja precargada; guardar registra el gasto y pasa el
-  vencimiento al período siguiente. No toca el borrador; si la categoría ya no
-  existe, abre con la de siempre.
+- **Notificación:** antes: "Se viene un pago: S/ 45.00" / "Internet (Vivienda)
+  vence el viernes 17 oct. Toca para registrarlo."; el día: "Hoy vence: S/
+  45.00" / "… vence hoy. …"; después: "Pago vencido: S/ 45.00" / "… venció el
+  viernes 17 oct. …". Tocarla (app abierta o cerrada, N7) hace lo mismo que
+  "Pagado". No toca el borrador; si la categoría ya no existe, abre con la de
+  siempre.
+- **Por pagar (Home, `fase-4d-fix5`):** entre el bloque de días y el
+  semáforo (E5), solo si hay alguno vencido o que vence en 7 días o menos (E4).
+  Vencidos primero (el más viejo arriba), máximo 3 filas y "Ver todos (N)".
+  Fila: ícono, nota (o categoría), monto y estado ("vence hoy", "vence
+  mañana", "en N días", "venció ayer", "vencido hace N días"; si se acumuló
+  más de un período, "· N pagos pendientes", E3). Rojo (`expenseFg`) si venció
+  o vence hoy; ámbar (`amberFg`, el del semáforo) a 1-3 días; neutro después.
+  El texto siempre dice el estado (punto + texto, no solo color).
+- **Acciones (tocar una fila, en el Home o en la lista):** "Pagado" (E1: si ya
+  hay un gasto de la misma categoría y el mismo monto exacto desde el
+  vencimiento anterior hasta hoy, pregunta "¿Ya lo registraste?": "Sí, es
+  ese" avanza sin crear otro, "Registrar otro" abre la hoja; si no, la hoja
+  precargada, y al guardar avanza), "Saltar este mes / esta semana / este año"
+  (avanza sin gasto; "Saltado. Próximo: 17 dic" con "Deshacer", E2), "Editar" y
+  "Borrar" (confirma).
 - **Ajustes → Recordatorios:** "Sin recordatorios" / "1 activo" / "N activos".
-  Lista ordenada por vencimiento ("Cada mes · próximo 17 oct"); deslizar pide
-  "¿Borrar este recordatorio?". Al final, "Nuevo recordatorio" (`fase-4d-fix3`).
+  Lista ordenada por vencimiento ("Cada mes · próximo 17 oct"; a 7 días o
+  menos, el estado con su color, como en el Home); tocar abre las acciones;
+  deslizar pide "¿Borrar este recordatorio?". Al final, "Nuevo recordatorio"
+  (`fase-4d-fix3`).
 - **Editor de recordatorios (`fase-4d-fix3`):** el mismo para crear (desde
-  "Nuevo recordatorio") y para editar (tocar una fila). Título "Recordatorio",
+  "Nuevo recordatorio") y para editar ("Editar"). Título "Recordatorio",
   sin fecha ni íconos en el encabezado. Bajo el monto, siempre a la vista, una
   fila con frecuencia ("Cada mes"), próximo pago ("vie 15 nov", calendario
   "Próximo pago" de hoy a +366 días, nunca pasado), cuenta y nota; su texto
@@ -208,8 +230,8 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
   "Nunca"; "Guardar recordatorio" guarda **solo el recordatorio** (ningún
   gasto) con esa fecha como próximo pago y su día como ancla; pide el permiso
   de notificaciones al guardar (si se niega, se guarda igual). Editar: "Guardar
-  cambios". Con el pago a 2 días o menos: "Falta poco: esta vez no hay aviso. Te
-  avisamos desde el próximo." No toca el borrador del registro.
+  cambios"; con el pago vencido, el calendario abre en hoy. No toca el
+  borrador del registro.
 - **Android:** `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED` y los receptores
   del plugin; canal `saldoclaro/settings` para abrir los ajustes de
   notificaciones de la app.

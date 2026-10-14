@@ -17,14 +17,16 @@ import '../features/entry/entry_sheet.dart';
 import '../features/home/home_screen.dart';
 import '../features/reminders/lifecycle.dart';
 import '../features/reminders/notifier.dart';
+import '../features/reminders/actions_sheet.dart';
 import '../features/reminders/reminders_screen.dart';
 import '../features/reminders/service.dart';
 
 /// Vista previa de la 4D para capturas: base en memoria, sin red.
 /// `adb shell am start -n com.saldoclar.app/.MainActivity --es route /list-dark`
-/// Variantes: entry, list, new, editor, confirm, denied, permission, notify; "-dark"
-/// para oscuro. "permission" y "notify" usan el plugin real; "notify" adelanta
-/// el aviso a 20 s para capturarlo (el texto y el toque son los reales).
+/// Variantes: home, actions, match, entry, list, new, editor, confirm, denied,
+/// permission, notify; "-dark" para oscuro. "permission" y "notify" usan el
+/// plugin real; "notify" (Internet vencido hace 2 días) adelanta a 20 s el
+/// primer aviso pendiente, un "Pago vencido" (el texto y el toque son los reales).
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es_PE');
@@ -53,12 +55,18 @@ Future<void> main() async {
     return r;
   }
 
-  final internet = await add('internet', 4500, 'vivienda', 'Internet', Frequency.monthly, 3);
+  // fix5: un vencido, uno hoy, uno a 3 días, uno a 6 (cuarto: queda en "Ver todos") y uno lejos.
+  final internet = await add('internet', 4500, 'vivienda', 'Internet', Frequency.monthly, -2);
   if (variant != 'notify') {
-    await add('luz', 8700, 'vivienda', 'Luz', Frequency.monthly, 9);
-    await add('gym', 8000, 'salud', 'Gimnasio', Frequency.monthly, 16);
-    await add('futbol', 2000, 'ocio', 'Fulbito', Frequency.weekly, 2);
+    await add('luz', 8700, 'vivienda', 'Luz', Frequency.monthly, 3);
+    await add('gym', 8000, 'salud', 'Gimnasio', Frequency.monthly, 6);
+    await add('futbol', 2000, 'ocio', 'Fulbito', Frequency.weekly, 0);
     await add('soat', 35000, 'transporte', 'SOAT', Frequency.yearly, 140);
+  }
+  if (variant == 'match') {
+    await db.insertManualEntry(
+        id: 'pagado', kind: EntryKind.expense, amountCents: 4500, day: today.subtract(const Duration(days: 1)),
+        pickId: 'vivienda', now: now);
   }
   final reminder = await (db.select(db.recurrences)..where((r) => r.id.equals(internet.id))).getSingle();
 
@@ -87,6 +95,8 @@ Future<void> main() async {
         themeMode: dark ? ThemeMode.dark : ThemeMode.light,
         home: ReminderLifecycle(child: switch (variant) {
           'list' => const RemindersScreen(),
+          'actions' => _Auto(open: (c) => showReminderActions(c, reminder), child: const HomeScreen()),
+          'match' => _Auto(open: (c) => payReminder(c, reminder), child: const HomeScreen()),
           'new' => _Auto(open: (c) => showEntrySheet(c, EntryKind.expense, newReminder: true), child: const RemindersScreen()),
           'editor' => _Auto(
               open: (c) => showEntrySheet(c, EntryKind.expense, editingReminder: reminder),
@@ -102,16 +112,21 @@ Future<void> main() async {
   );
 }
 
-/// El plugin real, con el aviso adelantado a 20 s.
+/// El plugin real, con el primer aviso adelantado a 20 s (los demás, no: la
+/// captura muestra uno solo).
 class _Soon implements ReminderNotifier {
   _Soon(this._inner);
   final ReminderNotifier _inner;
+  bool _sent = false;
 
   @override
   Future<void> schedule(
-          {required int id, required DateTime at, required String title, required String body, required String payload}) =>
-      _inner.schedule(
-          id: id, at: DateTime.now().add(const Duration(seconds: 20)), title: title, body: body, payload: payload);
+      {required int id, required DateTime at, required String title, required String body, required String payload}) async {
+    if (_sent) return;
+    _sent = true;
+    await _inner.schedule(
+        id: id, at: DateTime.now().add(const Duration(seconds: 20)), title: title, body: body, payload: payload);
+  }
 
   @override
   Future<void> init(void Function(String payload) onTap) => _inner.init(onTap);

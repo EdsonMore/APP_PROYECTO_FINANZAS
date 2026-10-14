@@ -8,14 +8,18 @@ import '../../core/utils/formatters.dart';
 import '../../core/widgets/icon_catalog.dart';
 import '../../core/widgets/text_link.dart';
 import '../../data/database.dart';
+import '../../data/providers.dart';
 import '../../domain/metrics.dart' show EntryKind;
+import '../../domain/recurrence.dart';
 import '../entry/entry_sheet.dart';
 import '../home/providers.dart' show categoriesStreamProvider;
 import '../settings/settings_screen.dart' show SubpageHeader;
+import 'actions_sheet.dart';
+import 'due_block.dart' show dueLine, dueWindowDays;
 import 'service.dart';
 
-/// Ajustes → Recordatorios (4D): los pagos que se repiten. Tocar edita; deslizar
-/// borra. Solo viven en este teléfono (R2).
+/// Ajustes → Recordatorios (4D): los pagos que se repiten. Tocar abre las
+/// acciones (fix5); deslizar borra. Solo viven en este teléfono (R2).
 class RemindersScreen extends ConsumerWidget {
   const RemindersScreen({super.key});
 
@@ -86,31 +90,14 @@ class _ReminderTile extends ConsumerWidget {
     final p = context.palette;
     final label = reminderLabel(r, category?.name);
     final due = parseIsoDay(r.nextDue);
-    final when = '${frequencyLabels[r.frequency]} · próximo '
-        '${DateFormat('d MMM', 'es_PE').format(DateTime(due.year, due.month, due.day))}';
+    final today = ref.watch(todayProvider);
+    final days = daysToDue(due, today);
+    // fix5: cerca o vencido, el mismo estado y color que en el Home.
+    final near = days <= dueWindowDays;
+    final when = '${frequencyLabels[r.frequency]} · '
+        '${near ? dueLine(r, today) : 'próximo ${DateFormat('d MMM', 'es_PE').format(DateTime(due.year, due.month, due.day))}'}';
     final amount = Formatters.soles(r.amountCents);
-    Future<bool> confirm() async =>
-        await showDialog<bool>(
-          context: context,
-          builder: (c) => AlertDialog(
-            title: const Text('¿Borrar este recordatorio?'),
-            content: Text('$label, $amount.'),
-            actions: [
-              TextButton(
-                key: const Key('reminders.delete.cancel'),
-                onPressed: () => Navigator.of(c).pop(false),
-                child: const Text('Cancelar'),
-              ),
-              TextButton(
-                key: const Key('reminders.delete.confirm'),
-                onPressed: () => Navigator.of(c).pop(true),
-                style: TextButton.styleFrom(foregroundColor: p.expenseFg),
-                child: const Text('Borrar'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+    Future<bool> confirm() => confirmDeleteReminder(context, label, r.amountCents);
     Future<void> remove() => ref.read(reminderServiceProvider).remove(r);
 
     return Dismissible(
@@ -141,7 +128,7 @@ class _ReminderTile extends ConsumerWidget {
           color: p.canvas,
           child: InkWell(
             key: Key('reminders.${r.id}'),
-            onTap: () => showEntrySheet(context, EntryKind.expense, editingReminder: r),
+            onTap: () => showReminderActions(context, r),
             borderRadius: BorderRadius.circular(Radii.button),
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: 64),
@@ -158,7 +145,7 @@ class _ReminderTile extends ConsumerWidget {
                       Text(when,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: AppType.caption.copyWith(color: p.inkMuted)),
+                          style: AppType.caption.copyWith(color: near ? dueColor(p, dueTone(days)) : p.inkMuted)),
                     ]),
                   ),
                   const SizedBox(width: Space.md),

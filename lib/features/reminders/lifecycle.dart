@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
-import '../../domain/metrics.dart' show EntryKind;
-import '../entry/entry_sheet.dart';
-import '../home/home_screen.dart' show showUndoSnack;
+import 'actions_sheet.dart';
 import 'service.dart';
 
 /// Arriba de la app (4D): inicia las notificaciones, recuerda la que abrió la
@@ -75,9 +73,7 @@ class _ReminderOpenerState extends ConsumerState<ReminderOpener> {
     final db = ref.read(databaseProvider);
     final r = await (db.select(db.recurrences)..where((x) => x.id.equals(id))).getSingleOrNull();
     if (r == null || !mounted) return; // borrado mientras tanto
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    final entry = await showEntrySheet(context, EntryKind.expense, reminder: r);
-    if (entry != null && messenger != null) showUndoSnack(messenger, db, entry);
+    await payReminder(context, r); // fix5: lo mismo que "Pagado" (E1 incluido)
   }
 
   @override

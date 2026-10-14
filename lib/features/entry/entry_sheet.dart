@@ -535,7 +535,8 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
     final picked = await showDatePicker(
       context: context,
       confirmText: 'Aceptar', // es trae "ACEPTAR" en mayúsculas
-      initialDate: local(_day ?? today),
+      // fix5: un recordatorio vencido abre en hoy (no se puede elegir un día pasado).
+      initialDate: local(_reminderEditor && (_day ?? today).isBefore(today) ? today : (_day ?? today)),
       helpText: _reminderEditor ? 'Próximo pago' : null,
       // Recordatorio: la fecha es el próximo pago, de hoy a un año (D3).
       // Movimiento: nunca futuro (las métricas lo ignorarían); en edición, uno
@@ -594,10 +595,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     _amountView(p),
                     _errorLine(p),
-                    if (_reminderEditor) ...[
-                      _reminderRow(p, today),
-                      if (_dueSoon(today)) _dueSoonLine(p),
-                    ],
+                    if (_reminderEditor) _reminderRow(p, today),
                     const SizedBox(height: Space.md),
                     _chips(p),
                     if ((!compact && !_reminderEditor) || _noteEditing) ...[
@@ -896,17 +894,6 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
       ),
     ]));
   }
-
-  /// D2: el aviso sale 3 días antes; con el pago a 2 días o menos, este
-  /// período no hay aviso. ponytail: cuenta días, no la hora de las 9:00.
-  bool _dueSoon(DateTime today) => (_day ?? today).difference(today).inDays < 3;
-
-  Widget _dueSoonLine(Palette p) => Padding(
-        key: const Key('entry.dueSoon'),
-        padding: const EdgeInsets.only(top: Space.xs),
-        child: Text('Falta poco: esta vez no hay aviso. Te avisamos desde el próximo.',
-            style: AppType.caption.copyWith(color: p.inkMuted)),
-      );
 
   // ---- Repetir (4D)
 

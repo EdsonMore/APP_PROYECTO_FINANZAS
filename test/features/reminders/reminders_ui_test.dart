@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:saldo_claro/core/theme/app_theme.dart';
+import 'package:saldo_claro/core/theme/tokens.dart';
 import 'package:saldo_claro/data/database.dart';
 import 'package:saldo_claro/data/providers.dart';
 import 'package:saldo_claro/domain/metrics.dart';
@@ -86,6 +87,14 @@ Future<Recurrence> internet(AppDatabase db, {String categoryId = 'vivienda'}) =>
     firstDay: day(2026, 9, 11)); // próximo: 11 oct
 
 /// Lo que haría tocar la notificación con la app abierta.
+/// fix5: tocar un recordatorio abre la hoja de acciones; "Editar", el editor.
+Future<void> openEditor(WidgetTester tester, String id) async {
+  await tester.tap(find.byKey(Key('reminders.$id')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const Key('reminder.edit')));
+  await tester.pumpAndSettle();
+}
+
 Future<void> tapNotification(WidgetTester tester, String id) async {
   ProviderScope.containerOf(tester.element(find.text('abrir gasto'))).read(pendingReminderProvider.notifier).state = id;
   await tester.pumpAndSettle();
@@ -127,7 +136,7 @@ void main() {
       final r = await host.db.select(host.db.recurrences).getSingle();
       expect((r.amountCents, r.categoryId, r.frequency, r.nextDue, r.anchorDay),
           (4500, 'comida', Frequency.monthly, '2026-11-08', 8));
-      expect(host.notifier.scheduled[r.notificationId]!.at, DateTime(2026, 11, 5, 9));
+      expect(host.notifier.scheduled[r.notificationId * 10]!.at, DateTime(2026, 11, 5, 9));
       await unmount(tester);
     });
 
@@ -256,11 +265,10 @@ void main() {
       await h.unmount(tester);
     });
 
-    testWidgets('tocar edita: cambia la frecuencia y guarda sin crear gastos', (tester) async {
+    testWidgets('Editar: cambia la frecuencia y guarda sin crear gastos', (tester) async {
       final db = await openList(tester);
       final before = (await db.select(db.entries).get()).length;
-      await tester.tap(find.byKey(const Key('reminders.r1')));
-      await tester.pumpAndSettle();
+      await openEditor(tester, 'r1');
       expect(find.text('Guardar cambios'), findsOneWidget);
       expect(find.byKey(const Key('repeat.never')), findsNothing);
       await pickRepeat(tester, 'weekly');
@@ -363,7 +371,7 @@ void main() {
       expect((r.amountCents, r.categoryId, r.frequency, r.nextDue, r.anchorDay),
           (4500, 'vivienda', Frequency.monthly, '2026-11-15', 15));
       expect(await host.db.select(host.db.entries).get(), isEmpty, reason: 'desde Ajustes no se crea gasto');
-      expect(host.notifier.scheduled[r.notificationId]!.at, DateTime(2026, 11, 12, 9));
+      expect(host.notifier.scheduled[r.notificationId * 10]!.at, DateTime(2026, 11, 12, 9));
       expect(find.byType(RemindersScreen), findsOneWidget);
       expect(find.text('Cada mes · próximo 15 nov'), findsOneWidget);
       await unmount(tester);
@@ -381,18 +389,6 @@ void main() {
       await keys(tester, '350');
       await save(tester);
       expect((await host.db.select(host.db.recurrences).getSingle()).frequency, Frequency.yearly);
-      await unmount(tester);
-    });
-
-    testWidgets('D2: a 2 días o menos avisa que esta vez no hay aviso; a 3, no', (tester) async {
-      await pumpList(tester);
-      await openNew(tester);
-      const hint = 'Falta poco: esta vez no hay aviso. Te avisamos desde el próximo.';
-      expect(find.text(hint), findsNothing);
-      await pickDue(tester, 10, prevMonth: true); // 10 oct: en 2 días
-      expect(find.text(hint), findsOneWidget);
-      await pickDue(tester, 11); // 11 oct: en 3 días, el aviso sale el 8 a las 9
-      expect(find.text(hint), findsNothing);
       await unmount(tester);
     });
 
@@ -426,8 +422,7 @@ void main() {
           id: 'r1', amountCents: 4500, categoryId: 'vivienda', note: 'Internet', frequency: Frequency.monthly,
           firstDay: day(2026, 9, 8)); // próximo: hoy, 8 oct
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('reminders.r1')));
-      await tester.pumpAndSettle();
+      await openEditor(tester, 'r1');
       expect(find.text('Recordatorio'), findsOneWidget);
       expect(find.text('Guardar cambios'), findsOneWidget);
       expect(find.text('jue 8 oct'), findsOneWidget);
@@ -437,7 +432,7 @@ void main() {
       await save(tester);
       final after = await host.db.select(host.db.recurrences).getSingle();
       expect((after.nextDue, after.anchorDay), ('2026-10-20', 20));
-      expect(host.notifier.scheduled[r.notificationId]!.at, DateTime(2026, 10, 17, 9));
+      expect(host.notifier.scheduled[r.notificationId * 10]!.at, DateTime(2026, 10, 17, 9));
       expect(await host.db.select(host.db.entries).get(), isEmpty);
       await unmount(tester);
     });
@@ -465,6 +460,188 @@ void main() {
       await tester.tap(find.byKey(const Key('pick.otros')));
       await tester.pump();
       await unmount(tester);
+    });
+  });
+
+  group('fix5: Por pagar, acciones y estado', () {
+    /// Home con datos (hoy: 8 oct 2026) y recordatorios con su próximo pago.
+    Future<AppDatabase> home(WidgetTester tester, Map<String, DateTime> dues,
+        {Size size = const Size(411, 914), int cents = 4500}) async {
+      final seed = await h.seeded(Mode.variable);
+      for (final (i, MapEntry(key: id, value: due)) in dues.entries.indexed) {
+        await seed.db.insertRecurrence(
+            id: id, amountCents: cents + i, categoryId: 'vivienda', note: id, frequency: Frequency.monthly, firstDue: due);
+      }
+      await st.pumpApp(tester, seed, size: size);
+      return seed.db;
+    }
+
+    Finder status(String text) => find.descendant(of: find.byKey(const Key('home.due')), matching: find.text(text));
+    Color colorOf(WidgetTester tester, Finder f) => tester.widget<Text>(f).style!.color!;
+
+    testWidgets('sin pagos cerca no aparece', (tester) async {
+      await home(tester, {'lejos': day(2026, 10, 16)}); // en 8 días
+      expect(find.byKey(const Key('home.due')), findsNothing);
+      await h.unmount(tester);
+    });
+
+    testWidgets('filas: vencidos primero, estado y color por días; máximo 3 y "Ver todos (N)"', (tester) async {
+      await home(tester, {
+        'luz': day(2026, 10, 11), // en 3 días
+        'agua': day(2026, 10, 15), // en 7 días: entra, pero es la cuarta
+        'gym': day(2026, 10, 8), // hoy
+        'cable': day(2026, 9, 8), // vencido hace 30 días: sep y oct pendientes
+        'lejos': day(2026, 10, 16), // en 8 días: no
+      });
+      expect(find.text('Por pagar'), findsOneWidget);
+      final rows = ['cable', 'gym', 'luz'];
+      for (final id in rows) {
+        expect(find.byKey(Key('home.due.$id')), findsOneWidget);
+      }
+      expect(find.byKey(const Key('home.due.agua')), findsNothing, reason: 'máximo 3');
+      final tops = [for (final id in rows) tester.getRect(find.byKey(Key('home.due.$id'))).top];
+      expect(tops, [...tops]..sort(), reason: 'el más viejo arriba');
+      final p = Palette.light;
+      expect(colorOf(tester, status('vencido hace 30 días · 2 pagos pendientes')), p.expenseFg);
+      expect(colorOf(tester, status('vence hoy')), p.expenseFg);
+      expect(colorOf(tester, status('en 3 días')), p.amberFg);
+      expect(find.text('Ver todos (5)'), findsOneWidget);
+      await tester.tap(find.text('Ver todos (5)'));
+      await tester.pumpAndSettle();
+      expect(find.byType(RemindersScreen), findsOneWidget);
+      expect(find.text('Cada mes · en 7 días'), findsOneWidget, reason: 'la lista también muestra el estado');
+      expect(find.text('Cada mes · próximo 16 oct'), findsOneWidget);
+      await h.unmount(tester);
+    });
+
+    testWidgets('a 4-7 días: neutro', (tester) async {
+      await home(tester, {'agua': day(2026, 10, 12)});
+      expect(colorOf(tester, status('en 4 días')), Palette.light.inkMuted);
+      await h.unmount(tester);
+    });
+
+    Future<void> openActions(WidgetTester tester, String id) async {
+      await tester.ensureVisible(find.byKey(Key('home.due.$id')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key('home.due.$id')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('acciones: título, estado y las 4 opciones', (tester) async {
+      await home(tester, {'Internet': day(2026, 10, 6)});
+      await openActions(tester, 'Internet');
+      expect(find.text('Internet (Vivienda)'), findsOneWidget);
+      expect(find.text('S/ 45.00 · vencido hace 2 días'), findsOneWidget);
+      expect(find.text('Cada mes · venció el mar 6 oct'), findsOneWidget);
+      for (final label in ['Pagado', 'Saltar este mes', 'Editar', 'Borrar']) {
+        expect(find.text(label), findsOneWidget);
+      }
+      await h.unmount(tester);
+    });
+
+    testWidgets('Saltar: avanza sin crear gasto; Deshacer la devuelve', (tester) async {
+      final db = await home(tester, {'gym': day(2026, 10, 8)});
+      final before = (await db.select(db.entries).get()).length;
+      await openActions(tester, 'gym');
+      await tester.tap(find.byKey(const Key('reminder.skip')));
+      await tester.pumpAndSettle();
+      expect((await db.select(db.recurrences).getSingle()).nextDue, '2026-11-08');
+      expect((await db.select(db.entries).get()).length, before);
+      expect(find.text('Saltado. Próximo: 8 nov'), findsOneWidget);
+      expect(find.byKey(const Key('home.due')), findsNothing, reason: 'ya no está por pagar');
+      await tester.tap(find.text('Deshacer'));
+      await tester.pumpAndSettle();
+      expect((await db.select(db.recurrences).getSingle()).nextDue, '2026-10-08');
+      expect(find.byKey(const Key('home.due.gym')), findsOneWidget);
+      await h.unmount(tester);
+    });
+
+    testWidgets('Pagado sin gasto parecido: hoja precargada; al guardar crea el gasto y avanza', (tester) async {
+      final db = await home(tester, {'gym': day(2026, 10, 8)}, cents: 7777);
+      final before = (await db.select(db.entries).get()).length;
+      await openActions(tester, 'gym');
+      await tester.tap(find.byKey(const Key('reminder.pay')));
+      await tester.pumpAndSettle();
+      expect(find.text('¿Ya lo registraste?'), findsNothing);
+      expect(find.descendant(of: find.byKey(const Key('entry.amount')), matching: find.text('S/ 77.77')), findsOneWidget);
+      await save(tester);
+      expect((await db.select(db.entries).get()).length, before + 1);
+      expect((await db.select(db.recurrences).getSingle()).nextDue, '2026-11-08');
+      await h.unmount(tester);
+    });
+
+    testWidgets('E1 Pagado con gasto parecido: "Sí, es ese" avanza sin crear otro; "Registrar otro" abre la hoja',
+        (tester) async {
+      final db = await home(tester, {'gym': day(2026, 10, 8)}, cents: 7777);
+      await db.insertManualEntry(
+          id: 'pagado', kind: EntryKind.expense, amountCents: 7777, day: day(2026, 10, 5), pickId: 'vivienda',
+          now: DateTime(2026, 10, 5));
+      await tester.pumpAndSettle();
+      final before = (await db.select(db.entries).get()).length;
+      await openActions(tester, 'gym');
+      await tester.tap(find.byKey(const Key('reminder.pay')));
+      await tester.pumpAndSettle();
+      expect(find.text('¿Ya lo registraste?'), findsOneWidget);
+      expect(find.text('Anotaste S/ 77.77 en Vivienda el 5 oct.'), findsOneWidget);
+      await tester.tap(find.text('Registrar otro'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('entry.save')), findsOneWidget, reason: 'la hoja precargada');
+      await tester.tap(find.byKey(const Key('entry.close')));
+      await tester.pumpAndSettle();
+      expect((await db.select(db.recurrences).getSingle()).nextDue, '2026-10-08', reason: 'cerrar no paga');
+      await openActions(tester, 'gym');
+      await tester.tap(find.byKey(const Key('reminder.pay')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sí, es ese'));
+      await tester.pumpAndSettle();
+      expect((await db.select(db.recurrences).getSingle()).nextDue, '2026-11-08');
+      expect((await db.select(db.entries).get()).length, before, reason: 'no crea otro gasto');
+      await h.unmount(tester);
+    });
+
+    testWidgets('Borrar confirma y lo quita', (tester) async {
+      final db = await home(tester, {'gym': day(2026, 10, 8)});
+      await openActions(tester, 'gym');
+      await tester.tap(find.byKey(const Key('reminder.delete')));
+      await tester.pumpAndSettle();
+      expect(find.text('¿Borrar este recordatorio?'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('reminders.delete.confirm')));
+      await tester.pumpAndSettle();
+      expect(await db.select(db.recurrences).get(), isEmpty);
+      expect(find.byKey(const Key('home.due')), findsNothing);
+      await h.unmount(tester);
+    });
+
+    testWidgets('Editar un vencido: el calendario abre en hoy y no deja días pasados', (tester) async {
+      final db = await home(tester, {'gym': day(2026, 10, 6)});
+      await openActions(tester, 'gym');
+      await tester.tap(find.byKey(const Key('reminder.edit')));
+      await tester.pumpAndSettle();
+      expect(find.text('mar 6 oct'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('entry.date')));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      final dialog = find.byType(DatePickerDialog);
+      await tester.tap(find.descendant(of: dialog, matching: find.text('7')));
+      await tester.tap(find.descendant(of: dialog, matching: find.text('Aceptar')));
+      await tester.pumpAndSettle();
+      expect(find.text('jue 8 oct'), findsOneWidget, reason: 'el 7 está deshabilitado: queda hoy');
+      await save(tester);
+      expect((await db.select(db.recurrences).getSingle()).nextDue, '2026-10-08');
+      await h.unmount(tester);
+    });
+
+    testWidgets('320×568 dp, letra ×1.3: el bloque entra y sus filas se tocan', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await home(tester, {'cable': day(2026, 9, 8), 'gym': day(2026, 10, 8)}, size: const Size(320, 568));
+      expect(tester.takeException(), isNull, reason: 'overflow');
+      await tester.scrollUntilVisible(find.byKey(const Key('home.due.gym')), 100,
+          scrollable: find.byType(Scrollable).first);
+      await tester.ensureVisible(find.byKey(const Key('home.due.gym')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('home.due.gym')).hitTestable(), findsOneWidget, reason: 'no bajo los botones');
+      await h.unmount(tester);
     });
   });
 }

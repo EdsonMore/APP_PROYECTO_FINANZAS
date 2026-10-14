@@ -15,6 +15,7 @@ import '../entry/opening_balance_sheet.dart';
 import '../history/filters.dart' show HistoryFilter;
 import '../history/history_screen.dart';
 import '../insights/insights_screen.dart';
+import '../reminders/due_block.dart';
 import '../settings/modes_screen.dart';
 import '../settings/settings_screen.dart';
 import '../sync/sync_indicator.dart';
@@ -89,6 +90,7 @@ class HomeScreen extends ConsumerWidget {
                       )
                     : const SizedBox(width: double.infinity),
               ),
+              const DueBlock(), // fix5: "Por pagar", arriba del semáforo (E5)
               LightCard(view: s.light),
               if (s.accounts.isNotEmpty)
                 AccountsBlock(

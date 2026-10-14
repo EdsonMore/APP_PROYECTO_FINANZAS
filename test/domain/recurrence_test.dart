@@ -31,23 +31,49 @@ void main() {
     });
   });
 
-  group('rollForward (N2)', () {
-    test('vencida hace varios períodos: la primera fecha >= hoy', () {
-      expect(rollForward(day(2026, 7, 14), Frequency.monthly, anchorDay: 14, today: day(2026, 10, 14)), day(2026, 10, 14),
-          reason: 'vence hoy: todavía no se pasó');
-      expect(rollForward(day(2026, 7, 14), Frequency.monthly, anchorDay: 14, today: day(2026, 10, 15)), day(2026, 11, 14));
-      expect(rollForward(day(2026, 9, 30), Frequency.weekly, anchorDay: 30, today: day(2026, 10, 15)), day(2026, 10, 21));
+  group('fix5: estado', () {
+    final today = day(2026, 10, 14);
+    test('daysToDue: negativo si venció', () {
+      expect(daysToDue(day(2026, 10, 14), today), 0);
+      expect(daysToDue(day(2026, 10, 17), today), 3);
+      expect(daysToDue(day(2026, 9, 14), today), -30);
     });
 
-    test('futura: no cambia', () {
-      expect(rollForward(day(2026, 12, 1), Frequency.monthly, anchorDay: 1, today: day(2026, 10, 14)), day(2026, 12, 1));
+    test('tono: rojo si venció o vence hoy, ámbar a 1-3 días, neutro después', () {
+      expect([for (final d in [-30, -1, 0, 1, 3, 4, 7]) dueTone(d)], [
+        DueTone.overdue, DueTone.overdue, DueTone.overdue, DueTone.soon, DueTone.soon, DueTone.later, DueTone.later,
+      ]);
+    });
+
+    test('pagos pendientes: cuántos vencimientos ya llegaron (E3)', () {
+      expect(pendingPeriods(day(2026, 10, 20), Frequency.monthly, anchorDay: 20, today: today), 0);
+      expect(pendingPeriods(day(2026, 10, 14), Frequency.monthly, anchorDay: 14, today: today), 1, reason: 'vence hoy');
+      expect(pendingPeriods(day(2026, 9, 4), Frequency.monthly, anchorDay: 4, today: today), 2, reason: '4 sep y 4 oct');
+      expect(pendingPeriods(day(2026, 9, 30), Frequency.weekly, anchorDay: 30, today: today), 3, reason: '30 sep, 7 y 14 oct');
+    });
+
+    test('vencimiento anterior (ventana del pago ya registrado, E1)', () {
+      expect(previousDue(day(2026, 10, 17), Frequency.monthly, anchorDay: 17), day(2026, 9, 17));
+      expect(previousDue(day(2026, 3, 3), Frequency.monthly, anchorDay: 3), day(2026, 2, 3));
+      expect(previousDue(day(2026, 2, 28), Frequency.monthly, anchorDay: 31), day(2026, 1, 31), reason: 'ancla 31');
+      expect(previousDue(day(2027, 1, 5), Frequency.monthly, anchorDay: 5), day(2026, 12, 5), reason: 'cruza de año');
+      expect(previousDue(day(2026, 10, 21), Frequency.weekly, anchorDay: 21), day(2026, 10, 14));
+      expect(previousDue(day(2029, 2, 28), Frequency.yearly, anchorDay: 29), day(2028, 2, 29), reason: 'bisiesto');
     });
   });
 
-  group('reminderAt', () {
-    test('3 días antes del vencimiento, a las 9:00 (hora local)', () {
-      expect(reminderAt(day(2026, 10, 17)), DateTime(2026, 10, 14, 9));
-      expect(reminderAt(day(2026, 11, 2)), DateTime(2026, 10, 30, 9), reason: 'cruza de mes');
+  group('fix5: avisos', () {
+    test('3 días antes, el día y cada día hasta +7, a las 9:00 local', () {
+      expect(reminderMoments(day(2026, 10, 17)), [
+        DateTime(2026, 10, 14, 9),
+        DateTime(2026, 10, 17, 9),
+        for (var d = 18; d <= 24; d++) DateTime(2026, 10, d, 9),
+      ]);
+    });
+
+    test('cruza de mes', () {
+      final m = reminderMoments(day(2026, 11, 2));
+      expect((m.first, m[1], m.last), (DateTime(2026, 10, 30, 9), DateTime(2026, 11, 2, 9), DateTime(2026, 11, 9, 9)));
     });
   });
 }
