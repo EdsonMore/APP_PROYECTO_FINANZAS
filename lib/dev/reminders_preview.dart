@@ -22,7 +22,7 @@ import '../features/reminders/service.dart';
 
 /// Vista previa de la 4D para capturas: base en memoria, sin red.
 /// `adb shell am start -n com.saldoclar.app/.MainActivity --es route /list-dark`
-/// Variantes: entry, list, editor, confirm, denied, permission, notify; "-dark"
+/// Variantes: entry, list, new, editor, confirm, denied, permission, notify; "-dark"
 /// para oscuro. "permission" y "notify" usan el plugin real; "notify" adelanta
 /// el aviso a 20 s para capturarlo (el texto y el toque son los reales).
 Future<void> main() async {
@@ -87,6 +87,7 @@ Future<void> main() async {
         themeMode: dark ? ThemeMode.dark : ThemeMode.light,
         home: ReminderLifecycle(child: switch (variant) {
           'list' => const RemindersScreen(),
+          'new' => _Auto(open: (c) => showEntrySheet(c, EntryKind.expense, newReminder: true), child: const RemindersScreen()),
           'editor' => _Auto(
               open: (c) => showEntrySheet(c, EntryKind.expense, editingReminder: reminder),
               child: const RemindersScreen()),

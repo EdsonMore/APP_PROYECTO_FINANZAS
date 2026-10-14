@@ -289,4 +289,182 @@ void main() {
       await h.unmount(tester);
     });
   });
+
+  group('fix3: crear y editar desde Ajustes', () {
+    /// Ajustes → Recordatorios sola, con el notificador falso y el reloj fijo
+    /// (8 oct 2026, 10:00).
+    Future<ReminderHost> pumpList(WidgetTester tester,
+        {bool granted = true, Size size = const Size(411, 914)}) async {
+      const dpr = 2.625;
+      tester.view.physicalSize = size * dpr;
+      tester.view.devicePixelRatio = dpr;
+      addTearDown(tester.view.reset);
+      final host = ReminderHost(AppDatabase(NativeDatabase.memory()), await SharedPreferences.getInstance(),
+          FakeReminderNotifier()..granted = granted);
+      addTearDown(host.db.close);
+      await host.db.completeOnboarding(mode: Mode.variable);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(host.db),
+          sharedPreferencesProvider.overrideWithValue(host.prefs),
+          todayProvider.overrideWithValue(today),
+          reminderNotifierProvider.overrideWithValue(host.notifier),
+          reminderServiceProvider.overrideWith(
+              (ref) => ReminderService(host.db, host.notifier, clock: () => DateTime(2026, 10, 8, 10))),
+        ],
+        child: MaterialApp(theme: AppTheme.light, home: const RemindersScreen()),
+      ));
+      await tester.pumpAndSettle();
+      return host;
+    }
+
+    Future<void> openNew(WidgetTester tester) async {
+      await tester.ensureVisible(find.byKey(const Key('reminders.add')));
+      await tester.tap(find.byKey(const Key('reminders.add')));
+      await tester.pumpAndSettle();
+    }
+
+    /// Abre el calendario de "Próximo pago" y elige [dayOfMonth] del mes que
+    /// muestra (o del anterior con [prevMonth]).
+    Future<void> pickDue(WidgetTester tester, int dayOfMonth, {bool prevMonth = false}) async {
+      await tester.tap(find.byKey(const Key('entry.date')));
+      await tester.pumpAndSettle();
+      expect(find.text('Próximo pago'), findsOneWidget);
+      if (prevMonth) {
+        await tester.tap(find.byTooltip('Previous month'));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.descendant(of: find.byType(DatePickerDialog), matching: find.text('$dayOfMonth')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('lista vacía: "Sin recordatorios" y "Nuevo recordatorio"', (tester) async {
+      await pumpList(tester);
+      expect(find.text('Sin recordatorios'), findsOneWidget);
+      expect(find.text('Nuevo recordatorio'), findsOneWidget);
+      await unmount(tester);
+    });
+
+    testWidgets('crear: solo el recordatorio (ningún gasto), con la fecha elegida como ancla', (tester) async {
+      final host = await pumpList(tester);
+      await openNew(tester);
+      expect(find.text('Recordatorio'), findsOneWidget);
+      expect(find.text('Guardar recordatorio'), findsOneWidget);
+      expect(find.text('Cada mes'), findsOneWidget, reason: 'por defecto');
+      expect(find.text('dom 8 nov'), findsOneWidget, reason: 'D4: un mes desde hoy');
+      await keys(tester, '45');
+      await tester.tap(find.byKey(const Key('pick.vivienda')));
+      await pickDue(tester, 15);
+      expect(find.text('dom 15 nov'), findsOneWidget);
+      await save(tester);
+      final r = await host.db.select(host.db.recurrences).getSingle();
+      expect((r.amountCents, r.categoryId, r.frequency, r.nextDue, r.anchorDay),
+          (4500, 'vivienda', Frequency.monthly, '2026-11-15', 15));
+      expect(await host.db.select(host.db.entries).get(), isEmpty, reason: 'desde Ajustes no se crea gasto');
+      expect(host.notifier.scheduled[r.notificationId]!.at, DateTime(2026, 11, 12, 9));
+      expect(find.byType(RemindersScreen), findsOneWidget);
+      expect(find.text('Cada mes · próximo 15 nov'), findsOneWidget);
+      await unmount(tester);
+    });
+
+    testWidgets('frecuencia obligatoria: sin "Nunca"; "Cada año" se guarda', (tester) async {
+      final host = await pumpList(tester);
+      await openNew(tester);
+      await tester.tap(find.byKey(const Key('entry.repeat')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('repeat.never')), findsNothing);
+      await tester.tap(find.byKey(const Key('repeat.yearly')));
+      await tester.pumpAndSettle();
+      expect(find.text('Cada año'), findsOneWidget);
+      await keys(tester, '350');
+      await save(tester);
+      expect((await host.db.select(host.db.recurrences).getSingle()).frequency, Frequency.yearly);
+      await unmount(tester);
+    });
+
+    testWidgets('D2: a 2 días o menos avisa que esta vez no hay aviso; a 3, no', (tester) async {
+      await pumpList(tester);
+      await openNew(tester);
+      const hint = 'Falta poco: esta vez no hay aviso. Te avisamos desde el próximo.';
+      expect(find.text(hint), findsNothing);
+      await pickDue(tester, 10, prevMonth: true); // 10 oct: en 2 días
+      expect(find.text(hint), findsOneWidget);
+      await pickDue(tester, 11); // 11 oct: en 3 días, el aviso sale el 8 a las 9
+      expect(find.text(hint), findsNothing);
+      await unmount(tester);
+    });
+
+    testWidgets('permiso: se pide al guardar; si se niega, se guarda igual y la lista avisa', (tester) async {
+      final host = await pumpList(tester, granted: false);
+      host.notifier.grantOnRequest = false;
+      await openNew(tester);
+      expect(host.notifier.requests, 0, reason: 'no al abrir');
+      await keys(tester, '20');
+      await save(tester);
+      expect(host.notifier.requests, 1);
+      expect(await host.db.select(host.db.recurrences).get(), hasLength(1));
+      expect(find.byKey(const Key('reminders.noPermission')), findsOneWidget);
+      await unmount(tester);
+    });
+
+    testWidgets('no toca el borrador del registro', (tester) async {
+      final host = await pumpList(tester);
+      await openNew(tester);
+      await keys(tester, '12');
+      await tester.tap(find.byKey(const Key('entry.close')));
+      await tester.pumpAndSettle(const Duration(seconds: 1));
+      expect(host.prefs.getString('draft.expense'), isNull);
+      expect(await host.db.select(host.db.recurrences).get(), isEmpty, reason: 'cerrar no guarda');
+      await unmount(tester);
+    });
+
+    testWidgets('editar: el calendario no deja días pasados; la fecha nueva reprograma', (tester) async {
+      final host = await pumpList(tester);
+      final r = await host.db.insertRecurrence(
+          id: 'r1', amountCents: 4500, categoryId: 'vivienda', note: 'Internet', frequency: Frequency.monthly,
+          firstDay: day(2026, 9, 8)); // próximo: hoy, 8 oct
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('reminders.r1')));
+      await tester.pumpAndSettle();
+      expect(find.text('Recordatorio'), findsOneWidget);
+      expect(find.text('Guardar cambios'), findsOneWidget);
+      expect(find.text('jue 8 oct'), findsOneWidget);
+      await pickDue(tester, 7); // ayer: deshabilitado
+      expect(find.text('jue 8 oct'), findsOneWidget);
+      await pickDue(tester, 20);
+      await save(tester);
+      final after = await host.db.select(host.db.recurrences).getSingle();
+      expect((after.nextDue, after.anchorDay), ('2026-10-20', 20));
+      expect(host.notifier.scheduled[r.notificationId]!.at, DateTime(2026, 10, 17, 9));
+      expect(await host.db.select(host.db.entries).get(), isEmpty);
+      await unmount(tester);
+    });
+
+    testWidgets('320×568 dp, letra ×1.3: frecuencia, fecha y nota visibles sin scroll', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await pumpList(tester, size: const Size(320, 568));
+      await openNew(tester);
+      expect(tester.takeException(), isNull, reason: 'overflow');
+      for (final k in ['entry.repeat', 'entry.date', 'entry.addNote', 'entry.save']) {
+        expect(find.byKey(Key(k)).hitTestable(), findsOneWidget, reason: '$k tapado o fuera de la vista');
+      }
+      final firstChip = tester.getRect(find.byKey(const Key('pick.comida'))).top;
+      expect(tester.getRect(find.byKey(const Key('entry.date'))).top, lessThan(firstChip),
+          reason: 'la fila de ajustes va antes de las categorías');
+      // Las categorías de abajo quedan bajo el teclado: la barra avisa y con
+      // scroll se llega a la última.
+      final scroll = tester.state<ScrollableState>(
+          find.descendant(of: find.byKey(const Key('entry.scroll')), matching: find.byType(Scrollable)));
+      expect(scroll.position.maxScrollExtent, greaterThan(0));
+      expect(tester.widget<Scrollbar>(find.byKey(const Key('entry.scrollbar'))).thumbVisibility, isTrue);
+      await tester.scrollUntilVisible(find.byKey(const Key('pick.otros')), 50,
+          scrollable: find.descendant(of: find.byKey(const Key('entry.scroll')), matching: find.byType(Scrollable)));
+      await tester.tap(find.byKey(const Key('pick.otros')));
+      await tester.pump();
+      await unmount(tester);
+    });
+  });
 }

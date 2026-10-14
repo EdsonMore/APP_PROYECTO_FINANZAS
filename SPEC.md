@@ -197,9 +197,19 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
   vencimiento al período siguiente. No toca el borrador; si la categoría ya no
   existe, abre con la de siempre.
 - **Ajustes → Recordatorios:** "Sin recordatorios" / "1 activo" / "N activos".
-  Lista ordenada por vencimiento ("Cada mes · próximo 17 oct"); tocar edita
-  monto, categoría, cuenta, nota, frecuencia y próximo vencimiento ("Guardar
-  cambios"); deslizar pide "¿Borrar este recordatorio?".
+  Lista ordenada por vencimiento ("Cada mes · próximo 17 oct"); deslizar pide
+  "¿Borrar este recordatorio?". Al final, "Nuevo recordatorio" (`fase-4d-fix3`).
+- **Editor de recordatorios (`fase-4d-fix3`):** el mismo para crear (desde
+  "Nuevo recordatorio") y para editar (tocar una fila). Título "Recordatorio",
+  sin fecha ni íconos en el encabezado. Bajo el monto, siempre a la vista, una
+  fila con frecuencia ("Cada mes"), próximo pago ("vie 15 nov", calendario
+  "Próximo pago" de hoy a +366 días, nunca pasado), cuenta y nota; su texto
+  escala hasta ×1.1. Crear: "Cada mes" y un mes desde hoy por defecto, sin
+  "Nunca"; "Guardar recordatorio" guarda **solo el recordatorio** (ningún
+  gasto) con esa fecha como próximo pago y su día como ancla; pide el permiso
+  de notificaciones al guardar (si se niega, se guarda igual). Editar: "Guardar
+  cambios". Con el pago a 2 días o menos: "Falta poco: esta vez no hay aviso. Te
+  avisamos desde el próximo." No toca el borrador del registro.
 - **Android:** `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED` y los receptores
   del plugin; canal `saldoclaro/settings` para abrir los ajustes de
   notificaciones de la app.

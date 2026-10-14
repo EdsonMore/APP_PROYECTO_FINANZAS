@@ -588,8 +588,9 @@ class AppDatabase extends _$AppDatabase {
 
   // ---- Recordatorios (Fase 4D). Solo local: nada de esto toca el sync.
 
-  /// Nuevo recordatorio a partir del gasto que se acaba de guardar en
-  /// [firstDay]: el próximo vencimiento es un período después.
+  /// Nuevo recordatorio. Desde un gasto guardado en [firstDay], el próximo
+  /// vencimiento es un período después; desde Ajustes (fix3), [firstDue] es la
+  /// próxima fecha elegida. Una de las dos. El día de esa fecha es el ancla.
   Future<Recurrence> insertRecurrence({
     required String id,
     required int amountCents,
@@ -597,8 +598,12 @@ class AppDatabase extends _$AppDatabase {
     String? accountId,
     String? note,
     required Frequency frequency,
-    required DateTime firstDay,
+    DateTime? firstDay,
+    DateTime? firstDue,
   }) async {
+    assert((firstDay == null) != (firstDue == null), 'firstDay o firstDue, una de las dos');
+    final anchor = (firstDue ?? firstDay!).day;
+    final due = firstDue ?? nextDue(firstDay!, frequency, anchorDay: anchor);
     final next = await customSelect('SELECT COALESCE(MAX(notification_id) + 1, 1000) AS n FROM recurrences').getSingle();
     return into(recurrences).insertReturning(RecurrencesCompanion.insert(
       id: id,
@@ -607,8 +612,8 @@ class AppDatabase extends _$AppDatabase {
       accountId: Value(accountId),
       note: Value(note),
       frequency: frequency,
-      anchorDay: firstDay.day,
-      nextDue: isoDay(nextDue(firstDay, frequency, anchorDay: firstDay.day)),
+      anchorDay: anchor,
+      nextDue: isoDay(due),
       notificationId: next.read<int>('n'),
       createdAt: _now(),
     ));

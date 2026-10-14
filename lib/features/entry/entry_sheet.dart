@@ -28,8 +28,9 @@ import 'draft_store.dart';
 /// Con [editing] (4B) es la misma hoja precargada; devuelve null si no hubo cambios.
 /// 4D: con [reminder], el pago de un recordatorio (precargado; el usuario
 /// confirma, R1); con [editingReminder], el editor de Ajustes → Recordatorios.
+/// fix3: con [newReminder], el mismo editor para crear uno (sin gasto).
 Future<Entry?> showEntrySheet(BuildContext context, EntryKind kind,
-    {Entry? editing, Recurrence? reminder, Recurrence? editingReminder}) {
+    {Entry? editing, Recurrence? reminder, Recurrence? editingReminder, bool newReminder = false}) {
   final reduced = MediaQuery.disableAnimationsOf(context);
   return showModalBottomSheet<Entry>(
     context: context,
@@ -43,7 +44,8 @@ Future<Entry?> showEntrySheet(BuildContext context, EntryKind kind,
             duration: Duration(milliseconds: 350),
             reverseDuration: Duration(milliseconds: 250),
             curve: Motion.emphasized),
-    builder: (_) => EntrySheet(kind: kind, editing: editing, reminder: reminder, editingReminder: editingReminder),
+    builder: (_) => EntrySheet(
+        kind: kind, editing: editing, reminder: reminder, editingReminder: editingReminder, newReminder: newReminder),
   );
 }
 
@@ -82,7 +84,8 @@ const _imeHiddenGrace = Duration(milliseconds: 150);
 /// Registro de gasto o ingreso. Un solo widget; [kind] cambia título, color,
 /// catálogo (categorías/fuentes) y la columna que se llena al guardar.
 class EntrySheet extends ConsumerStatefulWidget {
-  const EntrySheet({super.key, required this.kind, this.editing, this.reminder, this.editingReminder});
+  const EntrySheet(
+      {super.key, required this.kind, this.editing, this.reminder, this.editingReminder, this.newReminder = false});
   final EntryKind kind;
 
   /// Modo edición: precarga este movimiento. El tipo no cambia y el borrador
@@ -96,6 +99,9 @@ class EntrySheet extends ConsumerStatefulWidget {
   /// próximo vencimiento (puede ser futura).
   final Recurrence? editingReminder;
 
+  /// fix3: crear un recordatorio desde Ajustes. Guarda solo el recordatorio.
+  final bool newReminder;
+
   @override
   ConsumerState<EntrySheet> createState() => _EntrySheetState();
 }
@@ -106,6 +112,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
   late final _shake = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
   final _note = TextEditingController();
   final _noteFocus = FocusNode();
+  final _scroll = ScrollController();
 
   List<PickOption>? _options; // null = cargando
   AmountInput _amount = const AmountInput();
@@ -130,11 +137,16 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
   bool get _isExpense => widget.kind == EntryKind.expense;
   bool get _editing => widget.editing != null;
 
-  /// Los modos que no son "registro nuevo" no tocan el borrador.
-  bool get _noDraft => _editing || widget.reminder != null || widget.editingReminder != null;
+  /// fix3: editor de recordatorios (nuevo o existente): frecuencia, próxima
+  /// fecha, cuenta y nota van en la fila bajo el monto (D1).
+  bool get _reminderEditor => widget.editingReminder != null || widget.newReminder;
 
-  /// 4D: "Repetir" solo en gastos nuevos (y en el editor de recordatorios).
-  bool get _showRepeat => _isExpense && (widget.editingReminder != null || (!_editing && widget.reminder == null));
+  /// Los modos que no son "registro nuevo" no tocan el borrador.
+  bool get _noDraft => _editing || widget.reminder != null || _reminderEditor;
+
+  /// 4D: "Repetir" (enlace o ícono) solo en gastos nuevos; el editor de
+  /// recordatorios tiene su propia fila.
+  bool get _showRepeat => _isExpense && !_editing && widget.reminder == null && !_reminderEditor;
   Frequency? _frequency; // null = "Nunca"
   bool _noPermission = false;
   bool _permissionAsked = false;
@@ -171,6 +183,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
   Future<void> _load() async {
     if (widget.editing case final e?) return _loadEditing(e);
     if (widget.reminder ?? widget.editingReminder case final r?) return _loadReminder(r);
+    if (widget.newReminder) return _loadNewReminder();
     final options = await _db.activeOptions(widget.kind);
     final lastUsed = await _db.lastUsedPick(widget.kind);
     final accounts = await _activeAccounts();
@@ -241,7 +254,6 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
     final lastUsed = await _db.lastUsedPick(widget.kind);
     final accounts = await _activeAccounts();
     if (!mounted) return;
-    final today = ref.read(todayProvider);
     final ids = {for (final o in options) o.id};
     final due = parseIsoDay(r.nextDue);
     setState(() {
@@ -255,8 +267,26 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
       _noteOpen = _note.text.isNotEmpty;
       if (widget.editingReminder != null) {
         _frequency = r.frequency;
-        _day = due == today ? null : due;
+        _day = due;
       }
+    });
+  }
+
+  /// fix3: "Cada mes", próximo pago un mes desde hoy (D4), la categoría de
+  /// siempre y "Sin asignar".
+  Future<void> _loadNewReminder() async {
+    final options = await _db.activeOptions(widget.kind);
+    final lastUsed = await _db.lastUsedPick(widget.kind);
+    final accounts = await _activeAccounts();
+    if (!mounted) return;
+    final today = ref.read(todayProvider);
+    final ids = {for (final o in options) o.id};
+    setState(() {
+      _options = options;
+      _accounts = accounts;
+      _pick = [lastUsed, options.firstOrNull?.id].firstWhere(ids.contains, orElse: () => null);
+      _frequency = Frequency.monthly;
+      _day = nextDue(today, Frequency.monthly, anchorDay: today.day);
     });
   }
 
@@ -322,6 +352,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
     _shake.dispose();
     _note.dispose();
     _noteFocus.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -376,6 +407,28 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
     try {
       final note = _note.text.trim();
       final reminders = ref.read(reminderServiceProvider);
+      if (widget.newReminder) {
+        // N6: el permiso se pide al guardar; si se niega, se guarda igual.
+        if (!_permissionAsked) {
+          _permissionAsked = true;
+          final notifier = ref.read(reminderNotifierProvider);
+          if (!await notifier.permissionGranted()) await notifier.requestPermission();
+          ref.invalidate(notificationsGrantedProvider);
+        }
+        final rec = await _db.insertRecurrence(
+          id: const Uuid().v4(),
+          amountCents: _amount.cents,
+          categoryId: _pick!,
+          accountId: _account,
+          note: note.isEmpty ? null : note,
+          frequency: _frequency ?? Frequency.monthly,
+          firstDue: _day ?? ref.read(todayProvider),
+        );
+        await reminders.schedule(rec);
+        _done = true;
+        if (mounted) Navigator.of(context).pop();
+        return;
+      }
       if (widget.editingReminder case final r?) {
         final updated = await _db.updateRecurrence(r.id,
             amountCents: _amount.cents,
@@ -482,17 +535,18 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
     final picked = await showDatePicker(
       context: context,
       initialDate: local(_day ?? today),
-      // Recordatorio: la fecha es el próximo vencimiento, de hoy en adelante.
+      helpText: _reminderEditor ? 'Próximo pago' : null,
+      // Recordatorio: la fecha es el próximo pago, de hoy a un año (D3).
       // Movimiento: nunca futuro (las métricas lo ignorarían); en edición, uno
       // más viejo que 2 años no puede quedar fuera del calendario.
-      firstDate: widget.editingReminder != null
+      firstDate: _reminderEditor
           ? local(today)
           : local([today.subtract(const Duration(days: 730)), ?_day].reduce((a, b) => a.isBefore(b) ? a : b)),
-      lastDate: widget.editingReminder != null ? local(today.add(const Duration(days: 366))) : local(today),
+      lastDate: _reminderEditor ? local(today.add(const Duration(days: 366))) : local(today),
     );
     if (picked == null) return;
     final d = dayOf(picked);
-    _changed(() => _day = d == today ? null : d);
+    _changed(() => _day = d == today && !_reminderEditor ? null : d);
   }
 
   String _dayLabel(DateTime today) {
@@ -527,20 +581,32 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
               Expanded(
                 // Sin teclado del sistema cabe sin scroll (ver test de 640 dp);
                 // con él, la parte de arriba se desplaza y nada desborda.
-                child: SingleChildScrollView(
+                // fix3: si algo queda abajo (pantalla chica + letra grande), la
+                // barra siempre visible avisa que hay más. Sin scroll no se ve.
+                child: Scrollbar(
+                  key: const Key('entry.scrollbar'),
+                  controller: _scroll,
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
                   key: const Key('entry.scroll'),
+                  controller: _scroll,
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     _amountView(p),
                     _errorLine(p),
+                    if (_reminderEditor) ...[
+                      _reminderRow(p, today),
+                      if (_dueSoon(today)) _dueSoonLine(p),
+                    ],
                     const SizedBox(height: Space.md),
                     _chips(p),
-                    if (!compact || _noteEditing) ...[
+                    if ((!compact && !_reminderEditor) || _noteEditing) ...[
                       const SizedBox(height: Space.sm),
                       _noteView(p, compact),
                     ],
                     if (_showRepeat && !compact) _repeatLink(p),
                     if (_noPermission) _permissionNotice(p),
                   ]),
+                ),
                 ),
               ),
               // C1: con la nota activa, el teclado propio desaparece.
@@ -567,9 +633,11 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
         child: Row(children: [
           Semantics(
             header: true,
-            child: Text(_isExpense ? 'Gasto' : 'Ingreso',
-                style: AppType.title.copyWith(color: _isExpense ? p.expenseFg : p.incomeFg)),
+            child: Text(_reminderEditor ? 'Recordatorio' : (_isExpense ? 'Gasto' : 'Ingreso'),
+                style: AppType.title.copyWith(
+                    color: _reminderEditor ? p.ink : (_isExpense ? p.expenseFg : p.incomeFg))),
           ),
+          if (_reminderEditor) const Spacer() else
           // R3 (4A): con el chip de cuenta, en 320 dp no entra todo; la cuenta
           // se achica y corta su nombre ("Ya…"), el resto no se mueve.
           Expanded(
@@ -615,7 +683,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
           // fix2: en compacta, Repetir y Nota van arriba (como chips quedaban
           // fuera de la vista con letra grande). Su área de 48 ya los separa.
           if (compact && _showRepeat) _repeatIcon(p),
-          if (compact) _noteIcon(p) else const SizedBox(width: Space.sm),
+          if (compact && !_reminderEditor) _noteIcon(p) else const SizedBox(width: Space.sm),
           Builder(
             builder: (buttonContext) => Semantics(
               button: true,
@@ -789,6 +857,56 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
     );
   }
 
+  // ---- Editor de recordatorios (fix3)
+
+  /// D1: frecuencia, próximo pago, cuenta y nota justo bajo el monto: siempre
+  /// a la vista (como chips al final quedaban ocultos con letra grande).
+  Widget _reminderRow(Palette p, DateTime today) {
+    final due = _day ?? today;
+    final local = DateTime(due.year, due.month, due.day);
+    final note = _note.text.trim();
+    // Como el encabezado: hasta ×1.1, para que en 320 dp con letra grande
+    // frecuencia y fecha compartan línea y la nota no caiga fuera de la vista.
+    return MediaQuery.withClampedTextScaling(maxScaleFactor: 1.1, child: Wrap(spacing: Space.sm, children: [
+      _PickChip(
+        key: const Key('entry.repeat'),
+        label: frequencyLabels[_frequency ?? Frequency.monthly]!,
+        semanticsLabel: '$_repeatLabel. Cambiar',
+        icon: Icons.repeat,
+        selected: false,
+        onTap: _pickRepeat,
+      ),
+      _PickChip(
+        key: const Key('entry.date'),
+        label: DateFormat('EEE d MMM', 'es_PE').format(local),
+        semanticsLabel: 'Próximo pago: ${DateFormat('EEEE d MMM', 'es_PE').format(local)}. Cambiar',
+        icon: Icons.event,
+        selected: false,
+        onTap: _pickDate,
+      ),
+      if (_accounts.isNotEmpty) _accountChip(p),
+      _PickChip(
+        key: const Key('entry.addNote'),
+        label: note.isEmpty ? 'Agregar nota' : note,
+        semanticsLabel: note.isEmpty ? 'Agregar nota' : 'Nota: $note. Editar',
+        icon: Icons.edit_note,
+        selected: false,
+        onTap: _openNote,
+      ),
+    ]));
+  }
+
+  /// D2: el aviso sale 3 días antes; con el pago a 2 días o menos, este
+  /// período no hay aviso. ponytail: cuenta días, no la hora de las 9:00.
+  bool _dueSoon(DateTime today) => (_day ?? today).difference(today).inDays < 3;
+
+  Widget _dueSoonLine(Palette p) => Padding(
+        key: const Key('entry.dueSoon'),
+        padding: const EdgeInsets.only(top: Space.xs),
+        child: Text('Falta poco: esta vez no hay aviso. Te avisamos desde el próximo.',
+            style: AppType.caption.copyWith(color: p.inkMuted)),
+      );
+
   // ---- Repetir (4D)
 
   String get _repeatLabel => 'Repetir: ${_frequency == null ? 'Nunca' : frequencyLabels[_frequency]}';
@@ -848,7 +966,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
   /// recordatorio igual se guarda y la hoja lo avisa.
   Future<void> _pickRepeat() async {
     final options = <(Frequency?, String)>[
-      if (widget.editingReminder == null) (null, 'Nunca'),
+      if (!_reminderEditor) (null, 'Nunca'),
       for (final f in Frequency.values) (f, frequencyLabels[f]!),
     ];
     final picked = await showModalBottomSheet<(Frequency?, String)>(
@@ -955,7 +1073,9 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
                         )
                       : Text(_editing || widget.editingReminder != null
                           ? 'Guardar cambios'
-                          : (_frequency != null ? 'Guardar y recordar' : 'Guardar')),
+                          : widget.newReminder
+                              ? 'Guardar recordatorio'
+                              : (_frequency != null ? 'Guardar y recordar' : 'Guardar')),
                 ),
               ),
             ),
@@ -972,11 +1092,13 @@ class _PickChip extends StatelessWidget {
     required this.icon,
     required this.selected,
     required this.onTap,
+    this.semanticsLabel,
   });
   final String label;
   final IconData icon;
   final bool selected;
   final VoidCallback onTap;
+  final String? semanticsLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -985,7 +1107,7 @@ class _PickChip extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: label,
+      label: semanticsLabel ?? label,
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,

@@ -63,6 +63,12 @@ class RemindersScreen extends ConsumerWidget {
                 ),
               ),
             for (final r in list) _ReminderTile(r: r, category: byId[r.categoryId]),
+            const SizedBox(height: Space.md),
+            OutlinedButton(
+              key: const Key('reminders.add'),
+              onPressed: () => showEntrySheet(context, EntryKind.expense, newReminder: true),
+              child: const Text('Nuevo recordatorio'),
+            ),
           ],
         ),
       ),
