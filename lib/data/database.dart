@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kDebugMode, visibleForTesting;
 import 'package:drift_flutter/drift_flutter.dart';
 
 import '../domain/metrics.dart';
+import '../domain/recurrence.dart';
 
 import 'database.steps.dart';
 
@@ -62,6 +63,33 @@ class Accounts extends Table with _Catalog, _Synced {
   /// instante ya están en el monto (misma regla que el saldo inicial global).
   IntColumn get openingBalanceCents => integer().nullable()();
   IntColumn get openingBalanceAt => integer().nullable()();
+}
+
+/// Recordatorios de pagos que se repiten (Fase 4D). SOLO local: no se
+/// sincroniza (R2). Sin FK hacia categorías ni cuentas (N1): "Usar solo la
+/// nube" borra esas tablas y una FK lo haría fallar; si la categoría ya no
+/// existe, la hoja abre sin categoría elegida.
+@DataClassName('Recurrence')
+class Recurrences extends Table {
+  TextColumn get id => text()();
+  IntColumn get amountCents => integer().check(amountCents.isBiggerThanValue(0))();
+  TextColumn get categoryId => text()();
+  TextColumn get accountId => text().nullable()();
+  TextColumn get note => text().nullable()();
+  TextColumn get frequency => textEnum<Frequency>().check(frequency.isIn(const ['weekly', 'monthly', 'yearly']))();
+
+  /// Día original del vencimiento (N3: el 31 vuelve después de un mes corto).
+  IntColumn get anchorDay => integer().check(anchorDay.isBetweenValues(1, 31))();
+
+  /// Próximo vencimiento, 'YYYY-MM-DD'.
+  TextColumn get nextDue => text().withLength(min: 10, max: 10)();
+
+  /// Id entero de la alarma para flutter_local_notifications.
+  IntColumn get notificationId => integer().unique()();
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
 }
 
 /// Transferencias entre cuentas (Fase 4A, D1): tabla aparte, NO un tipo de
@@ -212,7 +240,7 @@ const defaultSources = [
 ];
 
 @DriftDatabase(
-    tables: [Categories, Sources, Entries, Settings, Budgets, Goals, Accounts, Tombstones, SyncCursors, Transfers])
+    tables: [Categories, Sources, Entries, Settings, Budgets, Goals, Accounts, Tombstones, SyncCursors, Transfers, Recurrences])
 class AppDatabase extends _$AppDatabase {
   /// [clock]: epoch ms "ahora". Inyectable para tests; por defecto, la hora real.
   AppDatabase([QueryExecutor? executor, int Function()? clock])
@@ -234,7 +262,7 @@ class AppDatabase extends _$AppDatabase {
       });
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -263,7 +291,8 @@ class AppDatabase extends _$AppDatabase {
               from2To3: migrateV2ToV3,
               from3To4: migrateV3ToV4,
               from4To5: migrateV4ToV5,
-              from5To6: migrateV5ToV6)(m, from, to));
+              from5To6: migrateV5ToV6,
+              from6To7: migrateV6ToV7)(m, from, to));
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -552,6 +581,65 @@ class AppDatabase extends _$AppDatabase {
         )));
         return query.getSingle();
       });
+
+  /// v6 → v7 (Fase 4D): tabla de recordatorios, vacía. Solo local.
+  @visibleForTesting
+  Future<void> migrateV6ToV7(Migrator m, Schema7 schema) => m.createTable(schema.recurrences);
+
+  // ---- Recordatorios (Fase 4D). Solo local: nada de esto toca el sync.
+
+  /// Nuevo recordatorio a partir del gasto que se acaba de guardar en
+  /// [firstDay]: el próximo vencimiento es un período después.
+  Future<Recurrence> insertRecurrence({
+    required String id,
+    required int amountCents,
+    required String categoryId,
+    String? accountId,
+    String? note,
+    required Frequency frequency,
+    required DateTime firstDay,
+  }) async {
+    final next = await customSelect('SELECT COALESCE(MAX(notification_id) + 1, 1000) AS n FROM recurrences').getSingle();
+    return into(recurrences).insertReturning(RecurrencesCompanion.insert(
+      id: id,
+      amountCents: amountCents,
+      categoryId: categoryId,
+      accountId: Value(accountId),
+      note: Value(note),
+      frequency: frequency,
+      anchorDay: firstDay.day,
+      nextDue: isoDay(nextDue(firstDay, frequency, anchorDay: firstDay.day)),
+      notificationId: next.read<int>('n'),
+      createdAt: _now(),
+    ));
+  }
+
+  /// Editor de Ajustes → Recordatorios. La próxima fecha elegida es el ancla nueva.
+  Future<Recurrence> updateRecurrence(
+    String id, {
+    required int amountCents,
+    required String categoryId,
+    String? accountId,
+    String? note,
+    required Frequency frequency,
+    required DateTime due,
+  }) async {
+    await (update(recurrences)..where((r) => r.id.equals(id))).write(RecurrencesCompanion(
+      amountCents: Value(amountCents),
+      categoryId: Value(categoryId),
+      accountId: Value(accountId),
+      note: Value(note),
+      frequency: Value(frequency),
+      anchorDay: Value(due.day),
+      nextDue: Value(isoDay(due)),
+    ));
+    return (select(recurrences)..where((r) => r.id.equals(id))).getSingle();
+  }
+
+  Future<void> setRecurrenceDue(String id, DateTime due) =>
+      (update(recurrences)..where((r) => r.id.equals(id))).write(RecurrencesCompanion(nextDue: Value(isoDay(due))));
+
+  Future<int> deleteRecurrence(String id) => (delete(recurrences)..where((r) => r.id.equals(id))).go();
 
   // ---- Cuentas y transferencias (Fase 4A). Las pantallas llegan en fase-4a.
 

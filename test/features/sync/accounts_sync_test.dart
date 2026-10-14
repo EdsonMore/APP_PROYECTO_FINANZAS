@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saldo_claro/data/database.dart';
 import 'package:saldo_claro/domain/metrics.dart';
+import 'package:saldo_claro/domain/recurrence.dart';
 import 'package:saldo_claro/features/sync/pull.dart';
 import 'package:saldo_claro/features/sync/push.dart';
 import 'package:saldo_claro/features/sync/remote.dart';
@@ -107,6 +108,10 @@ void main() {
 
   test('"Usar solo lo de la nube" borra cuentas y transferencias locales y deja las de la nube', () async {
     await yapeWithChildren();
+    // N1 (4D): un recordatorio que apunta a la cuenta y a una categoría no traba el borrado (sin FK).
+    await db.insertRecurrence(
+        id: 'r1', amountCents: 4500, categoryId: 'comida', accountId: 'yape', frequency: Frequency.monthly,
+        firstDay: day(2026, 10, 14));
     // La nube tiene otra cuenta con su transferencia.
     final other = AppDatabase(NativeDatabase.memory(), () => 2000);
     await other.completeOnboarding(mode: Mode.variable);
@@ -120,5 +125,6 @@ void main() {
     expect([for (final t in await db.select(db.transfers).get()) t.id], ['tb']);
     expect(await db.select(db.entries).get(), isEmpty);
     expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
+    expect((await db.select(db.recurrences).getSingle()).id, 'r1', reason: 'local: "Usar solo la nube" no lo toca');
   });
 }

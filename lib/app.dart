@@ -5,6 +5,7 @@ import 'core/theme/app_theme.dart';
 import 'data/providers.dart';
 import 'features/home/home_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
+import 'features/reminders/lifecycle.dart';
 import 'features/settings/appearance.dart';
 import 'features/sync/providers.dart';
 
@@ -22,7 +23,7 @@ class App extends ConsumerWidget {
       // Con "reducir movimiento", el cambio de tema es instantáneo.
       themeAnimationDuration:
           MediaQuery.maybeDisableAnimationsOf(context) ?? false ? Duration.zero : const Duration(milliseconds: 200),
-      home: const SyncLifecycle(child: _Root()),
+      home: const SyncLifecycle(child: ReminderLifecycle(child: _Root())),
     );
   }
 }
@@ -49,7 +50,7 @@ class _Root extends ConsumerWidget {
     return ref.watch(settingsProvider).when(
           loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
           error: (e, _) => Scaffold(body: Center(child: Text('No se pudo abrir la base local.\n$e'))),
-          data: (s) => s?.onboardingDone ?? false ? const HomeScreen() : const OnboardingScreen(),
+          data: (s) => s?.onboardingDone ?? false ? const ReminderOpener(child: HomeScreen()) : const OnboardingScreen(),
         );
   }
 }

@@ -11,6 +11,8 @@ import 'app.dart';
 // No está en el repo (.gitignore): ver README, "Cómo compilar".
 import 'core/config/secrets.dart';
 import 'features/entry/draft_store.dart';
+import 'features/reminders/notifier.dart';
+import 'features/reminders/service.dart';
 import 'features/sync/providers.dart';
 import 'features/sync/remote.dart';
 import 'features/sync/supabase_auth_gateway.dart';
@@ -34,6 +36,7 @@ Future<void> main() async {
       sharedPreferencesProvider.overrideWithValue(prefs),
       authGatewayProvider.overrideWithValue(SupabaseAuthGateway(supabase.client)),
       syncRemoteProvider.overrideWithValue(SupabaseSyncRemote(supabase.client)),
+      reminderNotifierProvider.overrideWithValue(PluginReminderNotifier()),
     ],
     child: const App(),
   ));

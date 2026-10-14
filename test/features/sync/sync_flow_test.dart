@@ -50,7 +50,7 @@ Future<h.Seed> openSync(WidgetTester tester, {Future<void> Function(h.Seed s)? f
   await tester.pumpAndSettle();
   await tester.tap(find.byTooltip('Ajustes'));
   await tester.pumpAndSettle();
-  await tester.ensureVisible(find.byKey(const Key('settings.sync')));
+  await tester.scrollUntilVisible(find.byKey(const Key('settings.sync')), 200, scrollable: find.byType(Scrollable).last);
   await tester.tap(find.byKey(const Key('settings.sync')));
   await tester.pumpAndSettle();
   return seed;

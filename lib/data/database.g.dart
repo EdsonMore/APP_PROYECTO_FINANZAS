@@ -5019,6 +5019,643 @@ class TransfersCompanion extends UpdateCompanion<TransferRow> {
   }
 }
 
+class $RecurrencesTable extends Recurrences
+    with TableInfo<$RecurrencesTable, Recurrence> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RecurrencesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountCentsMeta = const VerificationMeta(
+    'amountCents',
+  );
+  @override
+  late final GeneratedColumn<int> amountCents = GeneratedColumn<int>(
+    'amount_cents',
+    aliasedName,
+    false,
+    check: () => ComparableExpr(amountCents).isBiggerThanValue(0),
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<Frequency, String> frequency =
+      GeneratedColumn<String>(
+        'frequency',
+        aliasedName,
+        false,
+        check: () => frequency.isIn(const ['weekly', 'monthly', 'yearly']),
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<Frequency>($RecurrencesTable.$converterfrequency);
+  static const VerificationMeta _anchorDayMeta = const VerificationMeta(
+    'anchorDay',
+  );
+  @override
+  late final GeneratedColumn<int> anchorDay = GeneratedColumn<int>(
+    'anchor_day',
+    aliasedName,
+    false,
+    check: () => ComparableExpr(anchorDay).isBetweenValues(1, 31),
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nextDueMeta = const VerificationMeta(
+    'nextDue',
+  );
+  @override
+  late final GeneratedColumn<String> nextDue = GeneratedColumn<String>(
+    'next_due',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 10,
+      maxTextLength: 10,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _notificationIdMeta = const VerificationMeta(
+    'notificationId',
+  );
+  @override
+  late final GeneratedColumn<int> notificationId = GeneratedColumn<int>(
+    'notification_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    amountCents,
+    categoryId,
+    accountId,
+    note,
+    frequency,
+    anchorDay,
+    nextDue,
+    notificationId,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'recurrences';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Recurrence> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('amount_cents')) {
+      context.handle(
+        _amountCentsMeta,
+        amountCents.isAcceptableOrUnknown(
+          data['amount_cents']!,
+          _amountCentsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountCentsMeta);
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryIdMeta);
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('anchor_day')) {
+      context.handle(
+        _anchorDayMeta,
+        anchorDay.isAcceptableOrUnknown(data['anchor_day']!, _anchorDayMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_anchorDayMeta);
+    }
+    if (data.containsKey('next_due')) {
+      context.handle(
+        _nextDueMeta,
+        nextDue.isAcceptableOrUnknown(data['next_due']!, _nextDueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nextDueMeta);
+    }
+    if (data.containsKey('notification_id')) {
+      context.handle(
+        _notificationIdMeta,
+        notificationId.isAcceptableOrUnknown(
+          data['notification_id']!,
+          _notificationIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_notificationIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Recurrence map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Recurrence(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      amountCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_cents'],
+      )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      frequency: $RecurrencesTable.$converterfrequency.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}frequency'],
+        )!,
+      ),
+      anchorDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}anchor_day'],
+      )!,
+      nextDue: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}next_due'],
+      )!,
+      notificationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}notification_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $RecurrencesTable createAlias(String alias) {
+    return $RecurrencesTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<Frequency, String, String> $converterfrequency =
+      const EnumNameConverter<Frequency>(Frequency.values);
+}
+
+class Recurrence extends DataClass implements Insertable<Recurrence> {
+  final String id;
+  final int amountCents;
+  final String categoryId;
+  final String? accountId;
+  final String? note;
+  final Frequency frequency;
+
+  /// Día original del vencimiento (N3: el 31 vuelve después de un mes corto).
+  final int anchorDay;
+
+  /// Próximo vencimiento, 'YYYY-MM-DD'.
+  final String nextDue;
+
+  /// Id entero de la alarma para flutter_local_notifications.
+  final int notificationId;
+  final int createdAt;
+  const Recurrence({
+    required this.id,
+    required this.amountCents,
+    required this.categoryId,
+    this.accountId,
+    this.note,
+    required this.frequency,
+    required this.anchorDay,
+    required this.nextDue,
+    required this.notificationId,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['amount_cents'] = Variable<int>(amountCents);
+    map['category_id'] = Variable<String>(categoryId);
+    if (!nullToAbsent || accountId != null) {
+      map['account_id'] = Variable<String>(accountId);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    {
+      map['frequency'] = Variable<String>(
+        $RecurrencesTable.$converterfrequency.toSql(frequency),
+      );
+    }
+    map['anchor_day'] = Variable<int>(anchorDay);
+    map['next_due'] = Variable<String>(nextDue);
+    map['notification_id'] = Variable<int>(notificationId);
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  RecurrencesCompanion toCompanion(bool nullToAbsent) {
+    return RecurrencesCompanion(
+      id: Value(id),
+      amountCents: Value(amountCents),
+      categoryId: Value(categoryId),
+      accountId: accountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(accountId),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      frequency: Value(frequency),
+      anchorDay: Value(anchorDay),
+      nextDue: Value(nextDue),
+      notificationId: Value(notificationId),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory Recurrence.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Recurrence(
+      id: serializer.fromJson<String>(json['id']),
+      amountCents: serializer.fromJson<int>(json['amountCents']),
+      categoryId: serializer.fromJson<String>(json['categoryId']),
+      accountId: serializer.fromJson<String?>(json['accountId']),
+      note: serializer.fromJson<String?>(json['note']),
+      frequency: $RecurrencesTable.$converterfrequency.fromJson(
+        serializer.fromJson<String>(json['frequency']),
+      ),
+      anchorDay: serializer.fromJson<int>(json['anchorDay']),
+      nextDue: serializer.fromJson<String>(json['nextDue']),
+      notificationId: serializer.fromJson<int>(json['notificationId']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'amountCents': serializer.toJson<int>(amountCents),
+      'categoryId': serializer.toJson<String>(categoryId),
+      'accountId': serializer.toJson<String?>(accountId),
+      'note': serializer.toJson<String?>(note),
+      'frequency': serializer.toJson<String>(
+        $RecurrencesTable.$converterfrequency.toJson(frequency),
+      ),
+      'anchorDay': serializer.toJson<int>(anchorDay),
+      'nextDue': serializer.toJson<String>(nextDue),
+      'notificationId': serializer.toJson<int>(notificationId),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  Recurrence copyWith({
+    String? id,
+    int? amountCents,
+    String? categoryId,
+    Value<String?> accountId = const Value.absent(),
+    Value<String?> note = const Value.absent(),
+    Frequency? frequency,
+    int? anchorDay,
+    String? nextDue,
+    int? notificationId,
+    int? createdAt,
+  }) => Recurrence(
+    id: id ?? this.id,
+    amountCents: amountCents ?? this.amountCents,
+    categoryId: categoryId ?? this.categoryId,
+    accountId: accountId.present ? accountId.value : this.accountId,
+    note: note.present ? note.value : this.note,
+    frequency: frequency ?? this.frequency,
+    anchorDay: anchorDay ?? this.anchorDay,
+    nextDue: nextDue ?? this.nextDue,
+    notificationId: notificationId ?? this.notificationId,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  Recurrence copyWithCompanion(RecurrencesCompanion data) {
+    return Recurrence(
+      id: data.id.present ? data.id.value : this.id,
+      amountCents: data.amountCents.present
+          ? data.amountCents.value
+          : this.amountCents,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      note: data.note.present ? data.note.value : this.note,
+      frequency: data.frequency.present ? data.frequency.value : this.frequency,
+      anchorDay: data.anchorDay.present ? data.anchorDay.value : this.anchorDay,
+      nextDue: data.nextDue.present ? data.nextDue.value : this.nextDue,
+      notificationId: data.notificationId.present
+          ? data.notificationId.value
+          : this.notificationId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Recurrence(')
+          ..write('id: $id, ')
+          ..write('amountCents: $amountCents, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('accountId: $accountId, ')
+          ..write('note: $note, ')
+          ..write('frequency: $frequency, ')
+          ..write('anchorDay: $anchorDay, ')
+          ..write('nextDue: $nextDue, ')
+          ..write('notificationId: $notificationId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    amountCents,
+    categoryId,
+    accountId,
+    note,
+    frequency,
+    anchorDay,
+    nextDue,
+    notificationId,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Recurrence &&
+          other.id == this.id &&
+          other.amountCents == this.amountCents &&
+          other.categoryId == this.categoryId &&
+          other.accountId == this.accountId &&
+          other.note == this.note &&
+          other.frequency == this.frequency &&
+          other.anchorDay == this.anchorDay &&
+          other.nextDue == this.nextDue &&
+          other.notificationId == this.notificationId &&
+          other.createdAt == this.createdAt);
+}
+
+class RecurrencesCompanion extends UpdateCompanion<Recurrence> {
+  final Value<String> id;
+  final Value<int> amountCents;
+  final Value<String> categoryId;
+  final Value<String?> accountId;
+  final Value<String?> note;
+  final Value<Frequency> frequency;
+  final Value<int> anchorDay;
+  final Value<String> nextDue;
+  final Value<int> notificationId;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const RecurrencesCompanion({
+    this.id = const Value.absent(),
+    this.amountCents = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.note = const Value.absent(),
+    this.frequency = const Value.absent(),
+    this.anchorDay = const Value.absent(),
+    this.nextDue = const Value.absent(),
+    this.notificationId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RecurrencesCompanion.insert({
+    required String id,
+    required int amountCents,
+    required String categoryId,
+    this.accountId = const Value.absent(),
+    this.note = const Value.absent(),
+    required Frequency frequency,
+    required int anchorDay,
+    required String nextDue,
+    required int notificationId,
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       amountCents = Value(amountCents),
+       categoryId = Value(categoryId),
+       frequency = Value(frequency),
+       anchorDay = Value(anchorDay),
+       nextDue = Value(nextDue),
+       notificationId = Value(notificationId),
+       createdAt = Value(createdAt);
+  static Insertable<Recurrence> custom({
+    Expression<String>? id,
+    Expression<int>? amountCents,
+    Expression<String>? categoryId,
+    Expression<String>? accountId,
+    Expression<String>? note,
+    Expression<String>? frequency,
+    Expression<int>? anchorDay,
+    Expression<String>? nextDue,
+    Expression<int>? notificationId,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (amountCents != null) 'amount_cents': amountCents,
+      if (categoryId != null) 'category_id': categoryId,
+      if (accountId != null) 'account_id': accountId,
+      if (note != null) 'note': note,
+      if (frequency != null) 'frequency': frequency,
+      if (anchorDay != null) 'anchor_day': anchorDay,
+      if (nextDue != null) 'next_due': nextDue,
+      if (notificationId != null) 'notification_id': notificationId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RecurrencesCompanion copyWith({
+    Value<String>? id,
+    Value<int>? amountCents,
+    Value<String>? categoryId,
+    Value<String?>? accountId,
+    Value<String?>? note,
+    Value<Frequency>? frequency,
+    Value<int>? anchorDay,
+    Value<String>? nextDue,
+    Value<int>? notificationId,
+    Value<int>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return RecurrencesCompanion(
+      id: id ?? this.id,
+      amountCents: amountCents ?? this.amountCents,
+      categoryId: categoryId ?? this.categoryId,
+      accountId: accountId ?? this.accountId,
+      note: note ?? this.note,
+      frequency: frequency ?? this.frequency,
+      anchorDay: anchorDay ?? this.anchorDay,
+      nextDue: nextDue ?? this.nextDue,
+      notificationId: notificationId ?? this.notificationId,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (amountCents.present) {
+      map['amount_cents'] = Variable<int>(amountCents.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (frequency.present) {
+      map['frequency'] = Variable<String>(
+        $RecurrencesTable.$converterfrequency.toSql(frequency.value),
+      );
+    }
+    if (anchorDay.present) {
+      map['anchor_day'] = Variable<int>(anchorDay.value);
+    }
+    if (nextDue.present) {
+      map['next_due'] = Variable<String>(nextDue.value);
+    }
+    if (notificationId.present) {
+      map['notification_id'] = Variable<int>(notificationId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecurrencesCompanion(')
+          ..write('id: $id, ')
+          ..write('amountCents: $amountCents, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('accountId: $accountId, ')
+          ..write('note: $note, ')
+          ..write('frequency: $frequency, ')
+          ..write('anchorDay: $anchorDay, ')
+          ..write('nextDue: $nextDue, ')
+          ..write('notificationId: $notificationId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5032,6 +5669,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TombstonesTable tombstones = $TombstonesTable(this);
   late final $SyncCursorsTable syncCursors = $SyncCursorsTable(this);
   late final $TransfersTable transfers = $TransfersTable(this);
+  late final $RecurrencesTable recurrences = $RecurrencesTable(this);
   late final Index idxEntriesOn = Index(
     'idx_entries_on',
     'CREATE INDEX idx_entries_on ON entries (occurred_on)',
@@ -5059,6 +5697,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     tombstones,
     syncCursors,
     transfers,
+    recurrences,
     idxEntriesOn,
     idxEntriesKindOn,
     idxTransfersOn,
@@ -8607,6 +9246,317 @@ typedef $$TransfersTableProcessedTableManager =
       TransferRow,
       PrefetchHooks Function({bool fromAccountId, bool toAccountId})
     >;
+typedef $$RecurrencesTableCreateCompanionBuilder =
+    RecurrencesCompanion Function({
+      required String id,
+      required int amountCents,
+      required String categoryId,
+      Value<String?> accountId,
+      Value<String?> note,
+      required Frequency frequency,
+      required int anchorDay,
+      required String nextDue,
+      required int notificationId,
+      required int createdAt,
+      Value<int> rowid,
+    });
+typedef $$RecurrencesTableUpdateCompanionBuilder =
+    RecurrencesCompanion Function({
+      Value<String> id,
+      Value<int> amountCents,
+      Value<String> categoryId,
+      Value<String?> accountId,
+      Value<String?> note,
+      Value<Frequency> frequency,
+      Value<int> anchorDay,
+      Value<String> nextDue,
+      Value<int> notificationId,
+      Value<int> createdAt,
+      Value<int> rowid,
+    });
+
+class $$RecurrencesTableFilterComposer
+    extends Composer<_$AppDatabase, $RecurrencesTable> {
+  $$RecurrencesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountCents => $composableBuilder(
+    column: $table.amountCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<Frequency, Frequency, String> get frequency =>
+      $composableBuilder(
+        column: $table.frequency,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<int> get anchorDay => $composableBuilder(
+    column: $table.anchorDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nextDue => $composableBuilder(
+    column: $table.nextDue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get notificationId => $composableBuilder(
+    column: $table.notificationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$RecurrencesTableOrderingComposer
+    extends Composer<_$AppDatabase, $RecurrencesTable> {
+  $$RecurrencesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountCents => $composableBuilder(
+    column: $table.amountCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get frequency => $composableBuilder(
+    column: $table.frequency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get anchorDay => $composableBuilder(
+    column: $table.anchorDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nextDue => $composableBuilder(
+    column: $table.nextDue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get notificationId => $composableBuilder(
+    column: $table.notificationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RecurrencesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RecurrencesTable> {
+  $$RecurrencesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get amountCents => $composableBuilder(
+    column: $table.amountCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<Frequency, String> get frequency =>
+      $composableBuilder(column: $table.frequency, builder: (column) => column);
+
+  GeneratedColumn<int> get anchorDay =>
+      $composableBuilder(column: $table.anchorDay, builder: (column) => column);
+
+  GeneratedColumn<String> get nextDue =>
+      $composableBuilder(column: $table.nextDue, builder: (column) => column);
+
+  GeneratedColumn<int> get notificationId => $composableBuilder(
+    column: $table.notificationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$RecurrencesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RecurrencesTable,
+          Recurrence,
+          $$RecurrencesTableFilterComposer,
+          $$RecurrencesTableOrderingComposer,
+          $$RecurrencesTableAnnotationComposer,
+          $$RecurrencesTableCreateCompanionBuilder,
+          $$RecurrencesTableUpdateCompanionBuilder,
+          (
+            Recurrence,
+            BaseReferences<_$AppDatabase, $RecurrencesTable, Recurrence>,
+          ),
+          Recurrence,
+          PrefetchHooks Function()
+        > {
+  $$RecurrencesTableTableManager(_$AppDatabase db, $RecurrencesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RecurrencesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RecurrencesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RecurrencesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<int> amountCents = const Value.absent(),
+                Value<String> categoryId = const Value.absent(),
+                Value<String?> accountId = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<Frequency> frequency = const Value.absent(),
+                Value<int> anchorDay = const Value.absent(),
+                Value<String> nextDue = const Value.absent(),
+                Value<int> notificationId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RecurrencesCompanion(
+                id: id,
+                amountCents: amountCents,
+                categoryId: categoryId,
+                accountId: accountId,
+                note: note,
+                frequency: frequency,
+                anchorDay: anchorDay,
+                nextDue: nextDue,
+                notificationId: notificationId,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required int amountCents,
+                required String categoryId,
+                Value<String?> accountId = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                required Frequency frequency,
+                required int anchorDay,
+                required String nextDue,
+                required int notificationId,
+                required int createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => RecurrencesCompanion.insert(
+                id: id,
+                amountCents: amountCents,
+                categoryId: categoryId,
+                accountId: accountId,
+                note: note,
+                frequency: frequency,
+                anchorDay: anchorDay,
+                nextDue: nextDue,
+                notificationId: notificationId,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$RecurrencesTable, Recurrence>(table),
+                  BaseReferences<_$AppDatabase, $RecurrencesTable, Recurrence>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RecurrencesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RecurrencesTable,
+      Recurrence,
+      $$RecurrencesTableFilterComposer,
+      $$RecurrencesTableOrderingComposer,
+      $$RecurrencesTableAnnotationComposer,
+      $$RecurrencesTableCreateCompanionBuilder,
+      $$RecurrencesTableUpdateCompanionBuilder,
+      (
+        Recurrence,
+        BaseReferences<_$AppDatabase, $RecurrencesTable, Recurrence>,
+      ),
+      Recurrence,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -8631,4 +9581,6 @@ class $AppDatabaseManager {
       $$SyncCursorsTableTableManager(_db, _db.syncCursors);
   $$TransfersTableTableManager get transfers =>
       $$TransfersTableTableManager(_db, _db.transfers);
+  $$RecurrencesTableTableManager get recurrences =>
+      $$RecurrencesTableTableManager(_db, _db.recurrences);
 }

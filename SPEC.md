@@ -165,6 +165,42 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
 - **Política de privacidad:** menciona cuentas (nombre, ícono, saldo inicial) y
   transferencias entre lo que se sincroniza.
 
+## Recordatorios de facturas (Fase 4D, `fase-4d`)
+
+`lib/domain/recurrence.dart` (fechas puras), `lib/features/reminders/`:
+`notifier.dart` (plugin `flutter_local_notifications` + falso para tests),
+`service.dart`, `lifecycle.dart`, `reminders_screen.dart`.
+
+- **Tabla `recurrences` (schema v7):** monto, categoría (sin FK, N1), cuenta,
+  nota, frecuencia (semana/mes/año), día ancla, próximo vencimiento,
+  `notification_id` propio. Solo local (R2): no se sincroniza y "Usar solo los
+  de la nube" no la borra.
+- **Fechas (N3):** ancla 31 → último día de los meses cortos y vuelve al 31; 29
+  feb → 28 en años no bisiestos. Semanal suma 7 días.
+- **Solo recuerda (R1):** nunca crea gastos. El aviso sale 3 días antes del
+  vencimiento a las 9:00 locales (alarma inexacta, R3); si ese momento ya pasó,
+  espera al período siguiente. Al abrir y al volver a la app: corre las fechas
+  vencidas sin crear nada, cancela todo y reprograma (N2, N8).
+- **Crear (N5):** "Repetir: Nunca" en gastos nuevos (enlace; en 640 dp, chip de
+  solo ícono). Elegir frecuencia → "Guardar y recordar"; el primer vencimiento
+  es un período después del día del gasto. La primera vez pide el permiso
+  (N6); si se niega, se guarda igual y avisa "Activa las notificaciones para
+  que te avisemos." + "Abrir ajustes".
+- **Notificación:** "Se viene un pago: S/ 45.00" / "Internet (Vivienda) vence
+  el viernes 17 oct. Toca para registrarlo." Tocarla (app abierta o cerrada,
+  N7) abre el Home con la hoja precargada; guardar registra el gasto y pasa el
+  vencimiento al período siguiente. No toca el borrador; si la categoría ya no
+  existe, abre con la de siempre.
+- **Ajustes → Recordatorios:** "Sin recordatorios" / "1 activo" / "N activos".
+  Lista ordenada por vencimiento ("Cada mes · próximo 17 oct"); tocar edita
+  monto, categoría, cuenta, nota, frecuencia y próximo vencimiento ("Guardar
+  cambios"); deslizar pide "¿Borrar este recordatorio?".
+- **Android:** `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED` y los receptores
+  del plugin; canal `saldoclaro/settings` para abrir los ajustes de
+  notificaciones de la app.
+- **Política de privacidad:** permiso de notificaciones y "los recordatorios se
+  guardan solo en tu teléfono y no se sincronizan".
+
 ## Modelo de datos (drift, `lib/data/database.dart`, schemaVersion 6)
 
 Convenciones:

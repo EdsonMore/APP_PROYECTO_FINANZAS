@@ -28,6 +28,18 @@ class MainActivity : FlutterFragmentActivity() {
         val messenger: BinaryMessenger = flutterEngine.dartExecutor.binaryMessenger
         NotificationService.configureChannel(messenger)
         configurePermissionChannel(messenger)
+        // 4D: "Abrir ajustes" cuando se negaron las notificaciones.
+        MethodChannel(messenger, "saldoclaro/settings").setMethodCallHandler { call, result ->
+            if (call.method == "openAppNotificationSettings") {
+                startActivity(
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                )
+                result.success(true)
+            } else {
+                result.notImplemented()
+            }
+        }
     }
 
     /**

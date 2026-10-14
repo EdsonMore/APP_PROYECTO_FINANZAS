@@ -91,9 +91,9 @@ void main() {
     expect(gradle, contains('signingConfigs.getByName("debug")'));
   });
 
-  for (final (row, title, heading) in [
-    ('privacy', 'Política de privacidad', 'Si activas la sincronización'),
-    ('terms', 'Términos y condiciones', 'SaldoClaro no es un asesor financiero'),
+  for (final (row, title, heading, updated) in [
+    ('privacy', 'Política de privacidad', 'Si activas la sincronización', '14 de octubre de 2026'),
+    ('terms', 'Términos y condiciones', 'SaldoClaro no es un asesor financiero', '13 de octubre de 2026'),
   ]) {
     testWidgets('Acerca de → $title: header, fecha y subtítulos', (tester) async {
       await st.pumpApp(tester, await h.seeded(Mode.variable));
@@ -103,7 +103,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(LegalScreen), findsOneWidget);
       expect(find.text(title), findsOneWidget);
-      expect(find.text('Última actualización: 13 de octubre de 2026'), findsOneWidget);
+      expect(find.text('Última actualización: $updated'), findsOneWidget);
       await tester.scrollUntilVisible(find.text(heading), 200, scrollable: find.byType(Scrollable).last);
       expect(find.text(heading), findsOneWidget);
       await tester.scrollUntilVisible(find.text('Contacto'), 300, scrollable: find.byType(Scrollable).last);

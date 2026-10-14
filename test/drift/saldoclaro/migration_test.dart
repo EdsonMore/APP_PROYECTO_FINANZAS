@@ -12,6 +12,7 @@ import 'generated/schema_v2.dart' as v2;
 import 'generated/schema_v3.dart' as v3;
 import 'generated/schema_v4.dart' as v4;
 import 'generated/schema_v5.dart' as v5;
+import 'generated/schema_v6.dart' as v6;
 
 /// La semilla tal como la creaba la v1 ("otros" con la bolsa de compras).
 const v1Categories = [
@@ -142,14 +143,28 @@ void main() {
 
   setUpAll(() => verifier = SchemaVerifier(GeneratedHelper()));
 
-  for (final from in [1, 2, 3, 4, 5]) {
-    test('v$from → v6 sin datos: el esquema migrado es idéntico al de una instalación nueva', () async {
+  for (final from in [1, 2, 3, 4, 5, 6]) {
+    test('v$from → v7 sin datos: el esquema migrado es idéntico al de una instalación nueva', () async {
       final schema = await verifier.schemaAt(from);
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 6);
+      await verifier.migrateAndValidate(db, 7);
       await db.close();
     });
   }
+
+  test('v6 → v7: solo agrega recurrences (vacía); lo demás intacto', () async {
+    final schema = await verifier.schemaAt(6);
+    final old = v6.DatabaseAtV6(schema.newConnection());
+    await old.into(old.categories).insert(v6.CategoriesCompanion.insert(
+        id: 'comida', name: 'Comida', icon: 'restaurant', colorHex: 'cat:1', sortOrder: 0, isDefault: const Value(1),
+        updatedAt: const Value(700), syncedAt: const Value(700)));
+    await old.close();
+    final db = await migrate(schema);
+    expect(await db.customSelect('SELECT * FROM recurrences').get(), isEmpty);
+    final c = await db.customSelect('SELECT synced_at FROM categories').getSingle();
+    expect(c.read<int>('synced_at'), 700);
+    await db.close();
+  });
 
   test('v5 → v6: accounts con columnas de sync, transfers vacía, lápidas y cursores intactos; entries sin tocar',
       () async {

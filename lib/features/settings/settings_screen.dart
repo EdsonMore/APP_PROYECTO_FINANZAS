@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../accounts/accounts_screen.dart';
 import '../accounts/providers.dart' show accountsDataProvider, accountsStreamProvider;
 import '../history/history_screen.dart';
+import '../reminders/reminders_screen.dart';
+import '../reminders/service.dart' show recurrencesStreamProvider;
 import '../../core/theme/tokens.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/database.dart';
@@ -74,6 +76,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     String actives(int n) => n == 1 ? '1 activa' : '$n activas';
     final activeIds = {for (final c in cats) if (!c.archived) c.id};
     final caps = budgets.where((b) => activeIds.contains(b.categoryId)).length;
+    final reminders = ref.watch(recurrencesStreamProvider).value?.length ?? 0;
 
     return Scaffold(
       body: SafeArea(
@@ -164,6 +167,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               },
               link: 'Gestionar',
               onTap: () => _push(context, const AccountsScreen()),
+            ),
+            SettingsRow(
+              key: const Key('settings.reminders'),
+              label: 'Recordatorios',
+              value: switch (reminders) {
+                0 => 'Sin recordatorios',
+                1 => '1 activo',
+                final n => '$n activos',
+              },
+              chevron: true,
+              onTap: () => _push(context, const RemindersScreen()),
             ),
             Divider(color: p.border, height: Space.xl),
             SettingsRow(

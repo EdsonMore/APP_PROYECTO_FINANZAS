@@ -1,6 +1,6 @@
 # Política de privacidad de SaldoClaro
 
-Última actualización: 13 de octubre de 2026
+Última actualización: 14 de octubre de 2026
 
 ## En pocas palabras
 
@@ -15,7 +15,7 @@ SaldoClaro es una app para anotar tus gastos e ingresos. La desarrolla una sola 
 
 ## Si usas la app sin cuenta
 
-Así funciona SaldoClaro por defecto. Lo que registras (gastos, ingresos, notas, categorías, fuentes, techos, cuentas, transferencias, tus saldos iniciales y tus ajustes) se guarda solo en una base de datos dentro de tu teléfono. La app no se conecta a internet y nosotros no vemos ni recibimos nada.
+Así funciona SaldoClaro por defecto. Lo que registras (gastos, ingresos, notas, categorías, fuentes, techos, cuentas, transferencias, recordatorios, tus saldos iniciales y tus ajustes) se guarda solo en una base de datos dentro de tu teléfono. La app no se conecta a internet y nosotros no vemos ni recibimos nada.
 
 ## Si activas la sincronización
 
@@ -26,6 +26,8 @@ En Ajustes, Sincronizar con la nube, puedes crear una cuenta con tu correo y una
 - Registros técnicos que el proveedor puede guardar por seguridad, como la dirección IP y la hora de cada conexión.
 
 Los usamos solo para dos cosas: guardar una copia de tus datos y mantenerlos iguales en todos los teléfonos donde entres con tu cuenta, y mandarte los códigos para confirmar tu cuenta o recuperar tu contraseña. Nada más: ni publicidad, ni perfiles, ni estudios.
+
+Los recordatorios de pagos se guardan solo en tu teléfono y no se sincronizan.
 
 ## Dónde se guardan y cómo se protegen
 
@@ -62,7 +64,10 @@ En Ajustes, Sincronizar con la nube, toca Cerrar sesión. Desde ese momento la a
 
 ## Permisos que usa la app
 
-Solo internet, un permiso que Android concede sin preguntarte. La app lo usa únicamente si activas la sincronización. No pide acceso a tus contactos, fotos, ubicación, cámara, micrófono ni notificaciones.
+- Internet, un permiso que Android concede sin preguntarte. La app lo usa únicamente si activas la sincronización.
+- Notificaciones, solo si creas un recordatorio de pago. Las usa para avisarte unos días antes de que venza. Si no lo das, la app funciona igual y no te avisa.
+
+No pide acceso a tus contactos, fotos, ubicación, cámara ni micrófono.
 
 ## Copia de seguridad de Android
 

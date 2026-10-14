@@ -102,8 +102,7 @@ revisar juntas al terminar 1b, antes de 1c.
 ### Roadmap posterior
 - [ ] **Multi-cuenta** (Fase 3): tabla `accounts`, asignación de cada
       movimiento, cálculo por cuenta. Hoy `account_label` es texto libre.
-- [ ] **Recordatorios de facturas** (Fase 4/5): fechas recurrentes,
-      notificaciones push, gestión de pagos.
+- [x] **Recordatorios de facturas** (Fase 4D, `fase-4d`): locales, solo avisan.
 - [ ] **IA chatbot** (heurísticas en 1c/2, IA real en 5+):
       - En 1c/2: "insight del día" con reglas heurísticas (frases tipo
         "Llevas 12 días gastando menos de lo que entra"). Sin IA.
@@ -290,6 +289,12 @@ Antes de publicar:
 - [ ] El CSV debe incluir `account_id` (o el nombre resuelto) además de
       `account_label`. Sin esto, la importación futura no sabrá a qué cuenta va
       cada movimiento.
+
+## Fase 4D (recordatorios): pendientes
+- [ ] Probar en un teléfono real que el aviso sobrevive a un reinicio y al
+      ahorro de batería (alarmas inexactas: pueden llegar con minutos de atraso).
+- [ ] Si se piden avisos a la hora exacta: `SCHEDULE_EXACT_ALARM` (Play exige
+      justificarlo).
 
 ## Pendientes técnicos
 - [ ] Mutation testing completo sobre pull/engine/scheduler/push

@@ -1,10 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- INTERNET solo para la sincronización opcional (Fase 3, decisión D0):
-         sin cuenta la app no abre conexiones. Sin permisos de notificaciones:
-         NotificationService.kt (captura) sigue en el código pero NO se declara
-         aquí hasta la Fase 4; ver lib/features/capture/README.md. -->
+         sin cuenta la app no abre conexiones. NotificationService.kt (captura)
+         sigue en el código pero NO se declara aquí (Fase 4C); ver
+         lib/features/capture/README.md. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 4D: recordatorios de facturas. Mostrar el aviso y reprogramarlo tras
+         reiniciar el teléfono. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
     <application
         android:label="SaldoClaro"
@@ -28,6 +32,17 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!-- 4D: receptores de flutter_local_notifications (alarmas y reinicio). -->
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
 
         <meta-data
             android:name="flutterEmbedding"
