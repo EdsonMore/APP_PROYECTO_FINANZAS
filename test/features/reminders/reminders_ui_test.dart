@@ -156,14 +156,32 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('640 dp: la hoja entra con el chip de Repetir', (tester) async {
-      await pumpHost(tester, size: const Size(360, 640));
-      await open(tester, 'abrir gasto');
-      expect(tester.takeException(), isNull);
-      expect(find.byKey(const Key('entry.repeat')), findsOneWidget);
-      expect(find.byKey(const Key('entry.save')).hitTestable(), findsOneWidget);
-      await unmount(tester);
-    });
+    // 4D-fix: existir no basta; tiene que verse y tocarse sin scroll. Como chip
+    // bajo las categorías, con letra grande quedaba fuera de la vista.
+    for (final (size, scale) in [(const Size(360, 640), 1.0), (const Size(360, 640), 1.3), (const Size(320, 568), 1.3)]) {
+      testWidgets('${size.width.toInt()}×${size.height.toInt()} dp, letra ×$scale: Repetir arriba, visible y se elige',
+          (tester) async {
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        final host = await pumpHost(tester, size: size);
+        await open(tester, 'abrir gasto');
+        expect(tester.takeException(), isNull);
+        final repeat = find.byKey(const Key('entry.repeat'));
+        expect(repeat.hitTestable(), findsOneWidget, reason: 'tapado o fuera de la vista');
+        expect(tester.getRect(repeat).top, lessThan(tester.getRect(find.byKey(const Key('entry.amount'))).top),
+            reason: 'en el encabezado, no entre los chips');
+        expect(find.byKey(const Key('entry.save')).hitTestable(), findsOneWidget);
+        await tester.tap(repeat);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('repeat.monthly')));
+        await tester.pumpAndSettle();
+        expect(tester.getSemantics(repeat).label, 'Repetir: Cada mes');
+        await keys(tester, '9');
+        await save(tester);
+        expect(await host.db.select(host.db.recurrences).get(), hasLength(1));
+        await unmount(tester);
+      });
+    }
   });
 
   group('desde la notificación (N7, R1)', () {

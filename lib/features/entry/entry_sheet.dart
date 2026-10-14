@@ -523,7 +523,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
             padding: const EdgeInsets.symmetric(horizontal: Space.gutter),
             child: Column(children: [
               const SheetGrabber(),
-              _header(p, today),
+              _header(p, today, compact),
               Expanded(
                 // Sin teclado del sistema cabe sin scroll (ver test de 640 dp);
                 // con él, la parte de arriba se desplaza y nada desborda.
@@ -558,7 +558,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
     );
   }
 
-  Widget _header(Palette p, DateTime today) => SizedBox(
+  Widget _header(Palette p, DateTime today, bool compact) => SizedBox(
         height: 48,
         child: Row(children: [
           Semantics(
@@ -606,6 +606,9 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
           ],
             ]),
           ),
+          // 4D-fix: en compacta, "Repetir" va arriba. Como chip quedaba bajo las
+          // categorías y, con letra grande, fuera de la vista (scroll sin aviso).
+          if (compact && _showRepeat) _repeatIcon(p), // su área de 48 ya separa
           const SizedBox(width: Space.sm),
           Builder(
             builder: (buttonContext) => Semantics(
@@ -774,23 +777,26 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
           }),
         ),
       if (compact) noteChip,
-      if (compact && _showRepeat)
-        _PickChip(
-          key: const Key('entry.repeat'),
-          // Solo ícono: con texto ya no entra en la fila de la nota a 640 dp.
-          label: '',
-          semanticsLabel: _repeatLabel,
-          icon: _frequency == null ? Icons.repeat : Icons.repeat_on,
-          selected: false,
-          outlined: _frequency != null,
-          onTap: _pickRepeat,
-        ),
     ]);
   }
 
   // ---- Repetir (4D)
 
   String get _repeatLabel => 'Repetir: ${_frequency == null ? 'Nunca' : frequencyLabels[_frequency]}';
+
+  Widget _repeatIcon(Palette p) => Semantics(
+        button: true,
+        label: _repeatLabel,
+        excludeSemantics: true,
+        child: IconButton(
+          key: const Key('entry.repeat'),
+          onPressed: _pickRepeat,
+          tooltip: _repeatLabel,
+          icon: Icon(_frequency == null ? Icons.repeat : Icons.repeat_on,
+              color: _frequency == null ? p.inkMuted : p.ink),
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+        ),
+      );
 
   Widget _repeatLink(Palette p) => Semantics(
         button: true,
@@ -989,17 +995,16 @@ class _PickChip extends StatelessWidget {
               duration: Motion.lightChange,
               curve: Motion.easeOut,
               height: 36,
-              constraints: const BoxConstraints(minWidth: 48), // chip de solo ícono
               padding: const EdgeInsets.symmetric(horizontal: Space.md),
               decoration: BoxDecoration(
                 color: selected ? p.ink : p.surface,
                 borderRadius: BorderRadius.circular(Radii.chip),
                 border: Border.all(color: selected || outlined ? p.ink : p.border),
               ),
-              child: Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(icon, size: 16, color: fg),
-                if (label.isNotEmpty) const SizedBox(width: 6),
-                if (label.isNotEmpty) ConstrainedBox(
+                const SizedBox(width: 6),
+                ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 180),
                   child: Text(label,
                       maxLines: 1, overflow: TextOverflow.ellipsis, style: AppType.label.copyWith(color: fg)),
