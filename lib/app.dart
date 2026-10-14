@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/app_theme.dart';
@@ -17,6 +18,11 @@ class App extends ConsumerWidget {
     return MaterialApp(
       title: 'SaldoClaro',
       debugShowCheckedModeBanner: false,
+      // La app es solo en español: los textos de Material (calendarios,
+      // "Aceptar"/"Cancelar") siguen a es_PE aunque el teléfono esté en otro idioma.
+      locale: const Locale('es', 'PE'),
+      supportedLocales: const [Locale('es', 'PE')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ref.watch(themeModeProvider), // 4E: Sistema / Claro / Oscuro

@@ -534,6 +534,7 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
     DateTime local(DateTime d) => DateTime(d.year, d.month, d.day);
     final picked = await showDatePicker(
       context: context,
+      confirmText: 'Aceptar', // es trae "ACEPTAR" en mayúsculas
       initialDate: local(_day ?? today),
       helpText: _reminderEditor ? 'Próximo pago' : null,
       // Recordatorio: la fecha es el próximo pago, de hoy a un año (D3).

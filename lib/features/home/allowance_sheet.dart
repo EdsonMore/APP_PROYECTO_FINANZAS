@@ -52,6 +52,7 @@ class _AllowanceSheetState extends ConsumerState<AllowanceSheet> {
     DateTime local(DateTime d) => DateTime(d.year, d.month, d.day);
     final picked = await showDatePicker(
       context: context,
+      confirmText: 'Aceptar', // es trae "ACEPTAR" en mayúsculas
       initialDate: local(_until ?? today.add(const Duration(days: 7))),
       firstDate: local(today.add(const Duration(days: 1))),
       lastDate: local(today.add(const Duration(days: 365))),

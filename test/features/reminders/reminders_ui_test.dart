@@ -336,7 +336,7 @@ void main() {
       }
       await tester.tap(find.descendant(of: find.byType(DatePickerDialog), matching: find.text('$dayOfMonth')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('OK'));
+      await tester.tap(find.text('Aceptar'));
       await tester.pumpAndSettle();
     }
 

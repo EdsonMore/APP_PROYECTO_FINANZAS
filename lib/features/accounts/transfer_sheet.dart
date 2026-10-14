@@ -132,6 +132,7 @@ class _TransferSheetState extends ConsumerState<TransferSheet> {
     final first = [today.subtract(const Duration(days: 730)), ?_day].reduce((a, b) => a.isBefore(b) ? a : b);
     final picked = await showDatePicker(
       context: context,
+      confirmText: 'Aceptar', // es trae "ACEPTAR" en mayúsculas
       initialDate: local(_day ?? today),
       firstDate: local(first),
       lastDate: local(today),

@@ -47,6 +47,18 @@ void main() {
     expect(find.text('¿Cómo son tus ingresos?'), findsOneWidget);
   });
 
+  // fix4: sin las traducciones de Material, los calendarios salían en inglés
+  // ("Sat, Nov 14", "Cancel", "OK"). La app es solo en español: fija es_PE.
+  appTest('Material en español: calendario y botones del sistema', (tester) async {
+    await pumpApp(tester);
+    final context = tester.element(find.text('¿Cómo son tus ingresos?'));
+    expect(Localizations.localeOf(context), const Locale('es', 'PE'));
+    final l = MaterialLocalizations.of(context);
+    expect(l.cancelButtonLabel, 'Cancelar'); // "Aceptar" lo pasa cada showDatePicker
+    expect(l.formatMediumDate(DateTime(2026, 11, 14)), 'sáb, 14 nov');
+    expect(l.firstDayOfWeekIndex, 1, reason: 'la semana empieza el lunes');
+  });
+
   appTest('onboarding terminado va a Home', (tester) async {
     final db = AppDatabase(NativeDatabase.memory());
     await db.into(db.settings).insert(

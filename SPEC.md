@@ -213,6 +213,11 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
 - **Android:** `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED` y los receptores
   del plugin; canal `saldoclaro/settings` para abrir los ajustes de
   notificaciones de la app.
+- **Idioma de Material (`fase-4d-fix4`):** `flutter_localizations` con
+  `locale` fijo `es_PE` (la app es solo en español, aunque el teléfono esté en
+  otro idioma): calendarios ("mié, 14 oct", semana desde el lunes) y botones
+  del sistema en español. Cada `showDatePicker` pasa `confirmText: 'Aceptar'`
+  (la traducción trae "ACEPTAR" en mayúsculas).
 - **Política de privacidad:** permiso de notificaciones y "los recordatorios se
   guardan solo en tu teléfono y no se sincronizan".
 
