@@ -1,6 +1,6 @@
 # Política de privacidad de SaldoClaro
 
-Última actualización: 14 de octubre de 2026
+Última actualización: 15 de octubre de 2026
 
 ## En pocas palabras
 
@@ -8,6 +8,7 @@
 - La cuenta es opcional. Solo si la creas, tus datos se guardan también en la nube para que los veas en otro teléfono.
 - No hay publicidad, analítica ni venta de datos.
 - Puedes cerrar sesión o borrar tu cuenta y tus datos de la nube cuando quieras.
+- La inteligencia artificial es opcional: si la usas, enviamos números resumidos a Google para responderte.
 
 ## Quiénes somos
 
@@ -55,17 +56,28 @@ En Ajustes, Sincronizar con la nube, toca Cerrar sesión. Desde ese momento la a
 - Sin la app: sigue los pasos de la página Borrar mi cuenta de nuestro sitio web o escríbenos desde el correo de tu cuenta. Lo hacemos en un plazo máximo de 30 días.
 - Los datos de tu teléfono no se tocan. Para borrarlos, desinstala la app o ve a los ajustes del teléfono, Apps, SaldoClaro, Almacenamiento, y toca Borrar datos.
 
+## Si usas la inteligencia artificial
+
+La inteligencia artificial es opcional y necesita una cuenta. Antes de la primera consulta te pedimos permiso.
+
+- Qué se envía: números ya calculados en tu teléfono (totales por categoría, promedios de ingreso y gasto, saldo, días del mes, pagos pendientes de tus recordatorios) y tu pregunta, con lo que escribas en ella (por ejemplo, zapatillas). No se envían tu correo, tu nombre, tus movimientos uno por uno ni tus notas.
+- A quién: a Google LLC (Gemini), a través de una función de SaldoClaro en Supabase (São Paulo). Es una transferencia internacional de datos a Estados Unidos.
+- Para qué: solo para responder tu pregunta.
+- Cuánto tiempo: usamos el servicio de pago de Gemini. Google no usa lo que le enviamos para entrenar ni mejorar sus productos, y puede guardarlo un tiempo solo para detectar abusos. Nosotros no guardamos tus preguntas ni las respuestas: solo cuántas consultas hiciste cada día, para el límite de 10.
+- Datos sensibles: la ley considera tus ingresos un dato sensible; por eso te pedimos permiso expreso.
+- Desactivarla: en Ajustes, Inteligencia artificial. Desactivarla no borra nada de tu teléfono. El conteo de consultas se borra si borras tu cuenta.
+
 ## Qué no hacemos
 
 - No usamos herramientas de analítica ni de seguimiento.
 - No mostramos publicidad.
 - No vendemos tus datos.
-- No los compartimos con nadie, salvo con los proveedores que hacen funcionar la sincronización (los de arriba) o si una autoridad lo exige por ley.
+- No los compartimos con nadie, salvo con los proveedores que hacen funcionar la sincronización (los de arriba) y Google, solo si usas la IA, o si una autoridad lo exige por ley.
 
 ## Permisos que usa la app
 
-- Internet, un permiso que Android concede sin preguntarte. La app lo usa únicamente si activas la sincronización.
-- Notificaciones, solo si creas un recordatorio de pago. Las usa para avisarte unos días antes de que venza. Si no lo das, la app funciona igual y no te avisa.
+- Internet, un permiso que Android concede sin preguntarte. La app lo usa únicamente si activas la sincronización o usas la IA.
+- Notificaciones, solo si creas un recordatorio de pago. Las usa para avisarte antes de que venza y mientras siga pendiente. Si no lo das, la app funciona igual y no te avisa.
 
 No pide acceso a tus contactos, fotos, ubicación, cámara ni micrófono.
 
@@ -85,7 +97,7 @@ Según la Ley N° 29733 de Protección de Datos Personales del Perú, y el Regla
 - Rectificar: corregirlos en la app. La corrección llega a la nube en la siguiente sincronización.
 - Suprimir: borrar tu cuenta y tus datos de la nube.
 - Llevártelos: exportarlos a CSV (portabilidad).
-- Oponerte o retirar tu consentimiento: cerrar sesión o borrar tu cuenta.
+- Oponerte o retirar tu consentimiento: cerrar sesión, borrar tu cuenta o desactivar la IA en Ajustes.
 
 Para cualquier pedido, escríbenos a saldoclaro.oficial@gmail.com desde el correo de tu cuenta. Te responderemos en los plazos que fija la ley. Si no quedas conforme, puedes reclamar ante la Autoridad Nacional de Protección de Datos Personales del Ministerio de Justicia y Derechos Humanos.
 

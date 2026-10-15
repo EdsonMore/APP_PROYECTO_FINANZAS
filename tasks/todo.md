@@ -298,9 +298,13 @@ Antes de publicar:
 
 ## Fase 5 (IA): pendientes
 - [x] 5AB: heurísticas (lectura del mes) y recordatorios sugeridos, sin IA (`fase-5ab`).
-- [ ] 5B-IA: Edge Function proxy, consentimiento expreso (ingresos = dato sensible,
-      Ley 29733), cambio de política y ficha de Play, tier de pago de Gemini.
-- [ ] Decidir: IA solo con cuenta o login anónimo de Supabase.
+- [x] 5C-Infra: Edge Function `ai-proxy`, consentimiento, límite diario, política (`fase-5c-infra`).
+- [ ] Usuario: activar la facturación de Gemini, aplicar `20261015000100_ai_usage.sql` y
+      `verificar_ai_usage.sql` en test, poner `GEMINI_API_KEY` y desplegar `ai-proxy`
+      (docs/ia/configurar-ai-proxy.md). Después, lo mismo en prod.
+- [ ] Usuario: actualizar la ficha de Seguridad de los datos en Play (docs/play-store/README.md).
+- [ ] Abogado: revisar la sección de IA de la política y si Gemini de pago cuenta como "compartir".
+- [ ] 5C-Chat (las 6 preguntas) y 5C-Lectura (la Lectura del mes redactada por la IA).
 
 ## Pendientes técnicos
 - [ ] Mutation testing completo sobre pull/engine/scheduler/push

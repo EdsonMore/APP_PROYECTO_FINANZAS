@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../accounts/accounts_screen.dart';
+import '../ai/consent.dart';
 import '../accounts/providers.dart' show accountsDataProvider, accountsStreamProvider;
 import '../history/history_screen.dart';
 import '../reminders/reminders_screen.dart';
@@ -210,6 +211,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               value: account == null ? 'Sin cuenta' : 'Conectado como $account',
               link: account == null ? 'Activar' : 'Gestionar',
               onTap: () => Navigator.of(context).push(SyncScreen.route()),
+            ),
+            // 5C-Infra (I2): activar con consentimiento; desactivar lo retira.
+            SettingsRow(
+              key: const Key('settings.ai'),
+              label: 'Inteligencia artificial',
+              value: ref.watch(aiConsentProvider) ? 'Activada' : 'Sin activar',
+              chevron: true,
+              onTap: () => ref.read(aiConsentProvider) ? showDeactivateAiSheet(context) : ensureAiConsent(context),
             ),
             SettingsRow(
               key: const Key('settings.about'),

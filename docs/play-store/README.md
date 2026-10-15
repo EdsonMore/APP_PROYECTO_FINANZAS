@@ -62,8 +62,17 @@ sube nada.
          funcionalidad de la app y administración de la cuenta.
        - Información financiera → Otra información financiera (movimientos,
          saldo, techos). Finalidad: funcionalidad de la app.
-     - ¿Comparte datos? **No.** Supabase y el servicio de correo procesan los
-       datos por nuestra cuenta; Google no lo cuenta como compartir.
+     - ¿Comparte datos? **Sí, solo si el usuario activa la IA** (Fase 5C):
+       - Información financiera → Otra información financiera (números ya
+         resumidos: totales por categoría, promedios, saldo, pagos
+         pendientes). Con Google (Gemini). **Opcional.** Finalidad:
+         funcionalidad de la app. No se comparte el correo ni los movimientos
+         uno por uno.
+       - Supabase y el servicio de correo procesan los datos por nuestra
+         cuenta; Google no lo cuenta como compartir. Gemini de pago también
+         actúa por nuestra cuenta (Data Processing Addendum), pero lo
+         declaramos como compartido por prudencia, hasta que lo revise el
+         abogado.
      - Datos cifrados en tránsito: **Sí.**
      - El usuario puede pedir que se borren: **Sí**, desde la app y desde la
        URL pública de `docs/landing/borrar-cuenta.html`.

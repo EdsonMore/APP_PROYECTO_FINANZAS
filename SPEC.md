@@ -277,6 +277,55 @@ hechos puro en `lib/domain/insights.dart`; frases en
   `shared_preferences`). No aparece si ya hay un recordatorio con la misma
   categoría y el mismo monto.
 
+## IA: infraestructura (Fase 5C-Infra, `fase-5c-infra`)
+
+La clave de Gemini nunca entra a la app. Edge Function `ai-proxy`
+(`supabase/functions/ai-proxy/`, Deno; tests con `deno test
+supabase/functions/ai-proxy/`), migración `20261015000100_ai_usage.sql`, app
+en `lib/features/ai/`. Configuración manual: `docs/ia/configurar-ai-proxy.md`.
+
+- **Quién (I1):** solo con cuenta (JWT de Supabase). Sin cuenta: "Para usar la
+  IA necesitas una cuenta" → Sincronizar.
+- **Petición:** `{question, facts, input?, consentVersion}`. `question` es una
+  de las 6 de v1 (`cut`, `can_spend`, `what_if`, `break_even`, `save`,
+  `pay_first`); `facts` ya calculados en la app (≤ 8 KB); `input.amountCents`
+  obligatorio en `can_spend`/`what_if`; `input.item` ≤ 40 caracteres, tratado
+  como dato. El prompt se arma en la función (plantillas por pregunta): nadie
+  puede usar el proxy como un Gemini general.
+- **Gemini:** `generateContent` de `GEMINI_MODEL` (por defecto
+  `gemini-2.5-flash-lite`, cambiable sin versión nueva), clave en el
+  encabezado `x-goog-api-key`, temperatura 0.3, 400 tokens, 15 s como máximo.
+  Los `…Cents` se escriben como "S/ …" en el prompt.
+- **Validación:** cada "S/ …" de la respuesta tiene que estar entre los
+  `…Cents` de los hechos (a cualquier profundidad) o el monto de la pregunta
+  (±1 céntimo). Si no, un reintento con la lista de montos; si vuelve a
+  fallar, 422.
+- **Límite:** 10 consultas por usuario y día de Lima (`ai_usage`: solo un
+  contador, RLS de lectura propia, se borra con la cuenta). Las fallidas no
+  cuentan (I3). Dos consultas exactamente simultáneas pueden pasarlo por 1.
+- **Respuestas:** 200 `{text, left}`; 401 sin sesión; 400 cuerpo inválido; 429
+  límite; 422 no verificada; 502 Gemini falla; 504 tiempo. Los logs solo
+  llevan un código, nunca hechos, preguntas ni respuestas.
+- **Consentimiento (I5):** la primera vez, "Antes de usar la IA" con la casilla
+  "Acepto que mis datos agregados se envíen a Google para responder." y la
+  política; "Continuar" deshabilitado hasta marcarla. Se guarda la versión y
+  la fecha en `shared_preferences`; cada consulta manda `consentVersion` y la
+  función rechaza sin ella. Si sube la versión, se vuelve a preguntar.
+- **Ajustes (I2):** "Inteligencia artificial" · "Sin activar" / "Activada";
+  activada, tocar ofrece "Desactivar la IA", que borra el consentimiento de
+  este teléfono.
+- **Contador:** `aiUsageProvider` (`today`, `left`), se lee al abrir el chat y
+  se actualiza con el `left` de cada respuesta. Textos: "Te quedan N consultas
+  hoy", "Te queda 1 consulta hoy", "Llegaste al límite de hoy. Vuelve mañana."
+- **Errores:** sin red, "No hay conexión. La IA necesita internet."; 502/504,
+  "La IA no respondió. Intenta de nuevo en un rato."; 422, "No pude responder
+  con tus números. Intenta de nuevo."; 401, "Tu sesión venció. Vuelve a
+  entrar."
+- **Política:** sección "Si usas la inteligencia artificial" (qué se envía, a
+  quién, para qué, retención del tier de pago, dato sensible, cómo
+  desactivarla); ficha de Play: información financiera compartida con Google,
+  opcional.
+
 ## Modelo de datos (drift, `lib/data/database.dart`, schemaVersion 6)
 
 Convenciones:

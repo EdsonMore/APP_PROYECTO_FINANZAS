@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 // No está en el repo (.gitignore): ver README, "Cómo compilar".
 import 'core/config/secrets.dart';
+import 'features/ai/ai_client.dart';
 import 'features/entry/draft_store.dart';
 import 'features/reminders/notifier.dart';
 import 'features/reminders/service.dart';
@@ -37,6 +38,7 @@ Future<void> main() async {
       authGatewayProvider.overrideWithValue(SupabaseAuthGateway(supabase.client)),
       syncRemoteProvider.overrideWithValue(SupabaseSyncRemote(supabase.client)),
       reminderNotifierProvider.overrideWithValue(PluginReminderNotifier()),
+      aiClientProvider.overrideWithValue(SupabaseAiClient(supabase.client)),
     ],
     child: const App(),
   ));

@@ -92,7 +92,7 @@ void main() {
   });
 
   for (final (row, title, heading, updated) in [
-    ('privacy', 'Política de privacidad', 'Si activas la sincronización', '14 de octubre de 2026'),
+    ('privacy', 'Política de privacidad', 'Si activas la sincronización', '15 de octubre de 2026'),
     ('terms', 'Términos y condiciones', 'SaldoClaro no es un asesor financiero', '13 de octubre de 2026'),
   ]) {
     testWidgets('Acerca de → $title: header, fecha y subtítulos', (tester) async {
