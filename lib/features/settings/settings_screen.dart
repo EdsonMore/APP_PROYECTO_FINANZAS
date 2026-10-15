@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../accounts/accounts_screen.dart';
+import '../ai/chat_screen.dart';
 import '../ai/consent.dart';
 import '../accounts/providers.dart' show accountsDataProvider, accountsStreamProvider;
 import '../history/history_screen.dart';
@@ -218,7 +219,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               label: 'Inteligencia artificial',
               value: ref.watch(aiConsentProvider) ? 'Activada' : 'Sin activar',
               chevron: true,
-              onTap: () => ref.read(aiConsentProvider) ? showDeactivateAiSheet(context) : ensureAiConsent(context),
+              // C2: abre el chat; el consentimiento se pide al enviar y Desactivar está en su pie.
+              onTap: () => _push(context, const AiChatScreen()),
             ),
             SettingsRow(
               key: const Key('settings.about'),

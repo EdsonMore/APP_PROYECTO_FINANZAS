@@ -53,3 +53,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Supabase CLI (supabase link): datos del proyecto enlazado, no van al repo.
+supabase/.temp/

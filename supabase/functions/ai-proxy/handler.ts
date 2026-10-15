@@ -18,7 +18,11 @@ export interface Deps {
 
 const json = (status: number, body: unknown) => Response.json(body, { status });
 
-class UpstreamError extends Error {}
+class UpstreamError extends Error {
+  constructor(readonly code: string) {
+    super(code);
+  }
+}
 
 /** Nunca se loguea el cuerpo, los hechos ni la respuesta: solo un código. */
 const log = (code: string) => console.error(`ai-proxy: ${code}`);
@@ -38,10 +42,11 @@ export function makeHandler(deps: Deps): (req: Request) => Promise<Response> {
       }),
       signal,
     });
-    if (!res.ok) throw new UpstreamError();
+    // C6: el código de Google va al log; su cuerpo, nunca.
+    if (!res.ok) throw new UpstreamError(`gemini_${res.status}`);
     const data = await res.json();
     const text = (data?.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? "").join("").trim();
-    if (!text) throw new UpstreamError();
+    if (!text) throw new UpstreamError("gemini_empty");
     return text;
   }
 
@@ -64,7 +69,14 @@ export function makeHandler(deps: Deps): (req: Request) => Promise<Response> {
     if (bad) return json(400, { error: "bad_request", detail: bad });
 
     // ponytail: leer y después sumar; dos consultas simultáneas pueden pasar el límite por 1.
-    if ((await deps.usedToday(auth)) >= deps.limit) return json(429, { error: "limit", left: 0 });
+    let usedBefore: number;
+    try {
+      usedBefore = await deps.usedToday(auth);
+    } catch {
+      log("database"); // C6: antes era un 500 sin cuerpo
+      return json(500, { error: "database" });
+    }
+    if (usedBefore >= deps.limit) return json(429, { error: "limit", left: 0 });
 
     const allowed = allowedCents(body.facts, body.input);
     const prompt = buildPrompt(body.question, body.facts, body.input);
@@ -79,14 +91,21 @@ export function makeHandler(deps: Deps): (req: Request) => Promise<Response> {
           return json(422, { error: "unverified" });
         }
       }
-      const used = await deps.recordUse(auth);
+      let used: number;
+      try {
+        used = await deps.recordUse(auth);
+      } catch {
+        // Gemini ya respondió: no se castiga al usuario; queda sin contar.
+        log("database");
+        used = usedBefore + 1;
+      }
       return json(200, { text, left: Math.max(0, deps.limit - used) });
-    } catch (_) {
+    } catch (e) {
       if (controller.signal.aborted) {
         log("gemini_timeout");
         return json(504, { error: "timeout" });
       }
-      log("gemini_error");
+      log(e instanceof UpstreamError ? e.code : "gemini_error");
       return json(502, { error: "upstream" });
     } finally {
       clearTimeout(timer);

@@ -12,7 +12,9 @@ import '../core/theme/app_theme.dart';
 import '../data/database.dart';
 import '../data/providers.dart';
 import '../domain/metrics.dart';
+import '../domain/recurrence.dart';
 import '../features/ai/ai_client.dart';
+import '../features/ai/chat_screen.dart';
 import '../features/ai/consent.dart';
 import '../features/entry/draft_store.dart';
 import '../features/settings/settings_screen.dart';
@@ -21,7 +23,8 @@ import '../features/sync/providers.dart';
 /// Vista previa de 5C-Infra para capturas: base en memoria, sin red.
 /// `adb shell am start -n com.saldoclar.app/.MainActivity --es route /consent`
 /// Variantes: consent, noaccount, settings (IA sin activar), settings-on,
-/// deactivate; "-dark" para oscuro.
+/// deactivate, chat (3 usadas), chat-low (8 usadas: contador en rojo),
+/// chat-limit (10 usadas); "-dark" para oscuro.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es_PE');
@@ -34,14 +37,46 @@ Future<void> main() async {
   await db.completeOnboarding(mode: Mode.variable);
   final prefs = await SharedPreferences.getInstance();
   await prefs.clear();
-  if (variant == 'settings-on' || variant == 'deactivate') await prefs.setInt('ai.consentVersion', aiConsentVersion);
+  final chat = variant.startsWith('chat');
+  if (variant == 'settings-on' || variant == 'deactivate' || chat) {
+    await prefs.setInt('ai.consentVersion', aiConsentVersion);
+  }
+  final now = DateTime.now();
+  final today = day(now.year, now.month, now.day);
+  if (chat) {
+    // Un mes de datos y dos pagos en "Por pagar" (para "¿Qué me conviene pagar primero?").
+    await db.insertManualEntry(
+        id: 'in', kind: EntryKind.income, amountCents: 250000, day: today.subtract(const Duration(days: 20)),
+        pickId: 'chamba', now: now);
+    for (var i = 0; i < 20; i++) {
+      await db.insertManualEntry(
+          id: 'g$i', kind: EntryKind.expense, amountCents: 2500 + i * 90, day: today.subtract(Duration(days: i)),
+          pickId: ['comida', 'transporte', 'ocio'][i % 3], now: now);
+    }
+    await db.insertRecurrence(
+        id: 'r1', amountCents: 4500, categoryId: 'vivienda', frequency: Frequency.monthly,
+        firstDue: today.add(const Duration(days: 2)));
+    await db.insertRecurrence(
+        id: 'r2', amountCents: 8700, categoryId: 'vivienda', frequency: Frequency.monthly,
+        firstDue: today.add(const Duration(days: 5)));
+  }
+  final client = FakeAiClient()
+    ..used = switch (variant) {
+      'chat-low' || 'chat-low-dark' => 8,
+      'chat-limit' => 10,
+      _ => 3,
+    }
+    ..next = const AiAnswer(
+        'Con cuidado: después de la compra te quedarían S/ 42.94 al día, y en 2 días vence Vivienda por S/ 45.00. '
+        'Si las zapatillas pueden esperar a tu próximo ingreso, mejor.',
+        6);
 
   runApp(ProviderScope(
     overrides: [
       databaseProvider.overrideWithValue(db),
       sharedPreferencesProvider.overrideWithValue(prefs),
       accountEmailProvider.overrideWith((ref) => Stream.value(variant == 'noaccount' ? null : 'tu@correo.com')),
-      aiClientProvider.overrideWithValue(FakeAiClient()),
+      aiClientProvider.overrideWithValue(client),
     ],
     child: MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -54,6 +89,7 @@ Future<void> main() async {
       home: switch (variant) {
         'consent' || 'noaccount' => _Auto(open: ensureAiConsent),
         'deactivate' => _Auto(open: showDeactivateAiSheet),
+        _ when chat => const AiChatScreen(),
         _ => const SettingsScreen(),
       },
     ),

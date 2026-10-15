@@ -304,7 +304,10 @@ Antes de publicar:
       (docs/ia/configurar-ai-proxy.md). Después, lo mismo en prod.
 - [ ] Usuario: actualizar la ficha de Seguridad de los datos en Play (docs/play-store/README.md).
 - [ ] Abogado: revisar la sección de IA de la política y si Gemini de pago cuenta como "compartir".
-- [ ] 5C-Chat (las 6 preguntas) y 5C-Lectura (la Lectura del mes redactada por la IA).
+- [x] 5C-Chat: chat con las 6 predefinidas y la pregunta libre (`fase-5c-chat`).
+- [ ] Usuario: redesplegar `ai-proxy` (pregunta libre y errores de base) y probar con
+      `docs/ia/ejemplo-libre.json`.
+- [ ] 5C-Lectura (la Lectura del mes redactada por la IA).
 
 ## Pendientes técnicos
 - [ ] Mutation testing completo sobre pull/engine/scheduler/push

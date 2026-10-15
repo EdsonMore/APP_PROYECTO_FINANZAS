@@ -49,3 +49,10 @@ Deno.test("checkBody: rechaza pregunta desconocida, hechos grandes, item largo, 
   eq(checkBody({ question: "cut", facts: {}, consentVersion: 0 }), "consent");
   eq(checkBody(null), "body");
 });
+
+Deno.test("checkBody (5C-Chat): free exige texto de 1 a 200 caracteres", () => {
+  eq(checkBody({ question: "free", facts: {}, input: { text: "¿Voy bien este mes?" }, consentVersion: 1 }), null);
+  eq(checkBody({ question: "free", facts: {}, consentVersion: 1 }), "text");
+  eq(checkBody({ question: "free", facts: {}, input: { text: "   " }, consentVersion: 1 }), "text");
+  eq(checkBody({ question: "free", facts: {}, input: { text: "a".repeat(201) }, consentVersion: 1 }), "text");
+});

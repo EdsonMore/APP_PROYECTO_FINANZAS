@@ -115,6 +115,24 @@ Esperado: `{"text":"…","left":9}`. Los montos del texto tienen que estar en
 4. Logs: Supabase → Edge Functions → ai-proxy → Logs. Solo tienen que verse
    códigos (`ai-proxy: gemini_timeout`, etc.), nunca hechos ni respuestas.
 
+## Redesplegar tras un cambio en la función (por ejemplo, 5C-Chat)
+
+Los secretos y la migración no cambian; solo se vuelve a subir el código:
+
+```powershell
+supabase functions deploy ai-proxy --project-ref <REF>
+```
+
+Prueba la pregunta libre con `docs/ia/ejemplo-libre.json` (mismo curl del paso
+6, cambiando el archivo). Esperado: `HTTP 200` y una respuesta sobre sus
+finanzas. Si el texto pregunta otra cosa (por ejemplo, "¿quién ganó el
+mundial?"), la respuesta tiene que ser "Solo puedo ayudarte con tus finanzas
+en SaldoClaro."
+
+Desde 5C-Chat, si la base falla la función responde `500 {"error":"database"}`
+(antes, 500 sin cuerpo), y los logs muestran el código de Google cuando Gemini
+rechaza (`ai-proxy: gemini_403`, etc.), nunca el cuerpo.
+
 ## Después, en prod
 
 Repite 3, 4 y 5 con `supabase link --project-ref <REF-DE-SALDOCLARO-PROD>`. En

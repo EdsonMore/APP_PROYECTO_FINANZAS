@@ -326,6 +326,44 @@ en `lib/features/ai/`. Configuración manual: `docs/ia/configurar-ai-proxy.md`.
   desactivarla); ficha de Play: información financiera compartida con Google,
   opcional.
 
+## IA: chat (Fase 5C-Chat, `fase-5c-chat`)
+
+`lib/features/ai/chat_screen.dart` (pantalla y hoja de monto) y
+`lib/features/ai/facts.dart` (paquetes de hechos, puros).
+
+- **Acceso (C2):** Ajustes → "Inteligencia artificial" abre el chat, activada o
+  no. El consentimiento (y la hoja "necesitas una cuenta") se piden al enviar
+  la primera pregunta. "Desactivar la IA" está al pie del chat.
+- **Pantalla "Pregúntale a SaldoClaro":** contador bajo el título ("Te quedan N
+  consultas hoy", en rojo con 0-2; sin cuenta no aparece). Sin mensajes, las
+  predefinidas en lista; con mensajes, burbujas (las del usuario a la derecha)
+  y las predefinidas como chips en una fila horizontal. Campo "Escribe tu
+  pregunta" (200 caracteres como máximo; enviar deshabilitado vacío). Pie:
+  "Respuestas generadas con tus números. No es asesoría financiera."
+- **Predefinidas:** "¿Puedo gastar S/ X en algo?" (pide monto con el teclado
+  propio y "¿En qué?"), "¿Qué pasaría si gasto S/ X más al mes?" (monto),
+  "¿Cuánto necesito ganar para cubrir mis gastos?", "¿Qué puedo recortar sin
+  que se sienta?", "¿Cuánto debería ahorrar cada mes?" y "¿Qué me conviene
+  pagar primero?" (solo con 2 o más pagos como en "Por pagar", C5).
+- **Pregunta libre (C1-A):** `question: "free"`, el texto como dato; la función
+  responde solo sobre las finanzas ("Solo puedo ayudarte con tus finanzas en
+  SaldoClaro.").
+- **Paquetes de hechos:** la app calcula todo, incluidos los montos derivados
+  que la respuesta puede necesitar (C4): la mitad por categoría, el total
+  pendiente y lo que falta, la meta +10%, lo que queda por día tras gastar X.
+  Sin notas (C3: los pagos van por categoría), correo, ids ni movimientos
+  sueltos. Meses cerrados con la regla de "Tus meses" (desde el día 1).
+- **Respuestas y errores:** burbuja con el texto; el contador se actualiza con
+  `left`. Sin red, "no respondió" y "no pude responder con tus números" llevan
+  "Reintentar" (reenvía la misma pregunta; las fallidas no cuentan); sesión
+  vencida, sin reintentar; límite, todo deshabilitado con "Llegaste al límite
+  de hoy. Vuelve mañana."
+- **Historial:** solo en memoria de la pantalla; al salir se pierde. Cada
+  pregunta va sola (sin memoria).
+- **Función (C6):** error de base → `500 {"error":"database"}`; si falla al
+  registrar el uso tras responder Gemini, la respuesta llega igual; el log
+  lleva el código HTTP de Gemini (`gemini_403`), nunca el cuerpo.
+
 ## Modelo de datos (drift, `lib/data/database.dart`, schemaVersion 6)
 
 Convenciones:

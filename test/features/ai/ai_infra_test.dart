@@ -12,7 +12,6 @@ import 'package:saldo_claro/features/ai/consent.dart';
 import 'package:saldo_claro/features/ai/usage.dart';
 import 'package:saldo_claro/features/entry/draft_store.dart';
 import 'package:saldo_claro/features/settings/legal_screen.dart';
-import 'package:saldo_claro/features/settings/settings_screen.dart';
 import 'package:saldo_claro/features/sync/providers.dart';
 import 'package:saldo_claro/features/sync/screens/sync_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -150,41 +149,6 @@ void main() {
     });
   });
 
-  group('Ajustes → Inteligencia artificial (I2)', () {
-    Finder row(String value) => find.descendant(of: find.byKey(const Key('settings.ai')), matching: find.text(value));
-
-    Future<void> showAiRow(WidgetTester tester) async {
-      await tester.scrollUntilVisible(find.byKey(const Key('settings.ai')), 200,
-          scrollable: find.byType(Scrollable).first);
-      await tester.pumpAndSettle();
-    }
-
-    testWidgets('"Sin activar" → acepta → "Activada" → Desactivar → "Sin activar"', (tester) async {
-      final host = await pumpAi(tester, home: const SettingsScreen());
-      await showAiRow(tester);
-      expect(row('Inteligencia artificial'), findsOneWidget);
-      expect(row('Sin activar'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('settings.ai')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('ai.consent.check')));
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('ai.consent.continue')));
-      await tester.pumpAndSettle();
-      expect(row('Activada'), findsOneWidget);
-
-      await tester.tap(find.byKey(const Key('settings.ai')));
-      await tester.pumpAndSettle();
-      expect(find.text('Desactivar la IA'), findsOneWidget);
-      expect(find.text('Ya no enviaremos nada a Google. Puedes volver a activarla cuando quieras.'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('ai.deactivate')));
-      await tester.pumpAndSettle();
-      expect(row('Sin activar'), findsOneWidget);
-      expect(host.prefs.getInt('ai.consentVersion'), isNull);
-      expect(host.prefs.getString('ai.consentAt'), isNull);
-      await unmount(tester);
-    });
-  });
-
   group('contador', () {
     test('textos: plural, singular y límite', () {
       expect(aiUsageText((today: 3, left: 7)), 'Te quedan 7 consultas hoy');
@@ -240,7 +204,9 @@ void main() {
       });
       expect(aiRequestBody(AiQuestion.cut, const {}), {'question': 'cut', 'facts': {}, 'consentVersion': aiConsentVersion});
       expect([for (final q in AiQuestion.values) q.wire],
-          ['cut', 'can_spend', 'what_if', 'break_even', 'save', 'pay_first'], reason: 'los mismos ids que la función');
+          ['cut', 'can_spend', 'what_if', 'break_even', 'save', 'pay_first', 'free'], reason: 'los mismos ids que la función');
+      expect(aiRequestBody(AiQuestion.free, const {}, text: '¿Voy bien?'),
+          {'question': 'free', 'facts': {}, 'input': {'text': '¿Voy bien?'}, 'consentVersion': aiConsentVersion});
     });
   });
 }

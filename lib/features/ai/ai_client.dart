@@ -11,14 +11,15 @@ const aiConsentVersion = 1;
 /// Consultas por día y usuario; la función manda (AI_DAILY_LIMIT).
 const aiDailyLimit = 10;
 
-/// Las 6 preguntas de v1, con el id que entiende `ai-proxy`.
+/// Las 6 preguntas de v1 y la libre (5C-Chat, C1-A), con el id que entiende `ai-proxy`.
 enum AiQuestion {
   cut('cut'),
   canSpend('can_spend'),
   whatIf('what_if'),
   breakEven('break_even'),
   save('save'),
-  payFirst('pay_first');
+  payFirst('pay_first'),
+  free('free');
 
   const AiQuestion(this.wire);
   final String wire;
@@ -62,16 +63,21 @@ class AiFailure extends AiResult {
 
 /// Lo único que sale del teléfono: la pregunta, los hechos ya calculados, lo
 /// que escribió el usuario y la versión del consentimiento. Nada de correo ni ids.
-Map<String, Object?> aiRequestBody(AiQuestion q, Map<String, Object?> facts, {int? amountCents, String? item}) => {
+Map<String, Object?> aiRequestBody(AiQuestion q, Map<String, Object?> facts,
+        {int? amountCents, String? item, String? text}) =>
+    {
       'question': q.wire,
       'facts': facts,
-      if (amountCents != null || item != null)
-        'input': {'amountCents': ?amountCents, 'item': ?item},
+      if (amountCents != null || item != null || text != null)
+        'input': {'amountCents': ?amountCents, 'item': ?item, 'text': ?text},
       'consentVersion': aiConsentVersion,
     };
 
+/// Máximo de la pregunta libre; la función rechaza más.
+const aiFreeTextMax = 200;
+
 abstract interface class AiClient {
-  Future<AiResult> ask(AiQuestion q, Map<String, Object?> facts, {int? amountCents, String? item});
+  Future<AiResult> ask(AiQuestion q, Map<String, Object?> facts, {int? amountCents, String? item, String? text});
 
   /// Consultas de hoy (día de Lima). Lanza si no hay sesión o red.
   Future<int> usedToday();
@@ -85,10 +91,11 @@ class SupabaseAiClient implements AiClient {
   static const _timeout = Duration(seconds: 20);
 
   @override
-  Future<AiResult> ask(AiQuestion q, Map<String, Object?> facts, {int? amountCents, String? item}) async {
+  Future<AiResult> ask(AiQuestion q, Map<String, Object?> facts,
+      {int? amountCents, String? item, String? text}) async {
     try {
       final res = await _client.functions
-          .invoke('ai-proxy', body: aiRequestBody(q, facts, amountCents: amountCents, item: item))
+          .invoke('ai-proxy', body: aiRequestBody(q, facts, amountCents: amountCents, item: item, text: text))
           .timeout(_timeout);
       final data = res.data as Map<String, dynamic>;
       return AiAnswer(data['text'] as String, (data['left'] as num).toInt());
@@ -112,11 +119,16 @@ class FakeAiClient implements AiClient {
   int used = 0;
   int usedTodayCalls = 0;
   AiResult next = const AiAnswer('Te quedan S/ 850.00.', 9);
+
+  /// Si está, la respuesta espera a que se complete (para ver el estado "esperando").
+  Future<void>? gate;
   final sent = <Map<String, Object?>>[];
 
   @override
-  Future<AiResult> ask(AiQuestion q, Map<String, Object?> facts, {int? amountCents, String? item}) async {
-    sent.add(aiRequestBody(q, facts, amountCents: amountCents, item: item));
+  Future<AiResult> ask(AiQuestion q, Map<String, Object?> facts,
+      {int? amountCents, String? item, String? text}) async {
+    sent.add(aiRequestBody(q, facts, amountCents: amountCents, item: item, text: text));
+    if (gate case final g?) await g;
     return next;
   }
 

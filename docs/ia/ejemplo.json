@@ -1,14 +1,23 @@
 {
   "question": "can_spend",
   "facts": {
+    "mode": "variable",
     "balanceCents": 85000,
     "daysLeft": 17,
-    "dailyBeforeCents": 5000,
+    "dailyCents": 5000,
+    "monthIncomeCents": 250000,
+    "monthSpentCents": 165000,
+    "amountCents": 12000,
+    "balanceAfterCents": 73000,
     "dailyAfterCents": 4294,
+    "runwayDays": 19,
+    "runwayAfterDays": 16,
     "pending": [
-      { "name": "Internet", "category": "Vivienda", "amountCents": 4500, "dueInDays": 2 },
-      { "name": "Luz", "category": "Vivienda", "amountCents": 8700, "dueInDays": 9 }
-    ]
+      { "category": "Vivienda", "amountCents": 4500, "daysToDue": 2 },
+      { "category": "Vivienda", "amountCents": 8700, "daysToDue": 9 }
+    ],
+    "pendingTotalCents": 13200,
+    "balanceAfterPendingCents": 59800
   },
   "input": { "amountCents": 12000, "item": "zapatillas" },
   "consentVersion": 1

@@ -4,7 +4,8 @@
 /** Versión del consentimiento vigente. La app manda la que el usuario aceptó (I5). */
 export const CONSENT_VERSION = 1;
 
-export const QUESTIONS = ["cut", "can_spend", "what_if", "break_even", "save", "pay_first"] as const;
+/** Las 6 de v1 y la pregunta libre (5C-Chat, C1-A). */
+export const QUESTIONS = ["cut", "can_spend", "what_if", "break_even", "save", "pay_first", "free"] as const;
 export type Question = (typeof QUESTIONS)[number];
 
 /** Preguntas que traen un monto escrito por el usuario. */
@@ -12,9 +13,10 @@ const WITH_AMOUNT: readonly Question[] = ["can_spend", "what_if"];
 
 const MAX_FACTS_BYTES = 8192;
 const MAX_ITEM = 40;
+const MAX_TEXT = 200;
 const MAX_AMOUNT_CENTS = 10_000_000_000;
 
-export type Input = { amountCents?: number; item?: string };
+export type Input = { amountCents?: number; item?: string; text?: string };
 export type Body = { question: Question; facts: Record<string, unknown>; input?: Input; consentVersion: number };
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -31,6 +33,10 @@ export function checkBody(b: unknown): string | null {
     if (typeof a !== "number" || !Number.isInteger(a) || a <= 0 || a > MAX_AMOUNT_CENTS) return "amount";
   }
   if (input.item !== undefined && (typeof input.item !== "string" || input.item.length > MAX_ITEM)) return "item";
+  if (b.question === "free") {
+    const t = input.text;
+    if (typeof t !== "string" || !t.trim() || t.length > MAX_TEXT) return "text";
+  }
   return null;
 }
 
