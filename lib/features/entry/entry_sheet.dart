@@ -28,9 +28,14 @@ import 'draft_store.dart';
 /// Con [editing] (4B) es la misma hoja precargada; devuelve null si no hubo cambios.
 /// 4D: con [reminder], el pago de un recordatorio (precargado; el usuario
 /// confirma, R1); con [editingReminder], el editor de Ajustes → Recordatorios.
-/// fix3: con [newReminder], el mismo editor para crear uno (sin gasto).
+/// fix3: con [newReminder], el mismo editor para crear uno (sin gasto);
+/// 5AB: con [reminderDraft], precargado desde un pago recurrente detectado.
 Future<Entry?> showEntrySheet(BuildContext context, EntryKind kind,
-    {Entry? editing, Recurrence? reminder, Recurrence? editingReminder, bool newReminder = false}) {
+    {Entry? editing,
+    Recurrence? reminder,
+    Recurrence? editingReminder,
+    bool newReminder = false,
+    ReminderDraft? reminderDraft}) {
   final reduced = MediaQuery.disableAnimationsOf(context);
   return showModalBottomSheet<Entry>(
     context: context,
@@ -45,9 +50,17 @@ Future<Entry?> showEntrySheet(BuildContext context, EntryKind kind,
             reverseDuration: Duration(milliseconds: 250),
             curve: Motion.emphasized),
     builder: (_) => EntrySheet(
-        kind: kind, editing: editing, reminder: reminder, editingReminder: editingReminder, newReminder: newReminder),
+        kind: kind,
+        editing: editing,
+        reminder: reminder,
+        editingReminder: editingReminder,
+        newReminder: newReminder,
+        reminderDraft: reminderDraft),
   );
 }
+
+/// 5AB: un recordatorio nuevo precargado (el usuario confirma, H4).
+typedef ReminderDraft = ({int cents, String categoryId, String? accountId, String? note, DateTime due});
 
 /// Toca un movimiento (Recientes o Historial) → hoja en modo edición. Si se
 /// guardó algún cambio, "Cambios guardados" 2 s.
@@ -84,8 +97,15 @@ const _imeHiddenGrace = Duration(milliseconds: 150);
 /// Registro de gasto o ingreso. Un solo widget; [kind] cambia título, color,
 /// catálogo (categorías/fuentes) y la columna que se llena al guardar.
 class EntrySheet extends ConsumerStatefulWidget {
-  const EntrySheet(
-      {super.key, required this.kind, this.editing, this.reminder, this.editingReminder, this.newReminder = false});
+  const EntrySheet({
+    super.key,
+    required this.kind,
+    this.editing,
+    this.reminder,
+    this.editingReminder,
+    this.newReminder = false,
+    this.reminderDraft,
+  });
   final EntryKind kind;
 
   /// Modo edición: precarga este movimiento. El tipo no cambia y el borrador
@@ -101,6 +121,9 @@ class EntrySheet extends ConsumerStatefulWidget {
 
   /// fix3: crear un recordatorio desde Ajustes. Guarda solo el recordatorio.
   final bool newReminder;
+
+  /// 5AB: valores iniciales de [newReminder] (pago recurrente detectado).
+  final ReminderDraft? reminderDraft;
 
   @override
   ConsumerState<EntrySheet> createState() => _EntrySheetState();
@@ -281,12 +304,19 @@ class _EntrySheetState extends ConsumerState<EntrySheet> with WidgetsBindingObse
     if (!mounted) return;
     final today = ref.read(todayProvider);
     final ids = {for (final o in options) o.id};
+    final draft = widget.reminderDraft;
     setState(() {
       _options = options;
       _accounts = accounts;
-      _pick = [lastUsed, options.firstOrNull?.id].firstWhere(ids.contains, orElse: () => null);
+      _pick = [draft?.categoryId, lastUsed, options.firstOrNull?.id].firstWhere(ids.contains, orElse: () => null);
       _frequency = Frequency.monthly;
-      _day = nextDue(today, Frequency.monthly, anchorDay: today.day);
+      _day = draft?.due ?? nextDue(today, Frequency.monthly, anchorDay: today.day);
+      if (draft != null) {
+        final c = draft.cents;
+        _amount = _sanitize(c % 100 == 0 ? '${c ~/ 100}' : '${c ~/ 100}.${(c % 100).toString().padLeft(2, '0')}');
+        _account = accounts.any((a) => a.id == draft.accountId) ? draft.accountId : null;
+        _note.text = draft.note ?? '';
+      }
     });
   }
 

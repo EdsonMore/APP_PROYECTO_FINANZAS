@@ -141,6 +141,11 @@ class AccountBook {
   bool get isEmpty => transfers.isEmpty && openings.isEmpty;
 }
 
+/// El saldo global de la calculadora (4E), para el motor de hechos (5AB).
+int globalBalance(List<Movement> movements,
+        {required DateTime today, Opening? opening, AccountBook book = const AccountBook()}) =>
+    _globalBalance(movements, today, opening, book);
+
 int _globalBalance(List<Movement> movements, DateTime today, Opening? opening, AccountBook book) => book.isEmpty
     ? balance(movements, today: today, opening: opening)
     : totalBalance(movements, book.transfers, today: today, unassignedOpening: opening, accountOpenings: book.openings);

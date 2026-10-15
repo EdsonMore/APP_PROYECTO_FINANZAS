@@ -17,6 +17,7 @@ import '../settings/settings_screen.dart' show SubpageHeader;
 import 'actions_sheet.dart';
 import 'due_block.dart' show dueLine, dueWindowDays;
 import 'service.dart';
+import 'suggestions.dart';
 
 /// Ajustes → Recordatorios (4D): los pagos que se repiten. Tocar abre las
 /// acciones (fix5); deslizar borra. Solo viven en este teléfono (R2).
@@ -40,6 +41,8 @@ class RemindersScreen extends ConsumerWidget {
           children: [
             const SubpageHeader(title: 'Recordatorios'),
             const SizedBox(height: Space.lg),
+            // 5AB: pagos que se repiten cada mes y todavía no tienen recordatorio.
+            for (final s in ref.watch(suggestedRemindersProvider)) SuggestionCard(payment: s),
             if (!granted && list.isNotEmpty)
               Padding(
                 key: const Key('reminders.noPermission'),

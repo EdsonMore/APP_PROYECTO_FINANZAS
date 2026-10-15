@@ -243,6 +243,40 @@ estar sin trabajo con entradas puntuales, o tener ingreso mixto.
 - **Política de privacidad:** permiso de notificaciones y "los recordatorios se
   guardan solo en tu teléfono y no se sincronizan".
 
+## Heurísticas: lectura del mes y recordatorios sugeridos (Fase 5AB, `fase-5ab`)
+
+Sin IA (la capa de IA de 5B irá encima de estos mismos hechos). Motor de
+hechos puro en `lib/domain/insights.dart`; frases en
+`lib/features/insights/reading.dart`; sugerencias en
+`lib/features/reminders/suggestions.dart`.
+
+- **Hechos:** balance del mes (ingreso − gasto, solo si hubo ingreso);
+  categoría que más subió y que más bajó contra el **mismo tramo** del mes
+  anterior (H1: del 1 a hoy contra del 1 al mismo día, o al último día si el
+  mes anterior es más corto; solo si los datos cubren el mes anterior desde el
+  día 1); días que quedan del mes con saldo y sugerencia diaria (la calculadora
+  de 4E); racha (`streak` de Insights); día de la semana con más gasto (8
+  semanas); pago recurrente.
+- **Umbrales (H2):** categoría ±S/ 20 y ±20%; día de la semana +30% sobre el
+  promedio de los otros seis, con 4 semanas de datos; racha desde 3 días.
+- **Lectura del mes:** bloque de Insights arriba de "Por cuenta" (al final sin
+  cuentas), en los 3 modos; sin datos no aparece. Máximo 4 frases en
+  `inkMuted`, por prioridad: sale más de lo que entró, la categoría que más
+  subió, días restantes, lo que queda del mes, racha de 7+, la categoría que
+  más bajó, día de la semana, racha de 3-6.
+- **Pago recurrente (H3):** misma categoría y mismo monto exacto, y los 3
+  pagos más recientes seguidos, a 26-35 días uno del otro; el último hace 35
+  días o menos. Un gasto igual que se repite más seguido (un menú diario) no
+  califica. Nombre: la nota más frecuente de esos 3, o la categoría.
+- **Recordatorios sugeridos:** en Ajustes → Recordatorios, arriba de la lista
+  (máximo 2): "¿Crear recordatorio para Internet cada mes?" / "S/ 45.00 · el
+  15 de cada mes". "Crear" abre el editor de recordatorio nuevo **precargado**
+  (H4: confirma el usuario; próximo pago = mismo día del mes siguiente al
+  último pago, nunca antes de hoy). "No, gracias" la descarta para siempre,
+  solo en este teléfono (H5, `reminders.dismissedSuggestions` en
+  `shared_preferences`). No aparece si ya hay un recordatorio con la misma
+  categoría y el mismo monto.
+
 ## Modelo de datos (drift, `lib/data/database.dart`, schemaVersion 6)
 
 Convenciones:

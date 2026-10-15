@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
+import '../../domain/insights.dart';
 import '../../domain/metrics.dart';
 import '../accounts/providers.dart';
 import '../budget/providers.dart';
 import '../home/providers.dart';
+import 'reading.dart';
 
 /// Todo lo que pinta Insights, con los bloques ya ordenados por modo.
 final insightsSummaryProvider = Provider<AsyncValue<InsightsSummary>>((ref) {
@@ -106,6 +108,12 @@ class SuggestedBlock extends InsightBlock {
 /// "Por cuenta" (4A): saldo y, de los últimos 30 días, lo que salió y entró
 /// (gastos e ingresos de la cuenta; las transferencias no cuentan).
 typedef AccountFlowRow = ({String name, int balance, int outCents, int inCents});
+
+/// "Lectura del mes" (5AB): hasta 4 frases del motor de hechos.
+class ReadingBlock extends InsightBlock {
+  const ReadingBlock(this.lines);
+  final List<String> lines;
+}
 
 class ByAccountBlock extends InsightBlock {
   const ByAccountBlock(this.rows);
@@ -220,10 +228,22 @@ InsightsSummary buildInsightsSummary({
         monthsB,
       ],
   };
+  // 5AB: arriba de "Por cuenta" (al final si no hay cuentas). Sin datos, no aparece.
+  final changes = categoryChanges(movements, today: today);
+  final facts = pickTop([
+    ?monthBalance(movements, today: today),
+    ?changes.up,
+    ?changes.down,
+    daysLeft(movements, today: today, opening: opening, book: book),
+    ?streakFact(days: streakDays, thresholdCents: threshold),
+    ?topWeekday(movements, today: today),
+  ]);
+  final names = {for (final MapEntry(key: id, value: c) in catById.entries) id: c.name};
+  final reading = hasData ? ReadingBlock([for (final f in facts) factText(f, categoryNames: names)]) : null;
   return InsightsSummary(
     mode: mode,
     phrase: phrase,
-    blocks: [...blocks.nonNulls, ?_byAccount(entries, accounts, transfers, opening, today)],
+    blocks: [...blocks.nonNulls, ?reading, ?_byAccount(entries, accounts, transfers, opening, today)],
   );
 }
 

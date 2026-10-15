@@ -126,17 +126,17 @@ void main() {
   group('orden de bloques', () {
     test('Estable', () {
       expect(types(build(Mode.stable, full())),
-          [BudgetBlock, SpendBlock, StreakBlock, MonthsBlock, RunwayBlock]);
+          [BudgetBlock, SpendBlock, StreakBlock, MonthsBlock, RunwayBlock, ReadingBlock]);
     });
 
     test('Variable', () {
       expect(types(build(Mode.variable, full())),
-          [FlowBlock, MonthsBlock, SpendBlock, RunwayBlock, StreakBlock]);
+          [FlowBlock, MonthsBlock, SpendBlock, RunwayBlock, StreakBlock, ReadingBlock]);
     });
 
     test('Supervivencia: reserva alto primero, meses al fondo', () {
       final s = build(Mode.survival, full());
-      expect(types(s), [RunwayBlock, StreakBlock, SuggestedBlock, SpendBlock, MonthsBlock]);
+      expect(types(s), [RunwayBlock, StreakBlock, SuggestedBlock, SpendBlock, MonthsBlock, ReadingBlock]);
       expect((s.blocks.first as RunwayBlock).tall, isTrue);
     });
 

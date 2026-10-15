@@ -15,6 +15,7 @@ import '../domain/recurrence.dart';
 import '../features/entry/draft_store.dart';
 import '../features/entry/entry_sheet.dart';
 import '../features/home/home_screen.dart';
+import '../features/insights/insights_screen.dart';
 import '../features/reminders/lifecycle.dart';
 import '../features/reminders/notifier.dart';
 import '../features/reminders/actions_sheet.dart';
@@ -23,7 +24,8 @@ import '../features/reminders/service.dart';
 
 /// Vista previa de la 4D para capturas: base en memoria, sin red.
 /// `adb shell am start -n com.saldoclar.app/.MainActivity --es route /list-dark`
-/// Variantes: home, actions, match, entry, list, new, editor, confirm, denied,
+/// Variantes: insights y suggest (5AB: 8 semanas de datos y Netflix cada 30 días),
+/// home, actions, match, entry, list, new, editor, confirm, denied,
 /// permission, notify; "-dark" para oscuro. "permission" y "notify" usan el
 /// plugin real; "notify" (Internet vencido hace 2 días) adelanta a 20 s el
 /// primer aviso pendiente, un "Pago vencido" (el texto y el toque son los reales).
@@ -63,6 +65,22 @@ Future<void> main() async {
     await add('futbol', 2000, 'ocio', 'Fulbito', Frequency.weekly, 0);
     await add('soat', 35000, 'transporte', 'SOAT', Frequency.yearly, 140);
   }
+  if (variant == 'insights' || variant == 'suggest') {
+    // 8 semanas de comida (sábados más altos), ingresos de este mes y del
+    // anterior, Netflix cada 30 días y un cine que hace subir Ocio este mes.
+    Future<void> e(String id, int cents, DateTime d, String pick, {EntryKind kind = EntryKind.expense, String? note}) =>
+        db.insertManualEntry(id: id, kind: kind, amountCents: cents, day: d, pickId: pick, note: note, now: now);
+    for (var i = 0; i < 56; i++) {
+      final d = today.subtract(Duration(days: i));
+      await e('g$i', d.weekday == DateTime.saturday ? 6500 : 2000, d, 'comida');
+    }
+    await e('in0', 250000, DateTime.utc(today.year, today.month - 1, 1), 'chamba', kind: EntryKind.income);
+    await e('in1', 250000, DateTime.utc(today.year, today.month, 1), 'chamba', kind: EntryKind.income);
+    for (final (i, ago) in [61, 31, 1].indexed) {
+      await e('nf$i', 2990, today.subtract(Duration(days: ago)), 'ocio', note: 'Netflix');
+    }
+    await e('cine', 12000, today.subtract(const Duration(days: 2)), 'ocio', note: 'cine');
+  }
   if (variant == 'match') {
     await db.insertManualEntry(
         id: 'pagado', kind: EntryKind.expense, amountCents: 4500, day: today.subtract(const Duration(days: 1)),
@@ -94,7 +112,8 @@ Future<void> main() async {
         darkTheme: AppTheme.dark,
         themeMode: dark ? ThemeMode.dark : ThemeMode.light,
         home: ReminderLifecycle(child: switch (variant) {
-          'list' => const RemindersScreen(),
+          'list' || 'suggest' => const RemindersScreen(),
+          'insights' => const InsightsScreen(),
           'actions' => _Auto(open: (c) => showReminderActions(c, reminder), child: const HomeScreen()),
           'match' => _Auto(open: (c) => payReminder(c, reminder), child: const HomeScreen()),
           'new' => _Auto(open: (c) => showEntrySheet(c, EntryKind.expense, newReminder: true), child: const RemindersScreen()),

@@ -296,6 +296,12 @@ Antes de publicar:
 - [ ] Si se piden avisos a la hora exacta: `SCHEDULE_EXACT_ALARM` (Play exige
       justificarlo).
 
+## Fase 5 (IA): pendientes
+- [x] 5AB: heurísticas (lectura del mes) y recordatorios sugeridos, sin IA (`fase-5ab`).
+- [ ] 5B-IA: Edge Function proxy, consentimiento expreso (ingresos = dato sensible,
+      Ley 29733), cambio de política y ficha de Play, tier de pago de Gemini.
+- [ ] Decidir: IA solo con cuenta o login anónimo de Supabase.
+
 ## Pendientes técnicos
 - [ ] Mutation testing completo sobre pull/engine/scheduler/push
       (27 mutantes restantes). Correr en lotes chicos (5-10 por

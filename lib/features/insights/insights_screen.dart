@@ -121,8 +121,26 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> with SingleTick
         RunwayBlock() => _Titled(key: const Key('insights.runway'), title: 'Reserva', child: _RunwayBody(b)),
         SuggestedBlock() =>
           _Titled(key: const Key('insights.suggested'), title: 'Techos sugeridos', child: _SuggestedBody(b)),
+        ReadingBlock() => _Titled(key: const Key('insights.reading'), title: 'Lectura del mes', child: _ReadingBody(b)),
         ByAccountBlock() => _Titled(key: const Key('insights.byAccount'), title: 'Por cuenta', child: _ByAccountBody(b)),
       };
+}
+
+/// Una frase por línea, en inkMuted: es una lectura, no una alerta.
+class _ReadingBody extends StatelessWidget {
+  const _ReadingBody(this.block);
+  final ReadingBlock block;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      for (final (i, line) in block.lines.indexed) ...[
+        if (i > 0) const SizedBox(height: Space.sm),
+        Text(line, style: AppType.body.copyWith(color: p.inkMuted)),
+      ],
+    ]);
+  }
 }
 
 class _ByAccountBody extends StatelessWidget {

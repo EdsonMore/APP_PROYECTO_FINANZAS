@@ -100,6 +100,35 @@ Future<void> tapNotification(WidgetTester tester, String id) async {
   await tester.pumpAndSettle();
 }
 
+/// Ajustes → Recordatorios sola, con el notificador falso y el reloj fijo
+/// (8 oct 2026, 10:00). Con [db], reabre la pantalla sobre esa misma base.
+Future<ReminderHost> pumpList(WidgetTester tester,
+    {bool granted = true, Size size = const Size(411, 914), AppDatabase? db}) async {
+  const dpr = 2.625;
+  tester.view.physicalSize = size * dpr;
+  tester.view.devicePixelRatio = dpr;
+  addTearDown(tester.view.reset);
+  final host = ReminderHost(db ?? AppDatabase(NativeDatabase.memory()), await SharedPreferences.getInstance(),
+      FakeReminderNotifier()..granted = granted);
+  if (db == null) {
+    addTearDown(host.db.close);
+    await host.db.completeOnboarding(mode: Mode.variable);
+  }
+  await tester.pumpWidget(ProviderScope(
+    overrides: [
+      databaseProvider.overrideWithValue(host.db),
+      sharedPreferencesProvider.overrideWithValue(host.prefs),
+      todayProvider.overrideWithValue(today),
+      reminderNotifierProvider.overrideWithValue(host.notifier),
+      reminderServiceProvider.overrideWith(
+          (ref) => ReminderService(host.db, host.notifier, clock: () => DateTime(2026, 10, 8, 10))),
+    ],
+    child: MaterialApp(theme: AppTheme.light, home: const RemindersScreen()),
+  ));
+  await tester.pumpAndSettle();
+  return host;
+}
+
 void main() {
   setUpAll(() async {
     await initializeDateFormatting('es_PE');
@@ -299,33 +328,6 @@ void main() {
   });
 
   group('fix3: crear y editar desde Ajustes', () {
-    /// Ajustes → Recordatorios sola, con el notificador falso y el reloj fijo
-    /// (8 oct 2026, 10:00).
-    Future<ReminderHost> pumpList(WidgetTester tester,
-        {bool granted = true, Size size = const Size(411, 914)}) async {
-      const dpr = 2.625;
-      tester.view.physicalSize = size * dpr;
-      tester.view.devicePixelRatio = dpr;
-      addTearDown(tester.view.reset);
-      final host = ReminderHost(AppDatabase(NativeDatabase.memory()), await SharedPreferences.getInstance(),
-          FakeReminderNotifier()..granted = granted);
-      addTearDown(host.db.close);
-      await host.db.completeOnboarding(mode: Mode.variable);
-      await tester.pumpWidget(ProviderScope(
-        overrides: [
-          databaseProvider.overrideWithValue(host.db),
-          sharedPreferencesProvider.overrideWithValue(host.prefs),
-          todayProvider.overrideWithValue(today),
-          reminderNotifierProvider.overrideWithValue(host.notifier),
-          reminderServiceProvider.overrideWith(
-              (ref) => ReminderService(host.db, host.notifier, clock: () => DateTime(2026, 10, 8, 10))),
-        ],
-        child: MaterialApp(theme: AppTheme.light, home: const RemindersScreen()),
-      ));
-      await tester.pumpAndSettle();
-      return host;
-    }
-
     Future<void> openNew(WidgetTester tester) async {
       await tester.ensureVisible(find.byKey(const Key('reminders.add')));
       await tester.tap(find.byKey(const Key('reminders.add')));
@@ -642,6 +644,107 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('home.due.gym')).hitTestable(), findsOneWidget, reason: 'no bajo los botones');
       await h.unmount(tester);
+    });
+  });
+
+  group('5AB: recordatorios sugeridos', () {
+    /// Internet (Vivienda) S/ 45.00, pagado el 8 de ago, sep y oct (hoy: 8 oct).
+    Future<void> threePayments(ReminderHost host, {String? note = 'Internet'}) async {
+      for (final (i, d) in [day(2026, 8, 8), day(2026, 9, 8), day(2026, 10, 8)].indexed) {
+        await host.db.insertManualEntry(
+            id: 'p$i', kind: EntryKind.expense, amountCents: 4500, day: d, pickId: 'vivienda', note: note,
+            now: DateTime(2026, 10, 8));
+      }
+    }
+
+    const card = Key('reminders.suggest.vivienda|4500');
+    const question = '¿Crear recordatorio para Internet cada mes?';
+
+    testWidgets('3 pagos mensuales: aparece la tarjeta con su texto', (tester) async {
+      final host = await pumpList(tester);
+      await threePayments(host);
+      await tester.pumpAndSettle();
+      expect(find.byKey(card), findsOneWidget);
+      expect(find.text(question), findsOneWidget);
+      expect(find.text('S/ 45.00 · el 8 de cada mes'), findsOneWidget);
+      expect(find.text('Crear'), findsOneWidget);
+      expect(find.text('No, gracias'), findsOneWidget);
+      await unmount(tester);
+    });
+
+    testWidgets('"Crear": editor precargado; al guardar existe el recordatorio y la tarjeta se va', (tester) async {
+      final host = await pumpList(tester);
+      await threePayments(host);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('reminders.suggest.create')));
+      await tester.pumpAndSettle();
+      expect(find.text('Recordatorio'), findsOneWidget);
+      expect(find.text('Guardar recordatorio'), findsOneWidget);
+      expect(find.descendant(of: find.byKey(const Key('entry.amount')), matching: find.text('S/ 45.00')), findsOneWidget);
+      expect(find.text('Cada mes'), findsOneWidget);
+      expect(find.text('dom 8 nov'), findsOneWidget, reason: 'el mismo día del mes siguiente al último pago');
+      expect(find.text('Internet'), findsOneWidget);
+      await save(tester);
+      final r = await host.db.select(host.db.recurrences).getSingle();
+      expect((r.amountCents, r.categoryId, r.note, r.frequency, r.nextDue, r.anchorDay),
+          (4500, 'vivienda', 'Internet', Frequency.monthly, '2026-11-08', 8));
+      expect(await host.db.select(host.db.entries).get(), hasLength(3), reason: 'no crea gastos');
+      expect(find.byKey(card), findsNothing);
+      await unmount(tester);
+    });
+
+    testWidgets('el próximo pago nunca queda antes de hoy', (tester) async {
+      final host = await pumpList(tester);
+      // 5 jul, 4 ago, 3 sep: el mes siguiente al último (3 oct) ya pasó → 3 nov.
+      for (final (i, d) in [day(2026, 7, 5), day(2026, 8, 4), day(2026, 9, 3)].indexed) {
+        await host.db.insertManualEntry(
+            id: 'q$i', kind: EntryKind.expense, amountCents: 3000, day: d, pickId: 'ocio', note: 'Gym',
+            now: DateTime(2026, 10, 8));
+      }
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('reminders.suggest.create')));
+      await tester.pumpAndSettle();
+      expect(find.text('mar 3 nov'), findsOneWidget);
+      await unmount(tester);
+    });
+
+    testWidgets('cerrar el editor sin guardar no crea nada y la tarjeta sigue', (tester) async {
+      final host = await pumpList(tester);
+      await threePayments(host);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('reminders.suggest.create')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('entry.close')));
+      await tester.pumpAndSettle();
+      expect(await host.db.select(host.db.recurrences).get(), isEmpty);
+      expect(find.byKey(card), findsOneWidget);
+      await unmount(tester);
+    });
+
+    testWidgets('H5 "No, gracias": se va y no vuelve (queda en el teléfono)', (tester) async {
+      final host = await pumpList(tester);
+      await threePayments(host);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('reminders.suggest.dismiss')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(card), findsNothing);
+      expect(host.prefs.getStringList('reminders.dismissedSuggestions'), ['vivienda|4500']);
+      await unmount(tester);
+      await pumpList(tester, db: host.db);
+      expect(find.byKey(card), findsNothing, reason: 'al volver a la pantalla sigue oculta');
+      await unmount(tester);
+    });
+
+    testWidgets('sin nota usa la categoría; con un recordatorio igual, no aparece', (tester) async {
+      final host = await pumpList(tester);
+      await threePayments(host, note: null);
+      await tester.pumpAndSettle();
+      expect(find.text('¿Crear recordatorio para Vivienda cada mes?'), findsOneWidget);
+      await host.db.insertRecurrence(
+          id: 'r1', amountCents: 4500, categoryId: 'vivienda', frequency: Frequency.monthly, firstDue: day(2026, 11, 8));
+      await tester.pumpAndSettle();
+      expect(find.byKey(card), findsNothing);
+      await unmount(tester);
     });
   });
 }
