@@ -33,6 +33,11 @@ Deno.test("renderFacts: los …Cents se escriben como S/ para el modelo", () => 
   });
 });
 
+Deno.test("renderFacts conserva el signo: un neto negativo no parece sobrante", () => {
+  eq(renderFacts({ netCents: -20000, months: [{ netCents: 5000 }] }), { netCents: "-S/ 200.00", months: [{ netCents: "S/ 50.00" }] });
+  eq(validateAmounts("Ese mes cerraste en -S/ 200.00.", allowedCents({ netCents: -20000 })), true);
+});
+
 Deno.test("checkBody: lo válido pasa", () => {
   eq(checkBody({ question: "cut", facts: { a: 1 }, consentVersion: 1 }), null);
   eq(checkBody({ question: "can_spend", facts: {}, input: { amountCents: 4500, item: "zapatillas" }, consentVersion: 1 }), null);

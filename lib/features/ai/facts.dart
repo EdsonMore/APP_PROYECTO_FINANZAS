@@ -101,19 +101,21 @@ List<({String categoryId, int total, int count})> _byCategory30(FactsSource s) {
     ..sort((a, b) => b.total.compareTo(a.total));
 }
 
-/// Meses cerrados con la misma regla que "Tus meses" (incomeByClosedMonth):
-/// solo cuenta un mes si los datos lo cubren desde el día 1.
-List<({DateTime month, int income, int expense})> _closedMonths(FactsSource s, int months) {
-  final income = incomeByClosedMonth(s.movements, today: s.today, months: months);
+/// Meses cerrados, como mucho los últimos [months], desde el mes del primer
+/// movimiento. A diferencia de "Tus meses", el primero cuenta aunque empiece a
+/// mitad (partial): si no, quien empezó un 10 llegaba sin meses (fase-5c-chat-fix).
+List<({DateTime month, int income, int expense, bool partial})> _closedMonths(FactsSource s, int months) {
+  final first = firstDay(s.movements, today: s.today);
+  if (first == null) return const [];
+  final start = DateTime.utc(first.year, first.month);
+  final earliest = DateTime.utc(s.today.year, s.today.month - months);
+  final current = DateTime.utc(s.today.year, s.today.month);
+  int sum(DateTime m, EntryKind kind) => s.movements
+      .where((x) => x.kind == kind && x.day.year == m.year && x.day.month == m.month)
+      .fold(0, (a, x) => a + x.cents);
   return [
-    for (final i in income)
-      (
-        month: i.month,
-        income: i.cents,
-        expense: s.movements
-            .where((m) => m.kind == EntryKind.expense && m.day.year == i.month.year && m.day.month == i.month.month)
-            .fold(0, (a, m) => a + m.cents),
-      ),
+    for (var m = start.isAfter(earliest) ? start : earliest; m.isBefore(current); m = DateTime.utc(m.year, m.month + 1))
+      (month: m, income: sum(m, EntryKind.income), expense: sum(m, EntryKind.expense), partial: m == start && first.day != 1),
   ];
 }
 
@@ -191,14 +193,27 @@ Map<String, Object?> factsFor(AiQuestion q, FactsSource s, {int? amountCents}) {
     case AiQuestion.save:
       final months = _closedMonths(s, 6);
       final surplus = [for (final m in months) if (m.income - m.expense > 0) m.income - m.expense];
+      final income30 = avgIncome30(s.movements, today: s.today, opening: s.opening);
+      final expense30 = avgExpense30(s.movements, today: s.today, opening: s.opening);
       return {
         ...base,
         'months': [
           for (final m in months)
-            {'month': _ym(m.month), 'incomeCents': m.income, 'expenseCents': m.expense, 'netCents': m.income - m.expense},
+            {
+              'month': _ym(m.month),
+              'incomeCents': m.income,
+              'expenseCents': m.expense,
+              'netCents': m.income - m.expense,
+              if (m.partial) 'partial': true,
+            },
         ],
         if (surplus.isNotEmpty) 'avgSurplusCents': (surplus.reduce((a, c) => a + c) / surplus.length).round(),
+        'surplusMonths': surplus.length,
         'redMonths': months.where((m) => m.income < m.expense).length,
+        // Sin meses cerrados (empezó este mes), la referencia sale de los últimos 30 días.
+        'avgIncome30Cents': income30,
+        'avgExpense30Cents': expense30,
+        'net30Cents': income30 - expense30,
         if (months.isNotEmpty)
           'tenPercentIncomeCents': (months.fold(0, (a, m) => a + m.income) / months.length * 0.1).round(),
         'runwayDays': ?_runwayDays(s),

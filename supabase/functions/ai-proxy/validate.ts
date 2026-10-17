@@ -40,9 +40,9 @@ export function checkBody(b: unknown): string | null {
   return null;
 }
 
-/** "S/ 1,234.56" en céntimos. */
+/** "S/ 1,234.56" en céntimos; negativo, "-S/ 200.00" (un mes en rojo no puede parecer sobrante). */
 export function soles(cents: number): string {
-  return "S/ " + (Math.abs(cents) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (cents < 0 ? "-" : "") + "S/ " + (Math.abs(cents) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /** Montos "S/ …" de un texto, en céntimos (sin signo). Días y porcentajes no cuentan. */

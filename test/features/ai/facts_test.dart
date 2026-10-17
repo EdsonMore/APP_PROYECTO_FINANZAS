@@ -121,7 +121,29 @@ void main() {
       {'month': '2026-08', 'incomeCents': 100000, 'expenseCents': 80000, 'netCents': 20000},
       {'month': '2026-09', 'incomeCents': 100000, 'expenseCents': 120000, 'netCents': -20000},
     ]);
-    expect((f['avgSurplusCents'], f['redMonths'], f['tenPercentIncomeCents']), (20000, 1, 10000));
+    expect((f['avgSurplusCents'], f['surplusMonths'], f['redMonths'], f['tenPercentIncomeCents']), (20000, 1, 1, 10000));
+  });
+
+  test('save: el primer mes cuenta aunque empiece a mitad (marcado partial); el bug era months vacío', () {
+    // Caso real: empezó a usar la app el 10 de septiembre; hoy es 17 de octubre.
+    final s = src([
+      inc(2500, day(2026, 9, 10)), out(300, day(2026, 9, 12)), out(400, day(2026, 9, 25)),
+      inc(2500, day(2026, 10, 5)), out(200, day(2026, 10, 8)),
+    ], day(2026, 10, 17));
+    final f = factsFor(AiQuestion.save, s);
+    expect(f['months'], [
+      {'month': '2026-09', 'incomeCents': 250000, 'expenseCents': 70000, 'netCents': 180000, 'partial': true},
+    ]);
+    expect((f['avgSurplusCents'], f['surplusMonths'], f['redMonths']), (180000, 1, 0));
+  });
+
+  test('save: sin meses cerrados igual lleva los promedios de 30 días', () {
+    final s = src([inc(2500, day(2026, 10, 5)), out(200, day(2026, 10, 8))], day(2026, 10, 17));
+    final f = factsFor(AiQuestion.save, s);
+    expect(f['months'], isEmpty);
+    expect((f['avgIncome30Cents'], f['avgExpense30Cents'], f['net30Cents']), (576923, 46154, 530769),
+        reason: '13 días desde el 5: 2500 · 30 / 13 y 200 · 30 / 13');
+    expect(f.containsKey('avgSurplusCents'), isFalse);
   });
 
   test('pay_first: vencidos y a 7 días o menos (como "Por pagar"), total y lo que falta', () {

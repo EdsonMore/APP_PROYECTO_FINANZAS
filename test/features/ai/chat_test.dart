@@ -188,6 +188,22 @@ void main() {
     await unmount(tester);
   });
 
+  testWidgets('save con 2 meses de datos (desde el 10 de septiembre): el paquete lleva months', (tester) async {
+    final host = await pumpChat(tester);
+    await host.db.insertManualEntry(
+        id: 's1', kind: EntryKind.income, amountCents: 250000, day: day(2026, 9, 10), pickId: 'chamba', now: DateTime(2026, 9, 10));
+    await host.db.insertManualEntry(
+        id: 's2', kind: EntryKind.expense, amountCents: 70000, day: day(2026, 9, 12), pickId: 'comida', now: DateTime(2026, 9, 12));
+    await tester.pumpAndSettle();
+    await tapQ(tester, AiQuestion.save);
+    final facts = host.client.sent.single['facts']! as Map;
+    expect(facts['months'], [
+      {'month': '2026-09', 'incomeCents': 250000, 'expenseCents': 70000, 'netCents': 180000, 'partial': true},
+    ]);
+    expect((facts['surplusMonths'], facts['redMonths'], facts['avgSurplusCents']), (1, 0, 180000));
+    await unmount(tester);
+  });
+
   testWidgets('primer envío sin consentimiento: "Ahora no" no envía; aceptar envía', (tester) async {
     final host = await pumpChat(tester, consented: false);
     await tapQ(tester, AiQuestion.cut);

@@ -26,8 +26,9 @@ const TEMPLATES: Record<Question, (input: Input) => string> = {
   break_even: () =>
     "Pregunta: ¿Cuánto necesito ganar para cubrir mis gastos? Separa pagos fijos y gastos variables con DATOS y di la meta.",
   save: () =>
-    "Pregunta: ¿Cuánto debería ahorrar cada mes? Propón una referencia con DATOS (meses con sobrante y meses en rojo). " +
-    "Preséntala como una referencia, no como una regla.",
+    "Pregunta: ¿Cuánto debería ahorrar cada mes? Propón una referencia con DATOS: months son los meses cerrados " +
+    "(netCents negativo = mes en rojo; partial = empezó a mitad de mes), surplusMonths y redMonths los cuentan. " +
+    "Si months está vacío, usa net30Cents (últimos 30 días). Preséntala como una referencia, no como una regla.",
   pay_first: () =>
     "Pregunta: ¿Qué me conviene pagar primero? Ordena los pagos pendientes de DATOS: primero lo esencial (vivienda, servicios, salud) " +
     "y lo más atrasado. Explica el orden en una frase.",
