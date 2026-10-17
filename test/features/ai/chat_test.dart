@@ -204,6 +204,19 @@ void main() {
     await unmount(tester);
   });
 
+  testWidgets('break_even con datos desde el 10 de septiembre: incomeByMonth lleva septiembre parcial', (tester) async {
+    final host = await pumpChat(tester);
+    await host.db.insertManualEntry(
+        id: 'b1', kind: EntryKind.income, amountCents: 250000, day: day(2026, 9, 10), pickId: 'chamba', now: DateTime(2026, 9, 10));
+    await tester.pumpAndSettle();
+    await tapQ(tester, AiQuestion.breakEven);
+    final facts = host.client.sent.single['facts']! as Map;
+    expect(facts['incomeByMonth'], [
+      {'month': '2026-09', 'incomeCents': 250000, 'partial': true},
+    ]);
+    await unmount(tester);
+  });
+
   testWidgets('primer envío sin consentimiento: "Ahora no" no envía; aceptar envía', (tester) async {
     final host = await pumpChat(tester, consented: false);
     await tapQ(tester, AiQuestion.cut);

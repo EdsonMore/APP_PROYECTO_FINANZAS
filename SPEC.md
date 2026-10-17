@@ -352,7 +352,7 @@ en `lib/features/ai/`. Configuración manual: `docs/ia/configurar-ai-proxy.md`.
   que la respuesta puede necesitar (C4): la mitad por categoría, el total
   pendiente y lo que falta, la meta +10%, lo que queda por día tras gastar X.
   Sin notas (C3: los pagos van por categoría), correo, ids ni movimientos
-  sueltos. En "ahorrar", los meses cerrados desde el mes del primer movimiento (el primero, aunque empiece a mitad, va con `partial`), cuántos con sobrante y en rojo, y el neto de 30 días por si aún no hay meses cerrados (fase-5c-chat-fix). La función escribe los negativos como "-S/ …".
+  sueltos. En "ahorrar" y "cuánto necesito ganar", los meses cerrados desde el mes del primer movimiento (el primero, aunque empiece a mitad, va con `partial`), cuántos con sobrante y en rojo, y el neto de 30 días por si aún no hay meses cerrados (fase-5c-chat-fix). La función escribe los negativos como "-S/ …".
 - **Respuestas y errores:** burbuja con el texto; el contador se actualiza con
   `left`. Sin red, "no respondió" y "no pude responder con tus números" llevan
   "Reintentar" (reenvía la misma pregunta; las fallidas no cuentan); sesión

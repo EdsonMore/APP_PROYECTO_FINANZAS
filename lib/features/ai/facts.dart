@@ -103,7 +103,7 @@ List<({String categoryId, int total, int count})> _byCategory30(FactsSource s) {
 
 /// Meses cerrados, como mucho los últimos [months], desde el mes del primer
 /// movimiento. A diferencia de "Tus meses", el primero cuenta aunque empiece a
-/// mitad (partial): si no, quien empezó un 10 llegaba sin meses (fase-5c-chat-fix).
+/// mitad (partial): si no, quien empezó un 10 llegaba sin meses (save y break_even).
 List<({DateTime month, int income, int expense, bool partial})> _closedMonths(FactsSource s, int months) {
   final first = firstDay(s.movements, today: s.today);
   if (first == null) return const [];
@@ -170,8 +170,8 @@ Map<String, Object?> factsFor(AiQuestion q, FactsSource s, {int? amountCents}) {
         'targetComfortCents': (expense * 1.1).round(),
         'avgIncome30Cents': avgIncome30(s.movements, today: s.today, window: 90, opening: s.opening),
         'incomeByMonth': [
-          for (final m in incomeByClosedMonth(s.movements, today: s.today, months: 3))
-            {'month': _ym(m.month), 'incomeCents': m.cents},
+          for (final m in _closedMonths(s, 3))
+            {'month': _ym(m.month), 'incomeCents': m.income, if (m.partial) 'partial': true},
         ],
       };
     case AiQuestion.cut:

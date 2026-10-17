@@ -87,6 +87,26 @@ void main() {
         {'month': '2026-09', 'incomeCents': 120000},
       ]);
     });
+
+    test('incomeByMonth: el primer mes cuenta aunque empiece a mitad (partial), como en save', () {
+      // Caso real: empezó a usar la app el 10 de septiembre; hoy es 17 de octubre.
+      final s = src([inc(2500, day(2026, 9, 10)), out(300, day(2026, 9, 12)), inc(2500, day(2026, 10, 5))], day(2026, 10, 17));
+      expect(factsFor(AiQuestion.breakEven, s)['incomeByMonth'], [
+        {'month': '2026-09', 'incomeCents': 250000, 'partial': true},
+      ]);
+    });
+
+    test('incomeByMonth: como mucho los 3 últimos meses cerrados; el viejo no lleva partial', () {
+      final s = src([
+        inc(100, day(2026, 5, 20)),
+        for (var m = 6; m <= 9; m++) inc(m * 100, day(2026, m, 3)),
+      ], day(2026, 10, 17));
+      expect(factsFor(AiQuestion.breakEven, s)['incomeByMonth'], [
+        {'month': '2026-07', 'incomeCents': 70000},
+        {'month': '2026-08', 'incomeCents': 80000},
+        {'month': '2026-09', 'incomeCents': 90000},
+      ]);
+    });
   });
 
   test('cut: 30 días por categoría, de mayor a menor, con la mitad y si es fija', () {
