@@ -204,7 +204,7 @@ void main() {
       });
       expect(aiRequestBody(AiQuestion.cut, const {}), {'question': 'cut', 'facts': {}, 'consentVersion': aiConsentVersion});
       expect([for (final q in AiQuestion.values) q.wire],
-          ['cut', 'can_spend', 'what_if', 'break_even', 'save', 'pay_first', 'free'], reason: 'los mismos ids que la función');
+          ['cut', 'can_spend', 'what_if', 'break_even', 'save', 'pay_first', 'can_afford_installment', 'free'], reason: 'los mismos ids que la función');
       expect(aiRequestBody(AiQuestion.free, const {}, text: '¿Voy bien?'),
           {'question': 'free', 'facts': {}, 'input': {'text': '¿Voy bien?'}, 'consentVersion': aiConsentVersion});
     });

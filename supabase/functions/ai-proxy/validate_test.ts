@@ -55,6 +55,11 @@ Deno.test("checkBody: rechaza pregunta desconocida, hechos grandes, item largo, 
   eq(checkBody(null), "body");
 });
 
+Deno.test("checkBody: can_afford_installment exige el monto de la cuota", () => {
+  eq(checkBody({ question: "can_afford_installment", facts: {}, input: { amountCents: 10000 }, consentVersion: 1 }), null);
+  eq(checkBody({ question: "can_afford_installment", facts: {}, consentVersion: 1 }), "amount");
+});
+
 Deno.test("checkBody (5C-Chat): free exige texto de 1 a 200 caracteres", () => {
   eq(checkBody({ question: "free", facts: {}, input: { text: "¿Voy bien este mes?" }, consentVersion: 1 }), null);
   eq(checkBody({ question: "free", facts: {}, consentVersion: 1 }), "text");

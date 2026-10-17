@@ -24,7 +24,7 @@ import '../features/sync/providers.dart';
 /// `adb shell am start -n com.saldoclar.app/.MainActivity --es route /consent`
 /// Variantes: consent, noaccount, settings (IA sin activar), settings-on,
 /// deactivate, chat (3 usadas), chat-low (8 usadas: contador en rojo),
-/// chat-limit (10 usadas); "-dark" para oscuro.
+/// chat-limit (10 usadas), chat-cuota (respuesta de la cuota); "-dark" para oscuro.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es_PE');
@@ -66,10 +66,15 @@ Future<void> main() async {
       'chat-limit' => 10,
       _ => 3,
     }
-    ..next = const AiAnswer(
-        'Con cuidado: después de la compra te quedarían S/ 42.94 al día, y en 2 días vence Vivienda por S/ 45.00. '
-        'Si las zapatillas pueden esperar a tu próximo ingreso, mejor.',
-        6);
+    ..next = variant == 'chat-cuota'
+        ? const AiAnswer(
+            'Sí: con un ingreso promedio de S/ 2,500.00 y un gasto de S/ 1,800.00 al mes, '
+            'después de la cuota te sobrarían S/ 600.00 al mes.',
+            6)
+        : const AiAnswer(
+            'Con cuidado: después de la compra te quedarían S/ 42.94 al día, y en 2 días vence Vivienda por S/ 45.00. '
+            'Si las zapatillas pueden esperar a tu próximo ingreso, mejor.',
+            6);
 
   runApp(ProviderScope(
     overrides: [

@@ -344,7 +344,11 @@ en `lib/features/ai/`. Configuración manual: `docs/ia/configurar-ai-proxy.md`.
   propio y "¿En qué?"), "¿Qué pasaría si gasto S/ X más al mes?" (monto),
   "¿Cuánto necesito ganar para cubrir mis gastos?", "¿Qué puedo recortar sin
   que se sienta?", "¿Cuánto debería ahorrar cada mes?" y "¿Qué me conviene
-  pagar primero?" (solo con 2 o más pagos como en "Por pagar", C5).
+  pagar primero?" (solo con 2 o más pagos como en "Por pagar", C5) y "¿Puedo
+  asumir una cuota mensual de S/ X?" (hoja "¿Cuánto es la cuota?"; burbuja "¿Puedo
+  asumir una cuota de S/ 100.00?"; `can_afford_installment` con ingreso y gasto de
+  30 días, y `leftoverCents` o `shortfallCents` = ingreso - gasto - cuota,
+  fase-5c-chat-fix3).
 - **Pregunta libre (C1-A):** `question: "free"`, el texto como dato; la función
   responde solo sobre las finanzas ("Solo puedo ayudarte con tus finanzas en
   SaldoClaro.").

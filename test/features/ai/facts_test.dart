@@ -166,6 +166,28 @@ void main() {
     expect(f.containsKey('avgSurplusCents'), isFalse);
   });
 
+  group('can_afford_installment', () {
+    // Ingreso 2500 y gasto 1800 en los últimos 30 días (del 1 al 30 de octubre).
+    final s = src([inc(2500, day(2026, 10, 1)), out(1800, day(2026, 10, 1))], day(2026, 10, 30));
+
+    test('cuota de 100: sobran 600 (2500 - 1800 - 100)', () {
+      final f = factsFor(AiQuestion.installment, s, amountCents: 10000);
+      expect([for (final k in ['amountCents', 'avgIncome30Cents', 'avgExpense30Cents', 'monthlyNetCents', 'leftoverCents']) f[k]],
+          [10000, 250000, 180000, 70000, 60000]);
+      expect(f.containsKey('shortfallCents'), isFalse);
+    });
+
+    test('cuota de 800: faltan 100', () {
+      final f = factsFor(AiQuestion.installment, s, amountCents: 80000);
+      expect(f['shortfallCents'], 10000);
+      expect(f.containsKey('leftoverCents'), isFalse);
+    });
+
+    test('cuota justa: sobra 0 (alcanza)', () {
+      expect(factsFor(AiQuestion.installment, s, amountCents: 70000)['leftoverCents'], 0);
+    });
+  });
+
   test('pay_first: vencidos y a 7 días o menos (como "Por pagar"), total y lo que falta', () {
     final s = src([inc(100, day(2026, 10, 1))], day(2026, 10, 15), reminders: [
       rem('salud', 8700, day(2026, 10, 20)),

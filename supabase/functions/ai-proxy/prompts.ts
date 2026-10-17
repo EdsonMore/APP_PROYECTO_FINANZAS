@@ -32,6 +32,10 @@ const TEMPLATES: Record<Question, (input: Input) => string> = {
   pay_first: () =>
     "Pregunta: ¿Qué me conviene pagar primero? Ordena los pagos pendientes de DATOS: primero lo esencial (vivienda, servicios, salud) " +
     "y lo más atrasado. Explica el orden en una frase.",
+  can_afford_installment: (i) =>
+    `Pregunta: ¿Puedo asumir una cuota mensual de ${soles(i.amountCents!)}? Si DATOS trae leftoverCents, alcanza: ` +
+    "di cuánto le sobraría al mes. Si trae shortfallCents, no alcanza: di cuánto le faltaría al mes. " +
+    "Explica con el ingreso y el gasto promedio de 30 días. No recomiendes créditos ni entidades.",
   free: (i) =>
     `Pregunta de la persona: <pregunta>${clean(i.text, "")}</pregunta> ` +
     "Responde solo si es sobre sus finanzas, usando DATOS. Si es sobre otra cosa, responde exactamente: " +

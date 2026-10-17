@@ -4,12 +4,12 @@
 /** Versión del consentimiento vigente. La app manda la que el usuario aceptó (I5). */
 export const CONSENT_VERSION = 1;
 
-/** Las 6 de v1 y la pregunta libre (5C-Chat, C1-A). */
-export const QUESTIONS = ["cut", "can_spend", "what_if", "break_even", "save", "pay_first", "free"] as const;
+/** Las 6 de v1, la cuota y la pregunta libre (5C-Chat, C1-A). */
+export const QUESTIONS = ["cut", "can_spend", "what_if", "break_even", "save", "pay_first", "can_afford_installment", "free"] as const;
 export type Question = (typeof QUESTIONS)[number];
 
 /** Preguntas que traen un monto escrito por el usuario. */
-const WITH_AMOUNT: readonly Question[] = ["can_spend", "what_if"];
+const WITH_AMOUNT: readonly Question[] = ["can_spend", "what_if", "can_afford_installment"];
 
 const MAX_FACTS_BYTES = 8192;
 const MAX_ITEM = 40;

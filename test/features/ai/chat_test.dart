@@ -217,6 +217,31 @@ void main() {
     await unmount(tester);
   });
 
+  testWidgets('cuota: hoja "¿Cuánto es la cuota?" sin "¿En qué?"; burbuja y lo enviado', (tester) async {
+    final host = await pumpChat(tester);
+    expect(find.text('¿Puedo asumir una cuota mensual de S/ X?'), findsOneWidget);
+    await tapQ(tester, AiQuestion.installment);
+    expect(find.text('¿Cuánto es la cuota?'), findsOneWidget);
+    expect(find.byKey(const Key('ai.amount.item')), findsNothing);
+    await keys(tester, '100');
+    await tester.tap(find.byKey(const Key('ai.amount.ask')));
+    await tester.pumpAndSettle();
+    expect(find.text('¿Puedo asumir una cuota de S/ 100.00?'), findsOneWidget);
+    final sent = host.client.sent.single;
+    expect(sent['question'], 'can_afford_installment');
+    expect(sent['input'], {'amountCents': 10000});
+    // S/ 900 en 15 días: S/ 1,800 cada 30, sin gastos; menos la cuota.
+    expect((sent['facts']! as Map)['leftoverCents'], 170000);
+    await unmount(tester);
+  });
+
+  testWidgets('las otras hojas de monto siguen diciendo "¿Cuánto?"', (tester) async {
+    await pumpChat(tester);
+    await tapQ(tester, AiQuestion.whatIf);
+    expect(find.text('¿Cuánto?'), findsOneWidget);
+    await unmount(tester);
+  });
+
   testWidgets('primer envío sin consentimiento: "Ahora no" no envía; aceptar envía', (tester) async {
     final host = await pumpChat(tester, consented: false);
     await tapQ(tester, AiQuestion.cut);

@@ -90,6 +90,15 @@ Deno.test("el prompt usa la plantilla y los montos ya escritos como S/; el item 
   eq(calls.gemini[0].body.generationConfig, { temperature: 0.3, maxOutputTokens: 400 });
 });
 
+Deno.test("cuota: la plantilla lleva el monto y pide usar lo que sobra o falta de DATOS", async () => {
+  const { deps, calls } = fake({ answers: ["Sí: te sobrarían S/ 850.00."] });
+  const r = await makeHandler(deps)(post(body({ question: "can_afford_installment", input: { amountCents: 10000 } })));
+  eq(r.status, 200);
+  const text = calls.gemini[0].body.contents[0].parts[0].text as string;
+  eq(text.includes("¿Puedo asumir una cuota mensual de S/ 100.00?"), true, text);
+  eq(text.includes("leftoverCents") && text.includes("shortfallCents"), true, text);
+});
+
 Deno.test("monto inventado: reintenta una vez; si se corrige, éxito con un solo registro", async () => {
   const { deps, calls } = fake({ answers: ["Ahorras S/ 123.00.", "Te quedan S/ 850.00."] });
   const r = await makeHandler(deps)(post(body()));

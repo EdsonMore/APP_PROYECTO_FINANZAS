@@ -13,7 +13,7 @@ import 'consent.dart';
 import 'facts.dart';
 import 'usage.dart';
 
-/// Las predefinidas, en el orden de la lista (las 6 de v1).
+/// Las predefinidas, en el orden de la lista (las 6 de v1 y la cuota).
 const aiQuestionLabels = {
   AiQuestion.canSpend: '¿Puedo gastar S/ X en algo?',
   AiQuestion.whatIf: '¿Qué pasaría si gasto S/ X más al mes?',
@@ -21,6 +21,7 @@ const aiQuestionLabels = {
   AiQuestion.cut: '¿Qué puedo recortar sin que se sienta?',
   AiQuestion.save: '¿Cuánto debería ahorrar cada mes?',
   AiQuestion.payFirst: '¿Qué me conviene pagar primero?',
+  AiQuestion.installment: '¿Puedo asumir una cuota mensual de S/ X?',
 };
 
 /// Una consulta: lo que se muestra y lo que se manda (para "Reintentar").
@@ -73,8 +74,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     if (!await ensureAiConsent(context) || !mounted) return;
     int? amount;
     String? item;
-    if (q == AiQuestion.canSpend || q == AiQuestion.whatIf) {
-      final r = await showAiAmountSheet(context, withItem: q == AiQuestion.canSpend);
+    if (q == AiQuestion.canSpend || q == AiQuestion.whatIf || q == AiQuestion.installment) {
+      final r = await showAiAmountSheet(context,
+          withItem: q == AiQuestion.canSpend, title: q == AiQuestion.installment ? '¿Cuánto es la cuota?' : '¿Cuánto?');
       if (r == null || !mounted) return;
       amount = r.cents;
       item = q == AiQuestion.canSpend ? r.item : null;
@@ -82,6 +84,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     final shown = switch (q) {
       AiQuestion.canSpend => '¿Puedo gastar ${Formatters.soles(amount!)} en ${item ?? 'algo'}?',
       AiQuestion.whatIf => '¿Qué pasaría si gasto ${Formatters.soles(amount!)} más al mes?',
+      AiQuestion.installment => '¿Puedo asumir una cuota de ${Formatters.soles(amount!)}?',
       _ => aiQuestionLabels[q]!,
     };
     await _send((q: q, shown: shown, amount: amount, item: item, text: null));
@@ -421,19 +424,21 @@ class _WaitingState extends State<_Waiting> with SingleTickerProviderStateMixin 
   }
 }
 
-/// "¿Cuánto?" con el teclado propio de la app; en "¿Puedo gastar…?", también "¿En qué?".
-Future<({int cents, String? item})?> showAiAmountSheet(BuildContext context, {required bool withItem}) =>
+/// "¿Cuánto?" ([title]) con el teclado propio de la app; en "¿Puedo gastar…?", también "¿En qué?".
+Future<({int cents, String? item})?> showAiAmountSheet(BuildContext context,
+        {required bool withItem, String title = '¿Cuánto?'}) =>
     showModalBottomSheet<({int cents, String? item})>(
       context: context,
       useSafeArea: true,
       isScrollControlled: true,
       showDragHandle: false,
-      builder: (_) => _AmountSheet(withItem: withItem),
+      builder: (_) => _AmountSheet(withItem: withItem, title: title),
     );
 
 class _AmountSheet extends StatefulWidget {
-  const _AmountSheet({required this.withItem});
+  const _AmountSheet({required this.withItem, required this.title});
   final bool withItem;
+  final String title;
 
   @override
   State<_AmountSheet> createState() => _AmountSheetState();
@@ -461,7 +466,7 @@ class _AmountSheetState extends State<_AmountSheet> {
           padding: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.lg),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             const SheetGrabber(),
-            Semantics(header: true, child: Text('¿Cuánto?', style: AppType.title.copyWith(color: p.ink))),
+            Semantics(header: true, child: Text(widget.title, style: AppType.title.copyWith(color: p.ink))),
             const SizedBox(height: Space.sm),
             AmountDisplay(amount: _amount),
             if (widget.withItem) ...[

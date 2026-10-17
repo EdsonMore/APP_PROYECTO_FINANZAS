@@ -227,6 +227,18 @@ Map<String, Object?> factsFor(AiQuestion q, FactsSource s, {int? amountCents}) {
         'pendingTotalCents': total,
         'shortfallCents': math.max(0, total - math.max(0, b)),
       };
+    case AiQuestion.installment:
+      final income = avgIncome30(s.movements, today: s.today, opening: s.opening);
+      final expense = avgExpense30(s.movements, today: s.today, opening: s.opening);
+      final margin = income - expense - x;
+      return {
+        ...base,
+        'amountCents': x,
+        'avgIncome30Cents': income,
+        'avgExpense30Cents': expense,
+        'monthlyNetCents': income - expense,
+        if (margin >= 0) 'leftoverCents': margin else 'shortfallCents': -margin,
+      };
     case AiQuestion.free:
       return {
         ...base,

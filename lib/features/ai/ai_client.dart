@@ -19,6 +19,7 @@ enum AiQuestion {
   breakEven('break_even'),
   save('save'),
   payFirst('pay_first'),
+  installment('can_afford_installment'),
   free('free');
 
   const AiQuestion(this.wire);
